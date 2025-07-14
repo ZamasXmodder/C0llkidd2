@@ -1,270 +1,309 @@
--- Panel con Teletransporte para Steal a Brainbot - Corregido
+-- Panel para Steal a Brainrot - Roblox
+-- Advertencia: Usar bajo tu propia responsabilidad
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Variables
-local antiDetectionEnabled = false
-local autoCollectEnabled = false
-local autoCollectConnection
-local savedPosition = nil
+-- Variables principales
+local panel = nil
+local isVisible = false
+local autoStealEnabled = false
+local autoStealConnection = nil
 
--- Crear GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TeleportPanel"
-screenGui.Parent = playerGui
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 280, 0, 220)
-mainFrame.Position = UDim2.new(0, 50, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = mainFrame
-
--- Título
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-title.BorderSizePixel = 0
-title.Text = "🤖 Brainbot Teleport"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.Parent = mainFrame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 8)
-titleCorner.Parent = title
-
--- Función para crear botones
-local function createButton(text, yPos, callback)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 25)
-    button.Position = UDim2.new(0, 10, 0, yPos)
-    button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    button.BorderSizePixel = 0
-    button.Text = text
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextScaled = true
-    button.Font = Enum.Font.Gotham
-    button.Parent = mainFrame
+-- Función para crear la interfaz
+local function createPanel()
+    -- ScreenGui principal
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "BrainrotPanel"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = playerGui
     
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 4)
-    buttonCorner.Parent = button
+    -- Frame principal
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.Parent = screenGui
     
-    button.MouseButton1Click:Connect(callback)
-    return button
+    -- Esquinas redondeadas
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = mainFrame
+    
+    -- Título
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.Size = UDim2.new(1, 0, 0, 40)
+    titleLabel.Position = UDim2.new(0, 0, 0, 0)
+    titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    titleLabel.BorderSizePixel = 0
+    titleLabel.Text = "🧠 Brainrot Stealer Panel"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = mainFrame
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 10)
+    titleCorner.Parent = titleLabel
+    
+    -- Botón cerrar
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0, 30, 0, 30)
+    closeButton.Position = UDim2.new(1, -35, 0, 5)
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    closeButton.BorderSizePixel = 0
+    closeButton.Text = "X"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextScaled = true
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.Parent = mainFrame
+    
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 5)
+    closeCorner.Parent = closeButton
+    
+    -- Contenedor de botones
+    local buttonContainer = Instance.new("Frame")
+    buttonContainer.Name = "ButtonContainer"
+    buttonContainer.Size = UDim2.new(1, -20, 1, -60)
+    buttonContainer.Position = UDim2.new(0, 10, 0, 50)
+    buttonContainer.BackgroundTransparency = 1
+    buttonContainer.Parent = mainFrame
+    
+    -- Layout para botones
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Padding = UDim.new(0, 10)
+    listLayout.Parent = buttonContainer
+    
+    -- Función para crear botones
+    local function createButton(text, color, callback)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, 0, 0, 40)
+        button.BackgroundColor3 = color
+        button.BorderSizePixel = 0
+        button.Text = text
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.TextScaled = true
+        button.Font = Enum.Font.Gotham
+        button.Parent = buttonContainer
+        
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 5)
+        buttonCorner.Parent = button
+        
+        button.MouseButton1Click:Connect(callback)
+        
+        return button
+    end
+    
+    -- Botones principales
+    local stealAllButton = createButton("🎯 Steal All Brainrots", Color3.fromRGB(50, 150, 50), function()
+        stealAllBrainrots()
+    end)
+    
+    local autoStealButton = createButton("🔄 Auto Steal: OFF", Color3.fromRGB(100, 100, 100), function()
+        toggleAutoSteal()
+        autoStealButton.Text = autoStealEnabled and "🔄 Auto Steal: ON" or "🔄 Auto Steal: OFF"
+        autoStealButton.BackgroundColor3 = autoStealEnabled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(100, 100, 100)
+    end)
+    
+    local teleportButton = createButton("📍 Teleport to Brainrots", Color3.fromRGB(50, 100, 200), function()
+        teleportToBrainrots()
+    end)
+    
+    local speedButton = createButton("⚡ Speed Boost", Color3.fromRGB(200, 150, 50), function()
+        toggleSpeed()
+    end)
+    
+    local jumpButton = createButton("🦘 Jump Boost", Color3.fromRGB(150, 50, 200), function()
+        toggleJump()
+    end)
+    
+    local noclipButton = createButton("👻 Noclip", Color3.fromRGB(200, 50, 150), function()
+        toggleNoclip()
+    end)
+    
+    local espButton = createButton("👁️ Brainrot ESP", Color3.fromRGB(50, 200, 150), function()
+        toggleESP()
+    end)
+    
+    -- Evento del botón cerrar
+    closeButton.MouseButton1Click:Connect(function()
+        togglePanel()
+    end)
+    
+    return screenGui
 end
 
--- Función de teletransporte seguro
-local function safeTeleport(position)
-    local character = player.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        character.HumanoidRootPart.CFrame = CFrame.new(position)
+-- Función para robar todos los brainrots
+function stealAllBrainrots()
+    local brainrots = workspace:GetChildren()
+    for _, obj in pairs(brainrots) do
+        if obj.Name:lower():find("brainrot") or obj.Name:lower():find("brain") then
+            if obj:FindFirstChild("ClickDetector") then
+                fireclickdetector(obj.ClickDetector)
+            elseif obj:FindFirstChild("ProximityPrompt") then
+                fireproximityprompt(obj.ProximityPrompt)
+            end
+        end
     end
+    print("🧠 Intentando robar todos los brainrots...")
 end
 
--- Botón para guardar posición
-local saveBtn = createButton("💾 Save Position", 45, function()
-    local character = player.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        savedPosition = character.HumanoidRootPart.Position
-        saveBtn.Text = "💾 Position Saved!"
-        saveBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        
-        spawn(function()
-            wait(1)
-            saveBtn.Text = "💾 Save Position"
-            saveBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+-- Función para auto steal
+function toggleAutoSteal()
+    autoStealEnabled = not autoStealEnabled
+    
+    if autoStealEnabled then
+        autoStealConnection = RunService.Heartbeat:Connect(function()
+            stealAllBrainrots()
+            wait(1) -- Espera 1 segundo entre intentos
         end)
-    end
-end)
-
--- Botón para volver a posición guardada
-local returnBtn = createButton("🏠 Return to Saved", 75, function()
-    if savedPosition then
-        safeTeleport(savedPosition)
-        returnBtn.Text = "🏠 Teleported!"
-        returnBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        
-        spawn(function()
-            wait(1)
-            returnBtn.Text = "🏠 Return to Saved"
-            returnBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        end)
+        print("🔄 Auto steal activado")
     else
-        returnBtn.Text = "❌ No Position Saved"
-        returnBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        
-        spawn(function()
-            wait(1)
-            returnBtn.Text = "🏠 Return to Saved"
-            returnBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        end)
+        if autoStealConnection then
+            autoStealConnection:Disconnect()
+            autoStealConnection = nil
+        end
+        print("🔄 Auto steal desactivado")
     end
-end)
+end
 
--- Botón para teleportarse a brainbots
-local botBtn = createButton("🤖 TP to Brainbot", 105, function()
-    local nearestBot = nil
-    local shortestDistance = math.huge
-    
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and (obj.Name:lower():find("brainbot") or obj.Name:lower():find("bot")) then
-            local humanoidRootPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
-            if humanoidRootPart then
-                local distance = (player.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    nearestBot = humanoidRootPart
+-- Función para teletransportarse a brainrots
+function teleportToBrainrots()
+    local brainrots = workspace:GetChildren()
+    for _, obj in pairs(brainrots) do
+        if obj.Name:lower():find("brainrot") or obj.Name:lower():find("brain") then
+            if obj:FindFirstChild("Part") or obj:IsA("Part") then
+                local targetPart = obj:IsA("Part") and obj or obj:FindFirstChild("Part")
+                if targetPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 5, 0)
+                    wait(0.5)
+                    break
                 end
             end
         end
     end
-    
-    if nearestBot then
-        safeTeleport(nearestBot.Position + Vector3.new(0, 5, 0))
-        botBtn.Text = "🤖 Teleported!"
-        botBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        
-        spawn(function()
-            wait(1)
-            botBtn.Text = "🤖 TP to Brainbot"
-            botBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        end)
-    else
-        botBtn.Text = "❌ No Brainbot Found"
-        botBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        
-        spawn(function()
-            wait(1)
-            botBtn.Text = "🤖 TP to Brainbot"
-            botBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        end)
-    end
-end)
+    print("📍 Teletransportándose al brainrot más cercano...")
+end
 
--- Botón auto-collect
-local collectBtn = createButton("🔄 Auto Collect: OFF", 135, function()
-    autoCollectEnabled = not autoCollectEnabled
+-- Función para velocidad
+local speedEnabled = false
+function toggleSpeed()
+    speedEnabled = not speedEnabled
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = speedEnabled and 50 or 16
+        print("⚡ Speed boost: " .. (speedEnabled and "ON" or "OFF"))
+    end
+end
+
+-- Función para salto
+local jumpEnabled = false
+function toggleJump()
+    jumpEnabled = not jumpEnabled
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.JumpPower = jumpEnabled and 100 or 50
+        print("🦘 Jump boost: " .. (jumpEnabled and "ON" or "OFF"))
+    end
+end
+
+-- Función para noclip
+local noclipEnabled = false
+local noclipConnection = nil
+function toggleNoclip()
+    noclipEnabled = not noclipEnabled
     
-    if autoCollectEnabled then
-        collectBtn.Text = "🔄 Auto Collect: ON"
-        collectBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        
-        autoCollectConnection = RunService.Heartbeat:Connect(function()
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") and (obj.Name:lower():find("brainbot") or obj.Name:lower():find("bot")) then
-                    local humanoidRootPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
-                    if humanoidRootPart then
-                        local distance = (player.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                        if distance < 50 then
-                            safeTeleport(humanoidRootPart.Position)
-                            wait(0.1)
-                        end
+    if noclipEnabled then
+        noclipConnection = RunService.Stepped:Connect(function()
+            if player.Character then
+                for _, part in pairs(player.Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
                     end
                 end
             end
         end)
+        print("👻 Noclip: ON")
     else
-        collectBtn.Text = "🔄 Auto Collect: OFF"
-        collectBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        
-        if autoCollectConnection then
-            autoCollectConnection:Disconnect()
-            autoCollectConnection = nil
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
         end
-    end
-end)
-
--- Botón Anti-Detection (Corregido)
-local antiBtn = createButton("🛡️ Anti-Detection: OFF", 165, function()
-    antiDetectionEnabled = not antiDetectionEnabled
-    
-    if antiDetectionEnabled then
-        antiBtn.Text = "🛡️ Anti-Detection: ON"
-        antiBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        
-        -- Protección básica
-        pcall(function()
-            player.Kick = function() end
-        end)
-        
-    else
-        antiBtn.Text = "🛡️ Anti-Detection: OFF"
-        antiBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    end
-end)
-
--- Botón de reset
-local resetBtn = createButton("🔄 Reset All", 195, function()
-    autoCollectEnabled = false
-    antiDetectionEnabled = false
-    savedPosition = nil
-    
-    if autoCollectConnection then
-        autoCollectConnection:Disconnect()
-        autoCollectConnection = nil
-    end
-    
-    collectBtn.Text = "🔄 Auto Collect: OFF"
-    collectBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    
-    antiBtn.Text = "🛡️ Anti-Detection: OFF"
-    antiBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    
-    saveBtn.Text = "💾 Save Position"
-    saveBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-end)
-
--- Toggle panel con Insert
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Insert then
-        mainFrame.Visible = not mainFrame.Visible
-    end
-end)
-
--- Teletransporte rápido con teclas
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.T then
-        local nearestBot = nil
-        local shortestDistance = math.huge
-        
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") and (obj.Name:lower():find("brainbot") or obj.Name:lower():find("bot")) then
-                local humanoidRootPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
-                if humanoidRootPart then
-                    local distance = (player.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        nearestBot = humanoidRootPart
-                    end
+        if player.Character then
+            for _, part in pairs(player.Character:GetChildren()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.CanCollide = true
                 end
             end
         end
-        
-        if nearestBot then
-            safeTeleport(nearestBot.Position + Vector3.new(0, 5, 0))
+        print("👻 Noclip: OFF")
+    end
+end
+
+-- Función para ESP
+local espEnabled = false
+local espObjects = {}
+function toggleESP()
+    espEnabled = not espEnabled
+    
+    if espEnabled then
+        local brainrots = workspace:GetChildren()
+        for _, obj in pairs(brainrots) do
+            if obj.Name:lower():find("brainrot") or obj.Name:lower():find("brain") then
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Color3.fromRGB(255, 0, 255)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.Parent = obj
+                table.insert(espObjects, highlight)
+            end
         end
-    elseif input.KeyCode == Enum.KeyCode.R then
-        if savedPosition then
-            safeTeleport(savedPosition)
+        print("👁️ ESP: ON")
+    else
+        for _, highlight in pairs(espObjects) do
+            if highlight and highlight.Parent then
+                highlight:Destroy()
+            end
         end
+        espObjects = {}
+        print("👁️ ESP: OFF")
+    end
+end
+
+-- Función para mostrar/ocultar panel
+function togglePanel()
+    if panel then
+        panel:Destroy()
+        panel = nil
+        isVisible = false
+    else
+        panel = createPanel()
+        isVisible = true
+    end
+end
+
+-- Crear panel inicial
+panel = createPanel()
+isVisible = true
+
+-- Tecla para mostrar/ocultar panel (Insert)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Insert then
+        togglePanel()
     end
 end)
 
-print("Panel de Teletransporte cargado!")
-print("INSERT - Abrir/cerrar panel")
-print("T - Teleportarse al brainbot más cercano")
-print("R - Volver a posición guardada")
+print("🧠 Brainrot Stealer Panel cargado!")
+print("📋 Presiona INSERT para mostrar/ocultar el panel")
+print("⚠️ Usa bajo tu propia responsabilidad")
