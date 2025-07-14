@@ -1,151 +1,244 @@
--- 🥚 Grow a Garden Egg ESP Panel GUI
+-- Panel Simple para Steal a Brainrot - Speed & Jump
 
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local espEnabled = false
-local connection = nil
-local espObjects = {}
+-- Crear el GUI principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BrainrotHacks"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
 
--- 🧠 Buscar nombre de la mascota si existe
-local function getPetName(egg)
-	for _, v in pairs(egg:GetDescendants()) do
-		if v:IsA("StringValue") and (v.Name == "Pet" or v.Name == "PetName" or v.Name == "Animal") then
-			return v.Value
-		end
-	end
-	local attr = egg:GetAttribute("Pet") or egg:GetAttribute("PetName") or egg:GetAttribute("Animal")
-	if attr then return attr end
-	if egg.Name:lower():find("egg") then return "?" end
-	return nil
-end
-
--- 🎯 Crear ESP sobre el huevo
-local function createESP(egg)
-	if espObjects[egg] then return end
-	local petName = getPetName(egg)
-	if not petName then return end
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "EggESP"
-	billboard.Size = UDim2.new(0, 200, 0, 50)
-	billboard.StudsOffset = Vector3.new(0, 3, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = egg
-
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.new(1, 0, 1, 0)
-	text.BackgroundTransparency = 1
-	text.Text = "🐣 " .. petName
-	text.TextColor3 = Color3.fromRGB(255, 255, 0)
-	text.TextScaled = true
-	text.Font = Enum.Font.GothamBold
-	text.Parent = billboard
-
-	espObjects[egg] = billboard
-end
-
--- 🔁 Detectar huevos
-local function updateESP()
-	for _, obj in pairs(workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and obj.Name:lower():find("egg") then
-			createESP(obj)
-		end
-	end
-
-	-- Limpiar huevos eliminados
-	for egg, gui in pairs(espObjects) do
-		if not egg or not egg:IsDescendantOf(workspace) then
-			if gui then gui:Destroy() end
-			espObjects[egg] = nil
-		end
-	end
-end
-
--- ✅ Iniciar ESP
-local function startESP()
-	if not connection then
-		connection = RunService.Heartbeat:Connect(updateESP)
-	end
-end
-
--- ⛔ Detener ESP
-local function stopESP()
-	if connection then
-		connection:Disconnect()
-		connection = nil
-	end
-	for egg, gui in pairs(espObjects) do
-		if gui then gui:Destroy() end
-	end
-	espObjects = {}
-end
-
--- 📦 Crear GUI
-local gui = Instance.new("ScreenGui", playerGui)
-gui.Name = "EggESP_GUI"
-gui.ResetOnSpawn = false
-
+-- Frame principal del panel
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 150, 0, 70)
-mainFrame.Position = UDim2.new(0, 20, 0.5, -35)
-mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.Name = "MainPanel"
+mainFrame.Size = UDim2.new(0, 250, 0, 160)
+mainFrame.Position = UDim2.new(0, 20, 0.5, -80)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 mainFrame.BorderSizePixel = 0
-mainFrame.Visible = false
-mainFrame.Parent = gui
+mainFrame.Parent = screenGui
 
+-- Esquinas redondeadas
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
+corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = mainFrame
 
-local toggle = Instance.new("TextButton")
-toggle.Size = UDim2.new(0.9, 0, 0.6, 0)
-toggle.Position = UDim2.new(0.05, 0, 0.2, 0)
-toggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-toggle.Text = "Egg ESP: OFF"
-toggle.TextColor3 = Color3.new(1,1,1)
-toggle.TextScaled = true
-toggle.Font = Enum.Font.GothamBold
-toggle.Parent = mainFrame
+-- Título del panel
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 35)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+titleLabel.BorderSizePixel = 0
+titleLabel.Text = "🧠 BRAINROT HACKS 🧠"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
 
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 4)
-toggleCorner.Parent = toggle
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = titleLabel
 
--- 🎛️ Botón flotante para abrir/ocultar el panel
-local openButton = Instance.new("TextButton")
-openButton.Size = UDim2.new(0, 100, 0, 35)
-openButton.Position = UDim2.new(0, 10, 0.5, -17)
-openButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-openButton.Text = "🥚 ESP"
-openButton.TextColor3 = Color3.new(1,1,1)
-openButton.TextScaled = true
-openButton.Font = Enum.Font.GothamBold
-openButton.Parent = gui
+-- Botón de Speed
+local speedButton = Instance.new("TextButton")
+speedButton.Name = "SpeedButton"
+speedButton.Size = UDim2.new(0.85, 0, 0, 35)
+speedButton.Position = UDim2.new(0.075, 0, 0.3, 0)
+speedButton.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+speedButton.BorderSizePixel = 0
+speedButton.Text = "🏃 SPEED: OFF"
+speedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedButton.TextScaled = true
+speedButton.Font = Enum.Font.GothamBold
+speedButton.Parent = mainFrame
 
-local openCorner = Instance.new("UICorner")
-openCorner.CornerRadius = UDim.new(0, 6)
-openCorner.Parent = openButton
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 6)
+speedCorner.Parent = speedButton
 
--- 🔘 Toggle Panel
-openButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = not mainFrame.Visible
+-- Botón de Jump
+local jumpButton = Instance.new("TextButton")
+jumpButton.Name = "JumpButton"
+jumpButton.Size = UDim2.new(0.85, 0, 0, 35)
+jumpButton.Position = UDim2.new(0.075, 0, 0.6, 0)
+jumpButton.BackgroundColor3 = Color3.fromRGB(255, 150, 100)
+jumpButton.BorderSizePixel = 0
+jumpButton.Text = "🦘 JUMP: OFF"
+jumpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpButton.TextScaled = true
+jumpButton.Font = Enum.Font.GothamBold
+jumpButton.Parent = mainFrame
+
+local jumpCorner = Instance.new("UICorner")
+jumpCorner.CornerRadius = UDim.new(0, 6)
+jumpCorner.Parent = jumpButton
+
+-- Botón de cerrar
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 25, 0, 25)
+closeButton.Position = UDim2.new(1, -30, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+closeButton.BorderSizePixel = 0
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = mainFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 12)
+closeCorner.Parent = closeButton
+
+-- Variables de estado
+local speedEnabled = false
+local jumpEnabled = false
+local originalWalkSpeed = 16
+local originalJumpPower = 50
+
+-- Función para obtener el humanoid
+local function getHumanoid()
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        return player.Character.Humanoid
+    end
+    return nil
+end
+
+-- Función de Speed
+local function toggleSpeed()
+    local humanoid = getHumanoid()
+    if not humanoid then return end
+    
+    speedEnabled = not speedEnabled
+    
+    if speedEnabled then
+        originalWalkSpeed = humanoid.WalkSpeed
+        humanoid.WalkSpeed = 100 -- Velocidad rápida
+        speedButton.Text = "🏃 SPEED: ON"
+        speedButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        humanoid.WalkSpeed = originalWalkSpeed
+        speedButton.Text = "🏃 SPEED: OFF"
+        speedButton.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    end
+end
+
+-- Función de Jump
+local function toggleJump()
+    local humanoid = getHumanoid()
+    if not humanoid then return end
+    
+    jumpEnabled = not jumpEnabled
+    
+    if jumpEnabled then
+        originalJumpPower = humanoid.JumpPower
+        humanoid.JumpPower = 120 -- Salto alto
+        jumpButton.Text = "🦘 JUMP: ON"
+        jumpButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        humanoid.JumpPower = originalJumpPower
+        jumpButton.Text = "🦘 JUMP: OFF"
+        jumpButton.BackgroundColor3 = Color3.fromRGB(255, 150, 100)
+    end
+end
+
+-- Función para hacer el panel arrastrable
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    mainFrame.Position = position
+end
+
+titleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
 end)
 
--- 🔘 Toggle ESP
-toggle.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	toggle.Text = "Egg ESP: " .. (espEnabled and "ON" or "OFF")
-	toggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-
-	if espEnabled then
-		startESP()
-	else
-		stopESP()
-	end
+titleLabel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        if dragging then
+            updateInput(input)
+        end
+    end
 end)
 
-print("✅ Panel ESP de huevos cargado.")
+-- Conectar eventos de los botones
+speedButton.MouseButton1Click:Connect(toggleSpeed)
+jumpButton.MouseButton1Click:Connect(toggleJump)
+closeButton.MouseButton1Click:Connect(function()
+    -- Restaurar valores originales antes de cerrar
+    local humanoid = getHumanoid()
+    if humanoid then
+        humanoid.WalkSpeed = originalWalkSpeed
+        humanoid.JumpPower = originalJumpPower
+    end
+    screenGui:Destroy()
+end)
+
+-- Efectos hover
+speedButton.MouseEnter:Connect(function()
+    if not speedEnabled then
+        speedButton.BackgroundColor3 = Color3.fromRGB(120, 170, 255)
+    end
+end)
+
+speedButton.MouseLeave:Connect(function()
+    if not speedEnabled then
+        speedButton.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    end
+end)
+
+jumpButton.MouseEnter:Connect(function()
+    if not jumpEnabled then
+        jumpButton.BackgroundColor3 = Color3.fromRGB(255, 170, 120)
+    end
+end)
+
+jumpButton.MouseLeave:Connect(function()
+    if not jumpEnabled then
+        jumpButton.BackgroundColor3 = Color3.fromRGB(255, 150, 100)
+    end
+end)
+
+-- Mantener los hacks activos cuando el personaje respawnea
+player.CharacterAdded:Connect(function(character)
+    wait(1) -- Esperar a que el personaje se cargue completamente
+    
+    if speedEnabled then
+        local humanoid = character:WaitForChild("Humanoid")
+        humanoid.WalkSpeed = 100
+    end
+    
+    if jumpEnabled then
+        local humanoid = character:WaitForChild("Humanoid")
+        humanoid.JumpPower = 120
+    end
+end)
+
+-- Animación de entrada
+mainFrame.Size = UDim2.new(0, 0, 0, 0)
+local openTween = TweenService:Create(
+    mainFrame,
+    TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    {Size = UDim2.new(0, 250, 0, 160)}
+)
+openTween:Play()
+
+print("🧠 Brainrot Hacks Panel loaded! 🧠")
