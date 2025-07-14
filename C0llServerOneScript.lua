@@ -1,4 +1,4 @@
--- Panel Básico con solo 2 funciones - Versión Corregida
+-- Panel Básico con Noclip Corregido
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -77,7 +77,7 @@ local antiCorner = Instance.new("UICorner")
 antiCorner.CornerRadius = UDim.new(0, 5)
 antiCorner.Parent = antiBtn
 
--- Función Noclip
+-- Función Noclip Corregida
 noclipBtn.MouseButton1Click:Connect(function()
     noclipEnabled = not noclipEnabled
     
@@ -88,9 +88,20 @@ noclipBtn.MouseButton1Click:Connect(function()
         noclipConnection = RunService.Stepped:Connect(function()
             local character = player.Character
             if character then
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
+                -- Solo desactivar colisiones de las partes del personaje
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
                         part.CanCollide = false
+                    end
+                end
+                
+                -- También para accesorios
+                for _, accessory in pairs(character:GetChildren()) do
+                    if accessory:IsA("Accessory") then
+                        local handle = accessory:FindFirstChild("Handle")
+                        if handle then
+                            handle.CanCollide = false
+                        end
                     end
                 end
             end
@@ -104,18 +115,28 @@ noclipBtn.MouseButton1Click:Connect(function()
             noclipConnection = nil
         end
         
+        -- Restaurar colisiones
         local character = player.Character
         if character then
-            for _, part in pairs(character:GetDescendants()) do
+            for _, part in pairs(character:GetChildren()) do
                 if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                     part.CanCollide = true
+                end
+            end
+            
+            for _, accessory in pairs(character:GetChildren()) do
+                if accessory:IsA("Accessory") then
+                    local handle = accessory:FindFirstChild("Handle")
+                    if handle then
+                        handle.CanCollide = true
+                    end
                 end
             end
         end
     end
 end)
 
--- Función Anti-Detection (Simplificada y Segura)
+-- Función Anti-Detection
 antiBtn.MouseButton1Click:Connect(function()
     antiDetectionEnabled = not antiDetectionEnabled
     
@@ -123,35 +144,15 @@ antiBtn.MouseButton1Click:Connect(function()
         antiBtn.Text = "Anti-Detection: ON"
         antiBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         
-        -- Anti-kick más simple y seguro
+        -- Anti-kick simple
         local oldKick = player.Kick
         player.Kick = function()
-            -- Bloquear kicks silenciosamente
             return
-        end
-        
-        -- Proteger contra teleports forzados
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local originalCFrame = player.Character.HumanoidRootPart.CFrame
-            player.Character.HumanoidRootPart.Changed:Connect(function(property)
-                if property == "CFrame" and antiDetectionEnabled then
-                    -- Evitar teleports sospechosos
-                    local newPos = player.Character.HumanoidRootPart.Position
-                    if newPos.Y < -1000 then
-                        player.Character.HumanoidRootPart.CFrame = originalCFrame
-                    end
-                end
-            end)
         end
         
     else
         antiBtn.Text = "Anti-Detection: OFF"
         antiBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        
-        -- Restaurar función original si es posible
-        pcall(function()
-            player.Kick = Players.LocalPlayer.Kick
-        end)
     end
 end)
 
@@ -173,9 +174,18 @@ player.CharacterAdded:Connect(function()
         noclipConnection = RunService.Stepped:Connect(function()
             local character = player.Character
             if character then
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
                         part.CanCollide = false
+                    end
+                end
+                
+                for _, accessory in pairs(character:GetChildren()) do
+                    if accessory:IsA("Accessory") then
+                        local handle = accessory:FindFirstChild("Handle")
+                        if handle then
+                            handle.CanCollide = false
+                        end
                     end
                 end
             end
