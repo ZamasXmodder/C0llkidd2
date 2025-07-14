@@ -1,355 +1,151 @@
--- Auto Captura Mobile - Solo con botones GUI
--- Steal a Brainrot - Roblox
+-- 🥚 Grow a Garden Egg ESP Panel GUI
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Variables principales
-local autoCaptureEnabled = false
-local captureConnection = nil
-local basePosition = nil
-local isCapturing = false
-local gui = nil
+local espEnabled = false
+local connection = nil
+local espObjects = {}
 
--- Función para encontrar la base del jugador
-local function findPlayerBase()
-    -- Método 1: Buscar spawn location
-    if player.RespawnLocation then
-        return player.RespawnLocation.CFrame + Vector3.new(0, 5, 0)
-    end
-    
-    -- Método 2: Buscar por bases en workspace
-    for _, obj in pairs(workspace:GetChildren()) do
-        local objName = obj.Name:lower()
-        if (string.find(objName, "base") or string.find(objName, "spawn")) then
-            if player.Team then
-                local teamName = player.Team.Name:lower()
-                if string.find(objName, teamName) or string.find(objName, player.Name:lower()) then
-                    local part = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildOfClass("Part")) or obj
-                    if part then
-                        return part.CFrame + Vector3.new(0, 5, 0)
-                    end
-                end
-            end
-        end
-    end
-    
-    return nil
+-- 🧠 Buscar nombre de la mascota si existe
+local function getPetName(egg)
+	for _, v in pairs(egg:GetDescendants()) do
+		if v:IsA("StringValue") and (v.Name == "Pet" or v.Name == "PetName" or v.Name == "Animal") then
+			return v.Value
+		end
+	end
+	local attr = egg:GetAttribute("Pet") or egg:GetAttribute("PetName") or egg:GetAttribute("Animal")
+	if attr then return attr end
+	if egg.Name:lower():find("egg") then return "?" end
+	return nil
 end
 
--- Función para teletransportarse a la base
-local function teleportToBase()
-    if isCapturing then return end
-    isCapturing = true
-    
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        isCapturing = false
-        return
-    end
-    
-    local rootPart = character.HumanoidRootPart
-    
-    if not basePosition then
-        basePosition = findPlayerBase()
-    end
-    
-    if basePosition then
-        showNotification("📍 Yendo a la base...", 2)
-        rootPart.CFrame = basePosition
-        wait(1)
-        showNotification("✅ ¡Llegaste a la base!", 2)
-    else
-        showNotification("❌ Base no encontrada", 2)
-    end
-    
-    isCapturing = false
+-- 🎯 Crear ESP sobre el huevo
+local function createESP(egg)
+	if espObjects[egg] then return end
+	local petName = getPetName(egg)
+	if not petName then return end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "EggESP"
+	billboard.Size = UDim2.new(0, 200, 0, 50)
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = egg
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.new(1, 0, 1, 0)
+	text.BackgroundTransparency = 1
+	text.Text = "🐣 " .. petName
+	text.TextColor3 = Color3.fromRGB(255, 255, 0)
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBold
+	text.Parent = billboard
+
+	espObjects[egg] = billboard
 end
 
--- Función para detectar cuando el jugador agarra un tool
-local function onToolAdded(tool)
-    if autoCaptureEnabled and tool:IsA("Tool") then
-        showNotification("🎯 Objeto detectado: " .. tool.Name, 1)
-        wait(0.2)
-        teleportToBase()
-    end
+-- 🔁 Detectar huevos
+local function updateESP()
+	for _, obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") and obj.Name:lower():find("egg") then
+			createESP(obj)
+		end
+	end
+
+	-- Limpiar huevos eliminados
+	for egg, gui in pairs(espObjects) do
+		if not egg or not egg:IsDescendantOf(workspace) then
+			if gui then gui:Destroy() end
+			espObjects[egg] = nil
+		end
+	end
 end
 
--- Función para mostrar notificaciones
-local function showNotification(text, duration)
-    local notificationGui = Instance.new("ScreenGui")
-    notificationGui.Name = "Notification"
-    notificationGui.Parent = playerGui
-    
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 280, 0, 50)
-    frame.Position = UDim2.new(0.5, -140, 0, -60)
-    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    frame.BorderSizePixel = 0
-    frame.Parent = notificationGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = frame
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 1, 0)
-    label.Position = UDim2.new(0, 5, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextScaled = true
-    label.Font = Enum.Font.Gotham
-    label.Parent = frame
-    
-    -- Animación
-    frame:TweenPosition(UDim2.new(0.5, -140, 0, 20), "Out", "Quad", 0.5, true)
-    
-    game:GetService("Debris"):AddItem(notificationGui, duration or 3)
-    
-    spawn(function()
-        wait((duration or 3) - 0.5)
-        frame:TweenPosition(UDim2.new(0.5, -140, 0, -60), "In", "Quad", 0.5, true)
-    end)
+-- ✅ Iniciar ESP
+local function startESP()
+	if not connection then
+		connection = RunService.Heartbeat:Connect(updateESP)
+	end
 end
 
--- Función para activar/desactivar auto captura
-local function toggleAutoCapture()
-    autoCaptureEnabled = not autoCaptureEnabled
-    
-    if autoCaptureEnabled then
-        if player.Character then
-            captureConnection = player.Character.ChildAdded:Connect(onToolAdded)
-        end
-        
-        player.CharacterAdded:Connect(function(character)
-            if autoCaptureEnabled then
-                character.ChildAdded:Connect(onToolAdded)
-            end
-        end)
-        
-        showNotification("🔄 Auto captura ACTIVADO", 2)
-        basePosition = findPlayerBase()
-        if basePosition then
-            showNotification("✅ Base encontrada!", 2)
-        else
-            showNotification("⚠️ Establece tu base manualmente", 3)
-        end
-    else
-        if captureConnection then
-            captureConnection:Disconnect()
-            captureConnection = nil
-        end
-        showNotification("🔄 Auto captura DESACTIVADO", 2)
-    end
+-- ⛔ Detener ESP
+local function stopESP()
+	if connection then
+		connection:Disconnect()
+		connection = nil
+	end
+	for egg, gui in pairs(espObjects) do
+		if gui then gui:Destroy() end
+	end
+	espObjects = {}
 end
 
--- Función para establecer base manualmente
-local function setBaseHere()
-    local character = player.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        basePosition = character.HumanoidRootPart.CFrame
-        showNotification("📍 Base establecida aquí!", 2)
-    else
-        showNotification("❌ No se pudo establecer base", 2)
-    end
-end
+-- 📦 Crear GUI
+local gui = Instance.new("ScreenGui", playerGui)
+gui.Name = "EggESP_GUI"
+gui.ResetOnSpawn = false
 
--- Crear GUI principal
-local function createMobileGUI()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AutoCaptureMobile"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = playerGui
-    
-    -- Frame principal
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 300, 0, 200)
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Active = true
-    mainFrame.Draggable = true
-    mainFrame.Parent = screenGui
-    
-    local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 15)
-    mainCorner.Parent = mainFrame
-    
-    -- Título
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, 0, 0, 40)
-    titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    titleLabel.BorderSizePixel = 0
-    titleLabel.Text = "🎯 AUTO CAPTURE MOBILE"
-    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.TextScaled = true
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.Parent = mainFrame
-    
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 15)
-    titleCorner.Parent = titleLabel
-    
-    -- Botón cerrar
-    local closeButton = Instance.new("TextButton")
-    closeButton.Size = UDim2.new(0, 30, 0, 30)
-    closeButton.Position = UDim2.new(1, -35, 0, 5)
-    closeButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-    closeButton.BorderSizePixel = 0
-    closeButton.Text = "✕"
-    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeButton.TextScaled = true
-    closeButton.Font = Enum.Font.GothamBold
-    closeButton.Parent = mainFrame
-    
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 8)
-    closeCorner.Parent = closeButton
-    
-    -- Contenedor de botones
-    local buttonContainer = Instance.new("Frame")
-    buttonContainer.Size = UDim2.new(1, -20, 1, -60)
-    buttonContainer.Position = UDim2.new(0, 10, 0, 50)
-    buttonContainer.BackgroundTransparency = 1
-    buttonContainer.Parent = mainFrame
-    
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Padding = UDim.new(0, 10)
-    listLayout.Parent = buttonContainer
-    
-    -- Función para crear botones
-    local function createButton(text, color, callback, layoutOrder)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, 0, 0, 40)
-        button.BackgroundColor3 = color
-        button.BorderSizePixel = 0
-        button.Text = text
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        button.TextScaled = true
-        button.Font = Enum.Font.Gotham
-        button.LayoutOrder = layoutOrder
-        button.Parent = buttonContainer
-        
-        local buttonCorner = Instance.new("UICorner")
-        buttonCorner.CornerRadius = UDim.new(0, 8)
-        buttonCorner.Parent = button
-        
-        -- Efecto de presión
-        button.MouseButton1Down:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(1, -4, 0, 36)}):Play()
-        end)
-        
-        button.MouseButton1Up:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(1, 0, 0, 40)}):Play()
-        end)
-        
-        button.MouseButton1Click:Connect(callback)
-        return button
-    end
-    
-    -- Botón toggle auto capture
-    local toggleButton = createButton("🔄 ACTIVAR AUTO CAPTURE", Color3.fromRGB(100, 100, 100), function()
-        toggleAutoCapture()
-        if autoCaptureEnabled then
-            toggleButton.Text = "🔄 DESACTIVAR AUTO CAPTURE"
-            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-        else
-            toggleButton.Text = "🔄 ACTIVAR AUTO CAPTURE"
-            toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-        end
-    end, 1)
-    
-    -- Botón establecer base
-    local baseButton = createButton("📍 ESTABLECER BASE AQUÍ", Color3.fromRGB(60, 120, 200), function()
-        setBaseHere()
-    end, 2)
-    
-    -- Botón ir a base manualmente
-    local goBaseButton = createButton("🚀 IR A BASE AHORA", Color3.fromRGB(60, 180, 60), function()
-        teleportToBase()
-    end, 3)
-    
-    -- Evento cerrar
-    closeButton.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
-        gui = nil
-    end)
-    
-    return screenGui
-end
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 150, 0, 70)
+mainFrame.Position = UDim2.new(0, 20, 0.5, -35)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = gui
 
--- Crear botón flotante para abrir GUI
-local function createFloatingButton()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "FloatingButton"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = playerGui
-    
-    local floatingButton = Instance.new("TextButton")
-    floatingButton.Size = UDim2.new(0, 60, 0, 60)
-    floatingButton.Position = UDim2.new(0, 10, 0.5, -30)
-    floatingButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    floatingButton.BorderSizePixel = 0
-    floatingButton.Text = "🎯"
-    floatingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    floatingButton.TextScaled = true
-    floatingButton.Font = Enum.Font.GothamBold
-    floatingButton.Active = true
-    floatingButton.Draggable = true
-    floatingButton.Parent = screenGui
-    
-    local floatingCorner = Instance.new("UICorner")
-    floatingCorner.CornerRadius = UDim.new(0.5, 0)
-    floatingCorner.Parent = floatingButton
-    
-    -- Efecto de pulsación
-    floatingButton.MouseButton1Down:Connect(function()
-        TweenService:Create(floatingButton, TweenInfo.new(0.1), {Size = UDim2.new(0, 55, 0, 55)}):Play()
-    end)
-    
-    floatingButton.MouseButton1Up:Connect(function()
-        TweenService:Create(floatingButton, TweenInfo.new(0.1), {Size = UDim2.new(0, 60, 0, 60)}):Play()
-    end)
-    
-    floatingButton.MouseButton1Click:Connect(function()
-        if gui then
-            gui:Destroy()
-            gui = nil
-        else
-            gui = createMobileGUI()
-        end
-    end)
-    
-    return screenGui
-end
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
 
--- Conectar para nuevos personajes
-player.CharacterAdded:Connect(function(character)
-    if autoCaptureEnabled then
-        wait(1)
-        character.ChildAdded:Connect(onToolAdded)
-    end
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(0.9, 0, 0.6, 0)
+toggle.Position = UDim2.new(0.05, 0, 0.2, 0)
+toggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+toggle.Text = "Egg ESP: OFF"
+toggle.TextColor3 = Color3.new(1,1,1)
+toggle.TextScaled = true
+toggle.Font = Enum.Font.GothamBold
+toggle.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 4)
+toggleCorner.Parent = toggle
+
+-- 🎛️ Botón flotante para abrir/ocultar el panel
+local openButton = Instance.new("TextButton")
+openButton.Size = UDim2.new(0, 100, 0, 35)
+openButton.Position = UDim2.new(0, 10, 0.5, -17)
+openButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+openButton.Text = "🥚 ESP"
+openButton.TextColor3 = Color3.new(1,1,1)
+openButton.TextScaled = true
+openButton.Font = Enum.Font.GothamBold
+openButton.Parent = gui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 6)
+openCorner.Parent = openButton
+
+-- 🔘 Toggle Panel
+openButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Conectar para el personaje actual
-if player.Character then
-    player.Character.ChildAdded:Connect(onToolAdded)
-end
+-- 🔘 Toggle ESP
+toggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	toggle.Text = "Egg ESP: " .. (espEnabled and "ON" or "OFF")
+	toggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
 
--- Crear botón flotante inicial
-createFloatingButton()
+	if espEnabled then
+		startESP()
+	else
+		stopESP()
+	end
+end)
 
--- Mostrar notificación de carga
-showNotification("🎯 AUTO CAPTURE MOBILE CARGADO!", 3)
-showNotification("📱 Toca el botón 🎯 para abrir el panel", 4)
-
-print("🎯 ===== AUTO CAPTURE MOBILE =====")
-print("📱 Toca el botón flotante 🎯 para abrir")
-print("✅ Funciona completamente con botones")
-print("🎯 ===============================")
+print("✅ Panel ESP de huevos cargado.")
