@@ -1,17 +1,18 @@
--- Panel de administración básico para Steal a Brainrot
--- Funciones: Float con cruz, Freeze/Unfreeze, Control de altura, Movimiento congelado, Bat lanzador
+-- Panel GUI de administración para Steal a Brainrot
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Variables de estado
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Variables de estado
 local isFloating = false
 local isFrozen = false
 local bodyVelocity = nil
@@ -19,13 +20,11 @@ local bodyPosition = nil
 local frozenPosition = nil
 
 -- Configuración de velocidades
-local FLOAT_SPEED = 25 -- Velocidad controlada para flotación
-local FROZEN_SPEED = 3 -- Velocidad tipo speedcoil para movimiento congelado
-local KNOCKBACK_FORCE = 150 -- Fuerza de lanzamiento del bate
+local FLOAT_SPEED = 25
+local FROZEN_SPEED = 3
+local KNOCKBACK_FORCE = 150
 
--- Configuración de teclas
-local FLOAT_KEY = Enum.KeyCode.F
-local FREEZE_KEY = Enum.KeyCode.G
+-- Configuración de teclas para movimiento
 local UP_KEY = Enum.KeyCode.Q
 local DOWN_KEY = Enum.KeyCode.E
 local FORWARD_KEY = Enum.KeyCode.W
@@ -33,10 +32,175 @@ local BACKWARD_KEY = Enum.KeyCode.S
 local LEFT_KEY = Enum.KeyCode.A
 local RIGHT_KEY = Enum.KeyCode.D
 
+-- Crear GUI principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AdminPanel"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+
+-- Panel principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainPanel"
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0, 10, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+-- Esquinas redondeadas para el panel principal
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
+
+-- Título del panel
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+titleLabel.BorderSizePixel = 0
+titleLabel.Text = "Admin Panel"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = titleLabel
+
+-- Botón de toggle (abrir/cerrar)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 80, 0, 30)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+toggleButton.BorderSizePixel = 0
+toggleButton.Text = "Panel"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.Gotham
+toggleButton.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 5)
+toggleCorner.Parent = toggleButton
+
+-- Contenedor de controles
+local controlsFrame = Instance.new("Frame")
+controlsFrame.Name = "Controls"
+controlsFrame.Size = UDim2.new(1, -20, 1, -60)
+controlsFrame.Position = UDim2.new(0, 10, 0, 50)
+controlsFrame.BackgroundTransparency = 1
+controlsFrame.Parent = mainFrame
+
+-- Layout para organizar controles
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 10)
+listLayout.Parent = controlsFrame
+
+-- Función para crear botones
+local function createButton(name, text, layoutOrder, callback)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(1, 0, 0, 35)
+    button.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextScaled = true
+    button.Font = Enum.Font.Gotham
+    button.LayoutOrder = layoutOrder
+    button.Parent = controlsFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = button
+    
+    button.MouseButton1Click:Connect(callback)
+    
+    return button
+end
+
+-- Función para crear slider
+local function createSlider(name, text, minVal, maxVal, defaultVal, layoutOrder, callback)
+    local frame = Instance.new("Frame")
+    frame.Name = name .. "Frame"
+    frame.Size = UDim2.new(1, 0, 0, 60)
+    frame.BackgroundTransparency = 1
+    frame.LayoutOrder = layoutOrder
+    frame.Parent = controlsFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text .. ": " .. defaultVal
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextScaled = true
+    label.Font = Enum.Font.Gotham
+    label.Parent = frame
+    
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(1, 0, 0, 20)
+    sliderFrame.Position = UDim2.new(0, 0, 0, 25)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    sliderFrame.BorderSizePixel = 0
+    sliderFrame.Parent = frame
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 10)
+    sliderCorner.Parent = sliderFrame
+    
+    local sliderButton = Instance.new("TextButton")
+    sliderButton.Size = UDim2.new(0, 20, 1, 0)
+    sliderButton.Position = UDim2.new((defaultVal - minVal) / (maxVal - minVal), -10, 0, 0)
+    sliderButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    sliderButton.BorderSizePixel = 0
+    sliderButton.Text = ""
+    sliderButton.Parent = sliderFrame
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 10)
+    buttonCorner.Parent = sliderButton
+    
+    local dragging = false
+    
+    sliderButton.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouse = Players.LocalPlayer:GetMouse()
+            local relativeX = mouse.X - sliderFrame.AbsolutePosition.X
+            local percentage = math.clamp(relativeX / sliderFrame.AbsoluteSize.X, 0, 1)
+            
+            sliderButton.Position = UDim2.new(percentage, -10, 0, 0)
+            
+            local value = math.floor(minVal + (maxVal - minVal) * percentage)
+            label.Text = text .. ": " .. value
+            callback(value)
+        end
+    end)
+    
+    return frame
+end
+
+-- Variables para los botones
+local floatButton, freezeButton
+
 -- Función para activar/desactivar flotación
 local function toggleFloat()
     if not isFloating then
-        -- Activar flotación
         isFloating = true
         
         bodyVelocity = Instance.new("BodyVelocity")
@@ -44,9 +208,9 @@ local function toggleFloat()
         bodyVelocity.Velocity = Vector3.new(0, 0, 0)
         bodyVelocity.Parent = rootPart
         
-        print("Flotación activada - Usa WASD + Q/E para moverte en cruz")
+        floatButton.Text = "Desactivar Float"
+        floatButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
     else
-        -- Desactivar flotación
         isFloating = false
         
         if bodyVelocity then
@@ -54,14 +218,14 @@ local function toggleFloat()
             bodyVelocity = nil
         end
         
-        print("Flotación desactivada")
+        floatButton.Text = "Activar Float"
+        floatButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
     end
 end
 
 -- Función para congelar/descongelar personaje
 local function toggleFreeze()
     if not isFrozen then
-        -- Congelar personaje
         isFrozen = true
         frozenPosition = rootPart.Position
         
@@ -72,9 +236,9 @@ local function toggleFreeze()
         
         humanoid.PlatformStand = true
         
-        print("Personaje congelado - Velocidad tipo speedcoil activada")
+        freezeButton.Text = "Descongelar"
+        freezeButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
     else
-        -- Descongelar personaje
         isFrozen = false
         frozenPosition = nil
         
@@ -85,111 +249,42 @@ local function toggleFreeze()
         
         humanoid.PlatformStand = false
         
-        print("Personaje descongelado")
+        freezeButton.Text = "Congelar"
+        freezeButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
     end
 end
 
--- Función para manejar movimiento cuando está congelado (velocidad speedcoil)
-local function handleFrozenMovement()
-    if not isFrozen or not bodyPosition then return end
-    
-    local moveVector = Vector3.new(0, 0, 0)
-    
-    -- Movimiento en cruz (sin rotación de cámara)
-    if UserInputService:IsKeyDown(FORWARD_KEY) then
-        moveVector = moveVector + Vector3.new(0, 0, -1) -- Adelante
-    end
-    if UserInputService:IsKeyDown(BACKWARD_KEY) then
-        moveVector = moveVector + Vector3.new(0, 0, 1) -- Atrás
-    end
-    if UserInputService:IsKeyDown(LEFT_KEY) then
-        moveVector = moveVector + Vector3.new(-1, 0, 0) -- Izquierda
-    end
-    if UserInputService:IsKeyDown(RIGHT_KEY) then
-        moveVector = moveVector + Vector3.new(1, 0, 0) -- Derecha
-    end
-    if UserInputService:IsKeyDown(UP_KEY) then
-        moveVector = moveVector + Vector3.new(0, 1, 0) -- Arriba
-    end
-    if UserInputService:IsKeyDown(DOWN_KEY) then
-        moveVector = moveVector + Vector3.new(0, -1, 0) -- Abajo
-    end
-    
-    -- Aplicar movimiento con velocidad tipo speedcoil
-    if moveVector.Magnitude > 0 then
-        frozenPosition = frozenPosition + (moveVector.Unit * FROZEN_SPEED)
-        bodyPosition.Position = frozenPosition
-    end
-end
-
--- Función para manejar flotación en cruz
-local function handleFloat()
-    if not isFloating or not bodyVelocity then return end
-    
-    local velocity = Vector3.new(0, 0, 0)
-    
-    -- Movimiento en cruz con velocidad limitada
-    if UserInputService:IsKeyDown(FORWARD_KEY) then
-        velocity = velocity + Vector3.new(0, 0, -FLOAT_SPEED) -- Adelante
-    end
-    if UserInputService:IsKeyDown(BACKWARD_KEY) then
-        velocity = velocity + Vector3.new(0, 0, FLOAT_SPEED) -- Atrás
-    end
-    if UserInputService:IsKeyDown(LEFT_KEY) then
-        velocity = velocity + Vector3.new(-FLOAT_SPEED, 0, 0) -- Izquierda
-    end
-    if UserInputService:IsKeyDown(RIGHT_KEY) then
-        velocity = velocity + Vector3.new(FLOAT_SPEED, 0, 0) -- Derecha
-    end
-    if UserInputService:IsKeyDown(UP_KEY) then
-        velocity = velocity + Vector3.new(0, FLOAT_SPEED, 0) -- Arriba
-    end
-    if UserInputService:IsKeyDown(DOWN_KEY) then
-        velocity = velocity + Vector3.new(0, -FLOAT_SPEED, 0) -- Abajo
-    end
-    
-    bodyVelocity.Velocity = velocity
-end
-
--- Función para lanzar a todos los jugadores con el bate
+-- Función para lanzar a todos los jugadores
 local function launchAllPlayers()
     for _, otherPlayer in pairs(Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character then
             local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
             
             if otherRoot then
-                -- Calcular dirección desde mi posición hacia el otro jugador
                 local direction = (otherRoot.Position - rootPart.Position).Unit
                 
-                -- Crear efecto de lanzamiento
                 local bodyVel = Instance.new("BodyVelocity")
                 bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
                 
-                -- Lanzar hacia arriba y en la dirección calculada
-                local launchDirection = direction + Vector3.new(0, 0.5, 0) -- Añadir componente hacia arriba
+                local launchDirection = direction + Vector3.new(0, 0.5, 0)
                 bodyVel.Velocity = launchDirection.Unit * KNOCKBACK_FORCE
                 bodyVel.Parent = otherRoot
                 
-                -- Remover el BodyVelocity después de un tiempo
                 game:GetService("Debris"):AddItem(bodyVel, 1)
-                
-                print("Jugador " .. otherPlayer.Name .. " lanzado!")
             end
         end
     end
 end
 
--- Función para hacer el bate lanzador global
+-- Función para hacer el bate lanzador
 local function makeBatLauncher()
     local function setupBat(tool)
         if tool.Name:lower():find("bat") or tool.Name:lower():find("bate") then
             local handle = tool:FindFirstChild("Handle")
             if handle then
-                -- Crear conexión para lanzamiento global
                 local connection
                 connection = tool.Activated:Connect(function()
                     launchAllPlayers()
-                    print("¡Bate activado! Todos los jugadores han sido lanzados")
                 end)
                 
                 tool.Unequipped:Connect(function()
@@ -197,13 +292,10 @@ local function makeBatLauncher()
                         connection:Disconnect()
                     end
                 end)
-                
-                print("Bate lanzador global activado!")
             end
         end
     end
     
-    -- Configurar bate actual si existe
     for _, tool in pairs(player.Backpack:GetChildren()) do
         setupBat(tool)
     end
@@ -216,7 +308,6 @@ local function makeBatLauncher()
         end
     end
     
-    -- Configurar futuros bates
     player.Backpack.ChildAdded:Connect(setupBat)
     if character then
         character.ChildAdded:Connect(function(child)
@@ -227,27 +318,118 @@ local function makeBatLauncher()
     end
 end
 
--- Manejar input del teclado
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == FLOAT_KEY then
-        toggleFloat()
-    elseif input.KeyCode == FREEZE_KEY then
-        toggleFreeze()
-    end
+-- Crear controles del panel
+floatButton = createButton("FloatButton", "Activar Float", 1, toggleFloat)
+freezeButton = createButton("FreezeButton", "Congelar", 2, toggleFreeze)
+
+createSlider("FrozenSpeed", "Velocidad Congelado", 1, 20, FROZEN_SPEED, 3, function(value)
+    FROZEN_SPEED = value
 end)
 
--- Loop principal para movimiento
+createSlider("FloatSpeed", "Velocidad Float", 10, 50, FLOAT_SPEED, 4, function(value)
+    FLOAT_SPEED = value
+end)
+
+createSlider("KnockbackForce", "Fuerza Bate", 50, 300, KNOCKBACK_FORCE, 5, function(value)
+    KNOCKBACK_FORCE = value
+end)
+
+createButton("LaunchButton", "Lanzar Todos", 6, launchAllPlayers)
+
+-- Toggle del panel
+local panelOpen = false
+
+local function togglePanel()
+    panelOpen = not panelOpen
+    
+    local targetPosition = panelOpen and UDim2.new(0, 10, 0.5, -200) or UDim2.new(0, -300, 0.5, -200)
+    
+    local tween = TweenService:Create(
+        mainFrame,
+        TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+        {Position = targetPosition}
+    )
+    
+    mainFrame.Visible = true
+    tween:Play()
+    
+    if not panelOpen then
+        tween.Completed:Connect(function()
+            mainFrame.Visible = false
+        end)
+    end
+end
+
+toggleButton.MouseButton1Click:Connect(togglePanel)
+
+-- Funciones de movimiento
+local function handleFrozenMovement()
+    if not isFrozen or not bodyPosition then return end
+    
+    local moveVector = Vector3.new(0, 0, 0)
+    
+    if UserInputService:IsKeyDown(FORWARD_KEY) then
+        moveVector = moveVector + Vector3.new(0, 0, -1)
+    end
+        if UserInputService:IsKeyDown(BACKWARD_KEY) then
+        moveVector = moveVector + Vector3.new(0, 0, 1)
+    end
+    if UserInputService:IsKeyDown(LEFT_KEY) then
+        moveVector = moveVector + Vector3.new(-1, 0, 0)
+    end
+    if UserInputService:IsKeyDown(RIGHT_KEY) then
+        moveVector = moveVector + Vector3.new(1, 0, 0)
+    end
+    if UserInputService:IsKeyDown(UP_KEY) then
+        moveVector = moveVector + Vector3.new(0, 1, 0)
+    end
+    if UserInputService:IsKeyDown(DOWN_KEY) then
+        moveVector = moveVector + Vector3.new(0, -1, 0)
+    end
+    
+    if moveVector.Magnitude > 0 then
+        frozenPosition = frozenPosition + (moveVector.Unit * FROZEN_SPEED)
+        bodyPosition.Position = frozenPosition
+    end
+end
+
+local function handleFloat()
+    if not isFloating or not bodyVelocity then return end
+    
+    local velocity = Vector3.new(0, 0, 0)
+    
+    if UserInputService:IsKeyDown(FORWARD_KEY) then
+        velocity = velocity + Vector3.new(0, 0, -FLOAT_SPEED)
+    end
+    if UserInputService:IsKeyDown(BACKWARD_KEY) then
+        velocity = velocity + Vector3.new(0, 0, FLOAT_SPEED)
+    end
+    if UserInputService:IsKeyDown(LEFT_KEY) then
+        velocity = velocity + Vector3.new(-FLOAT_SPEED, 0, 0)
+    end
+    if UserInputService:IsKeyDown(RIGHT_KEY) then
+        velocity = velocity + Vector3.new(FLOAT_SPEED, 0, 0)
+    end
+    if UserInputService:IsKeyDown(UP_KEY) then
+        velocity = velocity + Vector3.new(0, FLOAT_SPEED, 0)
+    end
+    if UserInputService:IsKeyDown(DOWN_KEY) then
+        velocity = velocity + Vector3.new(0, -FLOAT_SPEED, 0)
+    end
+    
+    bodyVelocity.Velocity = velocity
+end
+
+-- Loop principal
 RunService.Heartbeat:Connect(function()
     handleFloat()
     handleFrozenMovement()
 end)
 
--- Configurar bate lanzador al inicio
+-- Configurar bate al inicio
 makeBatLauncher()
 
--- Reconfigurar cuando el personaje respawnee
+-- Reconfigurar cuando respawnee
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = character:WaitForChild("Humanoid")
@@ -260,16 +442,14 @@ player.CharacterAdded:Connect(function(newCharacter)
     if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
     if bodyPosition then bodyPosition:Destroy() bodyPosition = nil end
     
-    -- Reconfigurar bate lanzador
-    wait(1) -- Esperar a que cargue completamente
+    -- Resetear botones
+    floatButton.Text = "Activar Float"
+    floatButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    freezeButton.Text = "Congelar"
+    freezeButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    
+    wait(1)
     makeBatLauncher()
 end)
 
--- Mostrar controles
-print("=== PANEL DE ADMINISTRACIÓN ===")
-print("F - Flotación en cruz (velocidad normal)")
-print("G - Congelar/Descongelar (velocidad speedcoil)")
-print("WASD - Adelante/Atrás/Izquierda/Derecha")
-print("Q/E - Arriba/Abajo")
-print("Bate - Lanza a TODOS los jugadores desde cualquier distancia")
-print("===============================")
+print("Panel GUI cargado - Presiona el botón 'Panel' para abrir/cerrar")
