@@ -1,5 +1,5 @@
 -- Panel de administración básico para Steal a Brainrot
--- Funciones: Float, Freeze/Unfreeze, Control de altura, Movimiento congelado, Bat infinito
+-- Funciones: Float con cruz, Freeze/Unfreeze, Control de altura, Movimiento congelado, Bat lanzador
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -14,11 +14,14 @@ local rootPart = character:WaitForChild("HumanoidRootPart")
 -- Variables de estado
 local isFloating = false
 local isFrozen = false
-local floatHeight = 0
 local bodyVelocity = nil
 local bodyPosition = nil
 local frozenPosition = nil
-local movementSpeed = 16
+
+-- Configuración de velocidades
+local FLOAT_SPEED = 25 -- Velocidad controlada para flotación
+local FROZEN_SPEED = 3 -- Velocidad tipo speedcoil para movimiento congelado
+local KNOCKBACK_FORCE = 150 -- Fuerza de lanzamiento del bate
 
 -- Configuración de teclas
 local FLOAT_KEY = Enum.KeyCode.F
@@ -41,11 +44,10 @@ local function toggleFloat()
         bodyVelocity.Velocity = Vector3.new(0, 0, 0)
         bodyVelocity.Parent = rootPart
         
-        print("Flotación activada - Presiona Q/E para subir/bajar")
+        print("Flotación activada - Usa WASD + Q/E para moverte en cruz")
     else
         -- Desactivar flotación
         isFloating = false
-        floatHeight = 0
         
         if bodyVelocity then
             bodyVelocity:Destroy()
@@ -70,7 +72,7 @@ local function toggleFreeze()
         
         humanoid.PlatformStand = true
         
-        print("Personaje congelado - Usa WASD para mover")
+        print("Personaje congelado - Velocidad tipo speedcoil activada")
     else
         -- Descongelar personaje
         isFrozen = false
@@ -87,99 +89,107 @@ local function toggleFreeze()
     end
 end
 
--- Función para manejar movimiento cuando está congelado
+-- Función para manejar movimiento cuando está congelado (velocidad speedcoil)
 local function handleFrozenMovement()
     if not isFrozen or not bodyPosition then return end
     
-    local camera = workspace.CurrentCamera
     local moveVector = Vector3.new(0, 0, 0)
     
-    -- Obtener dirección de la cámara (sin componente Y)
-    local cameraCFrame = camera.CFrame
-    local forward = cameraCFrame.LookVector
-    local right = cameraCFrame.RightVector
-    
-    -- Normalizar vectores en el plano horizontal
-    forward = Vector3.new(forward.X, 0, forward.Z).Unit
-    right = Vector3.new(right.X, 0, right.Z).Unit
-    
-    -- Calcular movimiento basado en teclas presionadas
+    -- Movimiento en cruz (sin rotación de cámara)
     if UserInputService:IsKeyDown(FORWARD_KEY) then
-        moveVector = moveVector + forward
+        moveVector = moveVector + Vector3.new(0, 0, -1) -- Adelante
     end
     if UserInputService:IsKeyDown(BACKWARD_KEY) then
-        moveVector = moveVector - forward
+        moveVector = moveVector + Vector3.new(0, 0, 1) -- Atrás
     end
     if UserInputService:IsKeyDown(LEFT_KEY) then
-        moveVector = moveVector - right
+        moveVector = moveVector + Vector3.new(-1, 0, 0) -- Izquierda
     end
     if UserInputService:IsKeyDown(RIGHT_KEY) then
-        moveVector = moveVector + right
+        moveVector = moveVector + Vector3.new(1, 0, 0) -- Derecha
     end
     if UserInputService:IsKeyDown(UP_KEY) then
-        moveVector = moveVector + Vector3.new(0, 1, 0)
+        moveVector = moveVector + Vector3.new(0, 1, 0) -- Arriba
     end
     if UserInputService:IsKeyDown(DOWN_KEY) then
-        moveVector = moveVector + Vector3.new(0, -1, 0)
+        moveVector = moveVector + Vector3.new(0, -1, 0) -- Abajo
     end
     
-    -- Aplicar movimiento
+    -- Aplicar movimiento con velocidad tipo speedcoil
     if moveVector.Magnitude > 0 then
-        frozenPosition = frozenPosition + (moveVector.Unit * movementSpeed * 0.1)
+        frozenPosition = frozenPosition + (moveVector.Unit * FROZEN_SPEED)
         bodyPosition.Position = frozenPosition
     end
 end
 
--- Función para manejar flotación
+-- Función para manejar flotación en cruz
 local function handleFloat()
     if not isFloating or not bodyVelocity then return end
     
     local velocity = Vector3.new(0, 0, 0)
     
+    -- Movimiento en cruz con velocidad limitada
+    if UserInputService:IsKeyDown(FORWARD_KEY) then
+        velocity = velocity + Vector3.new(0, 0, -FLOAT_SPEED) -- Adelante
+    end
+    if UserInputService:IsKeyDown(BACKWARD_KEY) then
+        velocity = velocity + Vector3.new(0, 0, FLOAT_SPEED) -- Atrás
+    end
+    if UserInputService:IsKeyDown(LEFT_KEY) then
+        velocity = velocity + Vector3.new(-FLOAT_SPEED, 0, 0) -- Izquierda
+    end
+    if UserInputService:IsKeyDown(RIGHT_KEY) then
+        velocity = velocity + Vector3.new(FLOAT_SPEED, 0, 0) -- Derecha
+    end
     if UserInputService:IsKeyDown(UP_KEY) then
-        floatHeight = floatHeight + 0.5
+        velocity = velocity + Vector3.new(0, FLOAT_SPEED, 0) -- Arriba
     end
     if UserInputService:IsKeyDown(DOWN_KEY) then
-        floatHeight = floatHeight - 0.5
+        velocity = velocity + Vector3.new(0, -FLOAT_SPEED, 0) -- Abajo
     end
     
-    velocity = Vector3.new(0, floatHeight, 0)
     bodyVelocity.Velocity = velocity
 end
 
--- Función para hacer el bate infinito
-local function makeBatInfinite()
+-- Función para lanzar a todos los jugadores con el bate
+local function launchAllPlayers()
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if otherRoot then
+                -- Calcular dirección desde mi posición hacia el otro jugador
+                local direction = (otherRoot.Position - rootPart.Position).Unit
+                
+                -- Crear efecto de lanzamiento
+                local bodyVel = Instance.new("BodyVelocity")
+                bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
+                
+                -- Lanzar hacia arriba y en la dirección calculada
+                local launchDirection = direction + Vector3.new(0, 0.5, 0) -- Añadir componente hacia arriba
+                bodyVel.Velocity = launchDirection.Unit * KNOCKBACK_FORCE
+                bodyVel.Parent = otherRoot
+                
+                -- Remover el BodyVelocity después de un tiempo
+                game:GetService("Debris"):AddItem(bodyVel, 1)
+                
+                print("Jugador " .. otherPlayer.Name .. " lanzado!")
+            end
+        end
+    end
+end
+
+-- Función para hacer el bate lanzador global
+local function makeBatLauncher()
     local function setupBat(tool)
         if tool.Name:lower():find("bat") or tool.Name:lower():find("bate") then
-            -- Buscar el script del bate y modificarlo
             local handle = tool:FindFirstChild("Handle")
             if handle then
-                -- Crear conexión para golpes infinitos
+                -- Crear conexión para lanzamiento global
                 local connection
                 connection = tool.Activated:Connect(function()
-                    -- Buscar todos los jugadores cercanos
-                    for _, otherPlayer in pairs(Players:GetPlayers()) do
-                        if otherPlayer ~= player and otherPlayer.Character then
-                            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-                            
-                            if otherRoot and otherHumanoid then
-                                local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                                if distance <= 50 then -- Rango infinito (50 studs)
-                                    -- Simular golpe
-                                    otherHumanoid.Health = otherHumanoid.Health - 20
-                                    
-                                    -- Efecto de knockback
-                                    local bodyVel = Instance.new("BodyVelocity")
-                                    bodyVel.MaxForce = Vector3.new(4000, 0, 4000)
-                                    bodyVel.Velocity = (otherRoot.Position - rootPart.Position).Unit * 50
-                                    bodyVel.Parent = otherRoot
-                                    
-                                    game:GetService("Debris"):AddItem(bodyVel, 0.5)
-                                end
-                            end
-                        end
-                    end
+                    launchAllPlayers()
+                    print("¡Bate activado! Todos los jugadores han sido lanzados")
                 end)
                 
                 tool.Unequipped:Connect(function()
@@ -188,7 +198,7 @@ local function makeBatInfinite()
                     end
                 end)
                 
-                print("Bate infinito activado!")
+                print("Bate lanzador global activado!")
             end
         end
     end
@@ -234,8 +244,8 @@ RunService.Heartbeat:Connect(function()
     handleFrozenMovement()
 end)
 
--- Configurar bate infinito al inicio
-makeBatInfinite()
+-- Configurar bate lanzador al inicio
+makeBatLauncher()
 
 -- Reconfigurar cuando el personaje respawnee
 player.CharacterAdded:Connect(function(newCharacter)
@@ -246,21 +256,20 @@ player.CharacterAdded:Connect(function(newCharacter)
     -- Resetear estados
     isFloating = false
     isFrozen = false
-    floatHeight = 0
     
     if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
     if bodyPosition then bodyPosition:Destroy() bodyPosition = nil end
     
-    -- Reconfigurar bate infinito
+    -- Reconfigurar bate lanzador
     wait(1) -- Esperar a que cargue completamente
-    makeBatInfinite()
+    makeBatLauncher()
 end)
 
 -- Mostrar controles
 print("=== PANEL DE ADMINISTRACIÓN ===")
-print("F - Activar/Desactivar Flotación")
-print("G - Congelar/Descongelar Personaje")
-print("Q/E - Subir/Bajar (en flotación o congelado)")
-print("WASD - Mover cuando está congelado")
-print("Bate infinito: Activado automáticamente")
+print("F - Flotación en cruz (velocidad normal)")
+print("G - Congelar/Descongelar (velocidad speedcoil)")
+print("WASD - Adelante/Atrás/Izquierda/Derecha")
+print("Q/E - Arriba/Abajo")
+print("Bate - Lanza a TODOS los jugadores desde cualquier distancia")
 print("===============================")
