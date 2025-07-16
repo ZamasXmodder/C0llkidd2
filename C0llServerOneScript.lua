@@ -27,9 +27,10 @@ local autoBlock = false
 -- Variables para noclip
 local noclipConnections = {}
 
--- Variables para autobloqueo
-local autoBlockConnection = nil
+-- Variables para autobloqueo mejorado
+local countdownConnection = nil
 local baseBlockParts = {}
+local countdownGui = nil
 
 -- Configuración de velocidades y teletransporte
 local FLOAT_SPEED = 25
@@ -249,6 +250,44 @@ local function teleportUp()
     end
 end
 
+-- Función para encontrar el contador del juego
+local function findCountdownGui()
+    -- Buscar en PlayerGui por GUIs de countdown
+    for _, gui in pairs(playerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            for _, frame in pairs(gui:GetDescendants()) do
+                if frame:IsA("TextLabel") then
+                    local text = frame.Text:lower()
+                    -- Buscar patrones comunes de countdown
+                    if text:find("countdown") or text:find("timer") or 
+                                              text:find("time") or text:find("seconds") or
+                       text:match("%d+:%d+") or text:match("%d+") then
+                        return frame
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Buscar en workspace por GUIs de countdown
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") then
+            for _, frame in pairs(obj:GetDescendants()) do
+                if frame:IsA("TextLabel") then
+                    local text = frame.Text:lower()
+                    if text:find("countdown") or text:find("timer") or 
+                       text:find("time") or text:find("seconds") or
+                       text:match("%d+:%d+") or text:match("%d+") then
+                        return frame
+                    end
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
 -- Función para encontrar la base del jugador
 local function findPlayerBase()
     local bases = {}
@@ -262,7 +301,7 @@ local function findPlayerBase()
                name:find("spawn") or name:find("plot") then
                 
                 -- Verificar si tiene partes sólidas
-                                for _, part in pairs(obj:GetDescendants()) do
+                for _, part in pairs(obj:GetDescendants()) do
                     if part:IsA("BasePart") and part.CanCollide then
                         table.insert(bases, part)
                     end
@@ -299,54 +338,123 @@ local function findPlayerBase()
     return bases
 end
 
--- Función para bloquear base automáticamente
-local function blockBase()
-    if not autoBlock then return end
+-- Función para bloquear base cuando el contador llegue a 0
+local function blockBaseOnCountdown()
+    if #baseBlockParts == 0 then
+        baseBlockParts = findPlayerBase()
+    end
     
-    for _, part in pairs(baseBlockParts) do
-        if part and part.Parent then
-            -- Crear barrera invisible
-            local barrier = Instance.new("Part")
-            barrier.Name = "AutoBlockBarrier_" .. part.Name
-            barrier.Size = part.Size + Vector3.new(2, 2, 2)
-            barrier.Position = part.Position
-            barrier.Anchored = true
-            barrier.CanCollide = true
-            barrier.Transparency = 0.8
-            barrier.BrickColor = BrickColor.new("Really red")
-            barrier.Material = Enum.Material.ForceField
-            barrier.Parent = workspace
-            
-            -- Hacer que solo otros jugadores no puedan pasar
-            local function onTouched(hit)
-                local humanoidHit = hit.Parent:FindFirstChild("Humanoid")
-                if humanoidHit then
-                    local playerHit = Players:GetPlayerFromCharacter(hit.Parent)
-                    if playerHit and playerHit ~= player then
-                        -- Empujar al jugador lejos de la base
-                        local humanoidRootPart = hit.Parent:FindFirstChild("HumanoidRootPart")
-                        if humanoidRootPart then
-                            local direction = (humanoidRootPart.Position - part.Position).Unit
-                            local pushForce = Instance.new("BodyVelocity")
-                            pushForce.MaxForce = Vector3.new(4000, 0, 4000)
-                            pushForce.Velocity = direction * 50
-                            pushForce.Parent = humanoidRootPart
-                            
-                            game:GetService("Debris"):AddItem(pushForce, 0.5)
+    if #baseBlockParts > 0 then
+        print("¡Contador en 0! Bloqueando base automáticamente...")
+        
+        for _, part in pairs(baseBlockParts) do
+            if part and part.Parent then
+                -- Crear barrera más fuerte
+                local barrier = Instance.new("Part")
+                barrier.Name = "CountdownBlockBarrier_" .. part.Name
+                barrier.Size = part.Size + Vector3.new(4, 4, 4)
+                barrier.Position = part.Position
+                barrier.Anchored = true
+                barrier.CanCollide = true
+                barrier.Transparency = 0.3
+                barrier.BrickColor = BrickColor.new("Really red")
+                barrier.Material = Enum.Material.ForceField
+                barrier.Parent = workspace
+                
+                -- Hacer que solo otros jugadores no puedan pasar
+                local function onTouched(hit)
+                    local humanoidHit = hit.Parent:FindFirstChild("Humanoid")
+                    if humanoidHit then
+                        local playerHit = Players:GetPlayerFromCharacter(hit.Parent)
+                        if playerHit and playerHit ~= player then
+                            -- Empujar al jugador lejos de la base con más fuerza
+                            local humanoidRootPart = hit.Parent:FindFirstChild("HumanoidRootPart")
+                            if humanoidRootPart then
+                                local direction = (humanoidRootPart.Position - part.Position).Unit
+                                local pushForce = Instance.new("BodyVelocity")
+                                pushForce.MaxForce = Vector3.new(8000, 0, 8000)
+                                pushForce.Velocity = direction * 100
+                                pushForce.Parent = humanoidRootPart
+                                
+                                game:GetService("Debris"):AddItem(pushForce, 1)
+                                
+                                -- Mensaje de advertencia
+                                local gui = Instance.new("ScreenGui")
+                                gui.Parent = playerHit.PlayerGui
+                                
+                                local warning = Instance.new("TextLabel")
+                                warning.Size = UDim2.new(0, 300, 0, 50)
+                                warning.Position = UDim2.new(0.5, -150, 0.1, 0)
+                                warning.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                                warning.Text = "¡BASE PROTEGIDA!"
+                                warning.TextColor3 = Color3.fromRGB(255, 255, 255)
+                                warning.TextScaled = true
+                                warning.Font = Enum.Font.GothamBold
+                                warning.Parent = gui
+                                
+                                local corner = Instance.new("UICorner")
+                                corner.CornerRadius = UDim.new(0, 10)
+                                corner.Parent = warning
+                                
+                                game:GetService("Debris"):AddItem(gui, 3)
+                            end
                         end
                     end
                 end
+                
+                barrier.Touched:Connect(onTouched)
+                
+                -- Eliminar barrera después de 60 segundos
+                game:GetService("Debris"):AddItem(barrier, 60)
             end
+        end
+        
+        print("Base bloqueada - " .. #baseBlockParts .. " barreras creadas por 60 segundos")
+    else
+        print("No se encontraron partes de base para bloquear")
+    end
+end
+
+-- Función para monitorear el contador
+local function monitorCountdown()
+    countdownGui = findCountdownGui()
+    
+    if countdownGui then
+        print("Contador encontrado - Monitoreando...")
+        
+        countdownConnection = countdownGui:GetPropertyChangedSignal("Text"):Connect(function()
+            local text = countdownGui.Text
             
-            barrier.Touched:Connect(onTouched)
-            
-            -- Eliminar barrera después de un tiempo
-            game:GetService("Debris"):AddItem(barrier, 30)
+            -- Buscar patrones que indiquen que el contador llegó a 0
+            if text:find("0:00") or text:find("00:00") or text == "0" or 
+               text:find("time's up") or text:find("finished") or
+               text:find("complete") or text:find("done") then
+                
+                blockBaseOnCountdown()
+                
+                -- Desconectar después de activar para evitar spam
+                if countdownConnection then
+                    countdownConnection:Disconnect()
+                    countdownConnection = nil
+                end
+                
+                -- Reconectar después de 5 segundos para el próximo round
+                wait(5)
+                if autoBlock then
+                    monitorCountdown()
+                end
+            end
+        end)
+    else
+        print("No se encontró contador - Reintentando en 5 segundos...")
+        wait(5)
+        if autoBlock then
+            monitorCountdown()
         end
     end
 end
 
--- Función para toggle de autobloqueo de base
+-- Función para toggle de autobloqueo optimizado
 local function toggleAutoBlock()
     autoBlock = not autoBlock
     
@@ -359,27 +467,11 @@ local function toggleAutoBlock()
         
         if #baseBlockParts > 0 then
             print("Auto-Block activado - " .. #baseBlockParts .. " partes de base detectadas")
+            print("Esperando a que el contador llegue a 0...")
             
-            -- Crear conexión para bloquear automáticamente
-            autoBlockConnection = RunService.Heartbeat:Connect(function()
-                -- Verificar si hay jugadores cerca de la base
-                for _, otherPlayer in pairs(Players:GetPlayers()) do
-                    if otherPlayer ~= player and otherPlayer.Character then
-                        local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        if otherRoot then
-                            -- Verificar distancia a cualquier parte de la base
-                            for _, basePart in pairs(baseBlockParts) do
-                                if basePart and basePart.Parent then
-                                    local distance = (otherRoot.Position - basePart.Position).Magnitude
-                                    if distance < 20 then -- Si está cerca de la base
-                                        blockBase()
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
+            -- Iniciar monitoreo del contador
+            spawn(function()
+                monitorCountdown()
             end)
         else
             print("No se detectaron partes de base automáticamente")
@@ -391,14 +483,14 @@ local function toggleAutoBlock()
         autoBlockButton.Text = "Auto-Block: OFF"
         autoBlockButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
         
-        if autoBlockConnection then
-            autoBlockConnection:Disconnect()
-            autoBlockConnection = nil
+        if countdownConnection then
+            countdownConnection:Disconnect()
+            countdownConnection = nil
         end
         
         -- Limpiar barreras existentes
         for _, obj in pairs(workspace:GetChildren()) do
-            if obj.Name:find("AutoBlockBarrier_") then
+            if obj.Name:find("CountdownBlockBarrier_") then
                 obj:Destroy()
             end
         end
@@ -481,7 +573,7 @@ local function autoEquipAllTools()
     if not autoEquip then return end
     
     for _, tool in pairs(player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
+                if tool:IsA("Tool") then
             humanoid:EquipTool(tool)
             wait(0.1) -- Pequeña pausa entre equipamientos
         end
@@ -576,7 +668,8 @@ local function toggleInstantGrab()
         
         print("Grab instantáneo activado - Todos los brainrots se agarran al instante")
     else
-                instantGrabButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        instantGrabButton.Text = "Grab Instantáneo: OFF"
+        instantGrabButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
         print("Grab instantáneo desactivado")
     end
 end
@@ -653,7 +746,7 @@ autoEquipButton = createButton("AutoEquipButton", "Auto-Equip: OFF", 4, toggleAu
 noclipButton = createButton("NoclipButton", "NoClip: OFF", 5, toggleNoclip)
 autoBlockButton = createButton("AutoBlockButton", "Auto-Block: OFF", 6, toggleAutoBlock)
 
--- Nuevo botón de teletransporte
+-- Botón de teletransporte
 createButton("TeleportUpButton", "Teleport +45 Studs", 7, teleportUp)
 
 createSlider("FrozenSpeed", "Velocidad Congelado", 1, 20, FROZEN_SPEED, 8, function(value)
@@ -668,7 +761,7 @@ createSlider("KnockbackForce", "Fuerza Bate", 50, 300, KNOCKBACK_FORCE, 10, func
     KNOCKBACK_FORCE = value
 end)
 
--- Nuevo slider para altura de teletransporte
+-- Slider para altura de teletransporte
 createSlider("TeleportHeight", "Altura Teleport", 10, 100, TELEPORT_HEIGHT, 11, function(value)
     TELEPORT_HEIGHT = value
 end)
@@ -683,7 +776,7 @@ local function manualBlockBase()
     end
     
     if #baseBlockParts > 0 then
-        blockBase()
+        blockBaseOnCountdown() -- Usar la misma función pero manualmente
         print("Base bloqueada manualmente - " .. #baseBlockParts .. " barreras creadas")
     else
         print("No se encontraron partes de base para bloquear")
@@ -795,7 +888,7 @@ local function setupProximityPromptMonitoring()
         end
     end)
     
-    -- Monitorear cuando se activa un ProximityPrompt (agarrar brainrot)
+        -- Monitorear cuando se activa un ProximityPrompt (agarrar brainrot)
     ProximityPromptService.PromptTriggered:Connect(function(prompt, playerWhoTriggered)
         if playerWhoTriggered == player and autoEquip then
             wait(0.2) -- Esperar a que se agregue la tool al backpack
@@ -878,24 +971,25 @@ player.CharacterAdded:Connect(function(newCharacter)
     end
     noclipConnections = {}
     
-    -- Limpiar conexión de autobloqueo
-    if autoBlockConnection then
-        autoBlockConnection:Disconnect()
-        autoBlockConnection = nil
+    -- Limpiar conexión de countdown
+    if countdownConnection then
+        countdownConnection:Disconnect()
+        countdownConnection = nil
     end
     
-    -- Resetear autobloqueo
+    -- Mantener autobloqueo activo si estaba activado
     if autoBlock then
-        autoBlock = false
-        autoBlockButton.Text = "Auto-Block: OFF"
-        autoBlockButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        spawn(function()
+            wait(2) -- Esperar a que el personaje se establezca
+            monitorCountdown()
+        end)
     end
     
-    -- Limpiar barreras existentes
+    -- Limpiar barreras existentes del respawn anterior
     for _, obj in pairs(workspace:GetChildren()) do
-        if obj.Name:find("AutoBlockBarrier_") then
+        if obj.Name:find("CountdownBlockBarrier_") then
             obj:Destroy()
-                end
+        end
     end
     
     -- Reconfigurar funciones
@@ -906,7 +1000,7 @@ player.CharacterAdded:Connect(function(newCharacter)
 end)
 
 -- Información de controles
-print("=== PANEL GUI COMPLETO CON TELETRANSPORTE ===")
+print("=== PANEL GUI OPTIMIZADO - AUTO-BLOCK MEJORADO ===")
 print("Botón 'Panel' - Abrir/Cerrar GUI")
 print("W - Mover hacia donde mira la cámara")
 print("Q/E - Subir/Bajar")
@@ -916,9 +1010,16 @@ print("• Congelar - Movimiento congelado")
 print("• Grab Instantáneo - Brainrots sin espera")
 print("• Auto-Equip - Equipar tools automáticamente")
 print("• NoClip - Atravesar paredes (antireversible)")
-print("• Auto-Block - Bloquear base automáticamente")
+print("• Auto-Block - Bloquear base SOLO cuando contador = 0")
 print("• Teleport +45 Studs - Teletransporte hacia arriba")
 print("• Bloquear Base Manual - Bloqueo inmediato")
 print("• Lanzar Todos - Bate lanzador")
 print("• Sliders - Velocidades y altura personalizables")
+print("==============================================")
+print("AUTO-BLOCK MEJORADO:")
+print("- Sin lag constante")
+print("- Solo se activa cuando el contador llega a 0")
+print("- Barreras más fuertes (60 segundos)")
+print("- Detección automática de contadores")
+print("- Mensajes de advertencia a invasores")
 print("==============================================")
