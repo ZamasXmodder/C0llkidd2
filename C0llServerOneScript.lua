@@ -22,14 +22,20 @@ local frozenPosition = nil
 local instantGrab = false
 local autoEquip = false
 local noclipEnabled = false
+local autoBlock = false
 
 -- Variables para noclip
 local noclipConnections = {}
 
--- Configuración de velocidades
+-- Variables para autobloqueo
+local autoBlockConnection = nil
+local baseBlockParts = {}
+
+-- Configuración de velocidades y teletransporte
 local FLOAT_SPEED = 25
 local FROZEN_SPEED = 3
 local KNOCKBACK_FORCE = 150
+local TELEPORT_HEIGHT = 45
 
 -- Configuración de teclas para movimiento
 local FORWARD_KEY = Enum.KeyCode.W
@@ -45,8 +51,8 @@ screenGui.ResetOnSpawn = false
 -- Panel principal
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 300, 0, 500)
-mainFrame.Position = UDim2.new(0, 10, 0.5, -250)
+mainFrame.Size = UDim2.new(0, 300, 0, 600)
+mainFrame.Position = UDim2.new(0, 10, 0.5, -300)
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
@@ -200,7 +206,206 @@ local function createSlider(name, text, minVal, maxVal, defaultVal, layoutOrder,
 end
 
 -- Variables para los botones
-local floatButton, freezeButton, instantGrabButton, autoEquipButton, noclipButton
+local floatButton, freezeButton, instantGrabButton, autoEquipButton, noclipButton, autoBlockButton
+
+-- Función para teletransporte hacia arriba
+local function teleportUp()
+    if rootPart then
+        local currentPosition = rootPart.Position
+        local newPosition = currentPosition + Vector3.new(0, TELEPORT_HEIGHT, 0)
+        
+        -- Crear efecto visual
+        local teleportEffect = Instance.new("Part")
+        teleportEffect.Name = "TeleportEffect"
+        teleportEffect.Size = Vector3.new(4, 8, 4)
+        teleportEffect.Position = currentPosition
+        teleportEffect.Anchored = true
+        teleportEffect.CanCollide = false
+        teleportEffect.Transparency = 0.5
+        teleportEffect.BrickColor = BrickColor.new("Bright blue")
+        teleportEffect.Material = Enum.Material.Neon
+        teleportEffect.Shape = Enum.PartType.Cylinder
+        teleportEffect.Parent = workspace
+        
+        -- Efecto de rotación
+        local spin = Instance.new("BodyAngularVelocity")
+        spin.AngularVelocity = Vector3.new(0, 10, 0)
+        spin.MaxTorque = Vector3.new(0, math.huge, 0)
+        spin.Parent = teleportEffect
+        
+        -- Teletransportar
+        rootPart.CFrame = CFrame.new(newPosition, newPosition + rootPart.CFrame.LookVector)
+        
+        -- Crear efecto en la nueva posición
+        local arrivalEffect = teleportEffect:Clone()
+        arrivalEffect.Position = newPosition
+        arrivalEffect.Parent = workspace
+        
+        -- Limpiar efectos después de 2 segundos
+        game:GetService("Debris"):AddItem(teleportEffect, 2)
+        game:GetService("Debris"):AddItem(arrivalEffect, 2)
+        
+        print("Teletransportado " .. TELEPORT_HEIGHT .. " studs hacia arriba")
+    end
+end
+
+-- Función para encontrar la base del jugador
+local function findPlayerBase()
+    local bases = {}
+    
+    -- Buscar en workspace por estructuras que parezcan bases
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") or obj:IsA("Folder") then
+            -- Buscar por nombres comunes de bases
+            local name = obj.Name:lower()
+            if name:find("base") or name:find("house") or name:find("home") or 
+               name:find("spawn") or name:find("plot") then
+                
+                -- Verificar si tiene partes sólidas
+                                for _, part in pairs(obj:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        table.insert(bases, part)
+                    end
+                end
+            end
+        elseif obj:IsA("BasePart") then
+            -- Buscar partes individuales que puedan ser de la base
+            local name = obj.Name:lower()
+            if name:find("base") or name:find("floor") or name:find("wall") or
+               name:find("foundation") or name:find("platform") then
+                table.insert(bases, obj)
+            end
+        end
+    end
+    
+    -- Si no encuentra bases específicas, buscar partes grandes cerca del spawn
+    if #bases == 0 then
+        local spawnLocation = workspace.SpawnLocation or workspace:FindFirstChild("Spawn")
+        if spawnLocation then
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj:IsA("BasePart") and obj ~= spawnLocation then
+                    local distance = (obj.Position - spawnLocation.Position).Magnitude
+                    local size = obj.Size.Magnitude
+                    
+                    -- Si es una parte grande cerca del spawn, probablemente sea parte de la base
+                    if distance < 100 and size > 10 and obj.CanCollide then
+                        table.insert(bases, obj)
+                    end
+                end
+            end
+        end
+    end
+    
+    return bases
+end
+
+-- Función para bloquear base automáticamente
+local function blockBase()
+    if not autoBlock then return end
+    
+    for _, part in pairs(baseBlockParts) do
+        if part and part.Parent then
+            -- Crear barrera invisible
+            local barrier = Instance.new("Part")
+            barrier.Name = "AutoBlockBarrier_" .. part.Name
+            barrier.Size = part.Size + Vector3.new(2, 2, 2)
+            barrier.Position = part.Position
+            barrier.Anchored = true
+            barrier.CanCollide = true
+            barrier.Transparency = 0.8
+            barrier.BrickColor = BrickColor.new("Really red")
+            barrier.Material = Enum.Material.ForceField
+            barrier.Parent = workspace
+            
+            -- Hacer que solo otros jugadores no puedan pasar
+            local function onTouched(hit)
+                local humanoidHit = hit.Parent:FindFirstChild("Humanoid")
+                if humanoidHit then
+                    local playerHit = Players:GetPlayerFromCharacter(hit.Parent)
+                    if playerHit and playerHit ~= player then
+                        -- Empujar al jugador lejos de la base
+                        local humanoidRootPart = hit.Parent:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            local direction = (humanoidRootPart.Position - part.Position).Unit
+                            local pushForce = Instance.new("BodyVelocity")
+                            pushForce.MaxForce = Vector3.new(4000, 0, 4000)
+                            pushForce.Velocity = direction * 50
+                            pushForce.Parent = humanoidRootPart
+                            
+                            game:GetService("Debris"):AddItem(pushForce, 0.5)
+                        end
+                    end
+                end
+            end
+            
+            barrier.Touched:Connect(onTouched)
+            
+            -- Eliminar barrera después de un tiempo
+            game:GetService("Debris"):AddItem(barrier, 30)
+        end
+    end
+end
+
+-- Función para toggle de autobloqueo de base
+local function toggleAutoBlock()
+    autoBlock = not autoBlock
+    
+    if autoBlock then
+        autoBlockButton.Text = "Auto-Block: ON"
+        autoBlockButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+        
+        -- Encontrar partes de la base
+        baseBlockParts = findPlayerBase()
+        
+        if #baseBlockParts > 0 then
+            print("Auto-Block activado - " .. #baseBlockParts .. " partes de base detectadas")
+            
+            -- Crear conexión para bloquear automáticamente
+            autoBlockConnection = RunService.Heartbeat:Connect(function()
+                -- Verificar si hay jugadores cerca de la base
+                for _, otherPlayer in pairs(Players:GetPlayers()) do
+                    if otherPlayer ~= player and otherPlayer.Character then
+                        local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if otherRoot then
+                            -- Verificar distancia a cualquier parte de la base
+                            for _, basePart in pairs(baseBlockParts) do
+                                if basePart and basePart.Parent then
+                                    local distance = (otherRoot.Position - basePart.Position).Magnitude
+                                    if distance < 20 then -- Si está cerca de la base
+                                        blockBase()
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            print("No se detectaron partes de base automáticamente")
+            autoBlock = false
+            autoBlockButton.Text = "Auto-Block: OFF"
+            autoBlockButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        end
+    else
+        autoBlockButton.Text = "Auto-Block: OFF"
+        autoBlockButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        
+        if autoBlockConnection then
+            autoBlockConnection:Disconnect()
+            autoBlockConnection = nil
+        end
+        
+        -- Limpiar barreras existentes
+        for _, obj in pairs(workspace:GetChildren()) do
+            if obj.Name:find("AutoBlockBarrier_") then
+                obj:Destroy()
+            end
+        end
+        
+        print("Auto-Block desactivado")
+    end
+end
 
 -- Función para activar/desactivar noclip
 local function toggleNoclip()
@@ -290,7 +495,7 @@ local function toggleAutoEquip()
     if autoEquip then
         autoEquipButton.Text = "Auto-Equip: ON"
         autoEquipButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-                print("Auto-equipar activado - Las tools se equiparán automáticamente")
+        print("Auto-equipar activado - Las tools se equiparán automáticamente")
     else
         autoEquipButton.Text = "Auto-Equip: OFF"
         autoEquipButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
@@ -371,8 +576,7 @@ local function toggleInstantGrab()
         
         print("Grab instantáneo activado - Todos los brainrots se agarran al instante")
     else
-        instantGrabButton.Text = "Grab Instantáneo: OFF"
-        instantGrabButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+                instantGrabButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
         print("Grab instantáneo desactivado")
     end
 end
@@ -447,20 +651,47 @@ freezeButton = createButton("FreezeButton", "Congelar", 2, toggleFreeze)
 instantGrabButton = createButton("InstantGrabButton", "Grab Instantáneo: OFF", 3, toggleInstantGrab)
 autoEquipButton = createButton("AutoEquipButton", "Auto-Equip: OFF", 4, toggleAutoEquip)
 noclipButton = createButton("NoclipButton", "NoClip: OFF", 5, toggleNoclip)
+autoBlockButton = createButton("AutoBlockButton", "Auto-Block: OFF", 6, toggleAutoBlock)
 
-createSlider("FrozenSpeed", "Velocidad Congelado", 1, 20, FROZEN_SPEED, 6, function(value)
+-- Nuevo botón de teletransporte
+createButton("TeleportUpButton", "Teleport +45 Studs", 7, teleportUp)
+
+createSlider("FrozenSpeed", "Velocidad Congelado", 1, 20, FROZEN_SPEED, 8, function(value)
     FROZEN_SPEED = value
 end)
 
-createSlider("FloatSpeed", "Velocidad Float", 10, 50, FLOAT_SPEED, 7, function(value)
+createSlider("FloatSpeed", "Velocidad Float", 10, 50, FLOAT_SPEED, 9, function(value)
     FLOAT_SPEED = value
 end)
 
-createSlider("KnockbackForce", "Fuerza Bate", 50, 300, KNOCKBACK_FORCE, 8, function(value)
+createSlider("KnockbackForce", "Fuerza Bate", 50, 300, KNOCKBACK_FORCE, 10, function(value)
     KNOCKBACK_FORCE = value
 end)
 
-createButton("LaunchButton", "Lanzar Todos", 9, launchAllPlayers)
+-- Nuevo slider para altura de teletransporte
+createSlider("TeleportHeight", "Altura Teleport", 10, 100, TELEPORT_HEIGHT, 11, function(value)
+    TELEPORT_HEIGHT = value
+end)
+
+createButton("LaunchButton", "Lanzar Todos", 12, launchAllPlayers)
+
+-- Función para bloqueo manual de base
+local function manualBlockBase()
+    -- Encontrar partes de la base si no están definidas
+    if #baseBlockParts == 0 then
+        baseBlockParts = findPlayerBase()
+    end
+    
+    if #baseBlockParts > 0 then
+        blockBase()
+        print("Base bloqueada manualmente - " .. #baseBlockParts .. " barreras creadas")
+    else
+        print("No se encontraron partes de base para bloquear")
+    end
+end
+
+-- Agregar botón de bloqueo manual
+createButton("ManualBlockButton", "Bloquear Base Manual", 13, manualBlockBase)
 
 -- Toggle del panel
 local panelOpen = false
@@ -468,7 +699,7 @@ local panelOpen = false
 local function togglePanel()
     panelOpen = not panelOpen
     
-    local targetPosition = panelOpen and UDim2.new(0, 10, 0.5, -250) or UDim2.new(0, -300, 0.5, -250)
+    local targetPosition = panelOpen and UDim2.new(0, 10, 0.5, -300) or UDim2.new(0, -300, 0.5, -300)
     
     local tween = TweenService:Create(
         mainFrame,
@@ -630,7 +861,7 @@ player.CharacterAdded:Connect(function(newCharacter)
     isFloating = false
     isFrozen = false
     
-        if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+    if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
     if bodyPosition then bodyPosition:Destroy() bodyPosition = nil end
     
     -- Resetear botones de movimiento
@@ -647,6 +878,26 @@ player.CharacterAdded:Connect(function(newCharacter)
     end
     noclipConnections = {}
     
+    -- Limpiar conexión de autobloqueo
+    if autoBlockConnection then
+        autoBlockConnection:Disconnect()
+        autoBlockConnection = nil
+    end
+    
+    -- Resetear autobloqueo
+    if autoBlock then
+        autoBlock = false
+        autoBlockButton.Text = "Auto-Block: OFF"
+        autoBlockButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    end
+    
+    -- Limpiar barreras existentes
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name:find("AutoBlockBarrier_") then
+            obj:Destroy()
+                end
+    end
+    
     -- Reconfigurar funciones
     wait(1)
     makeBatLauncher()
@@ -655,7 +906,7 @@ player.CharacterAdded:Connect(function(newCharacter)
 end)
 
 -- Información de controles
-print("=== PANEL GUI COMPLETO CARGADO ===")
+print("=== PANEL GUI COMPLETO CON TELETRANSPORTE ===")
 print("Botón 'Panel' - Abrir/Cerrar GUI")
 print("W - Mover hacia donde mira la cámara")
 print("Q/E - Subir/Bajar")
@@ -665,6 +916,9 @@ print("• Congelar - Movimiento congelado")
 print("• Grab Instantáneo - Brainrots sin espera")
 print("• Auto-Equip - Equipar tools automáticamente")
 print("• NoClip - Atravesar paredes (antireversible)")
-print("• Bate Lanzador - Lanzar jugadores")
-print("• Sliders - Velocidades personalizables")
-print("===================================")
+print("• Auto-Block - Bloquear base automáticamente")
+print("• Teleport +45 Studs - Teletransporte hacia arriba")
+print("• Bloquear Base Manual - Bloqueo inmediato")
+print("• Lanzar Todos - Bate lanzador")
+print("• Sliders - Velocidades y altura personalizables")
+print("==============================================")
