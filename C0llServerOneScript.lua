@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -18,6 +19,7 @@ local isFrozen = false
 local bodyVelocity = nil
 local bodyPosition = nil
 local frozenPosition = nil
+local instantGrab = false
 
 -- Configuración de velocidades
 local FLOAT_SPEED = 25
@@ -25,12 +27,9 @@ local FROZEN_SPEED = 3
 local KNOCKBACK_FORCE = 150
 
 -- Configuración de teclas para movimiento
+local FORWARD_KEY = Enum.KeyCode.W
 local UP_KEY = Enum.KeyCode.Q
 local DOWN_KEY = Enum.KeyCode.E
-local FORWARD_KEY = Enum.KeyCode.W
-local BACKWARD_KEY = Enum.KeyCode.S
-local LEFT_KEY = Enum.KeyCode.A
-local RIGHT_KEY = Enum.KeyCode.D
 
 -- Crear GUI principal
 local screenGui = Instance.new("ScreenGui")
@@ -41,8 +40,8 @@ screenGui.ResetOnSpawn = false
 -- Panel principal
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0, 10, 0.5, -200)
+mainFrame.Size = UDim2.new(0, 300, 0, 450)
+mainFrame.Position = UDim2.new(0, 10, 0.5, -225)
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
@@ -196,7 +195,7 @@ local function createSlider(name, text, minVal, maxVal, defaultVal, layoutOrder,
 end
 
 -- Variables para los botones
-local floatButton, freezeButton
+local floatButton, freezeButton, instantGrabButton
 
 -- Función para activar/desactivar flotación
 local function toggleFloat()
@@ -251,6 +250,29 @@ local function toggleFreeze()
         
         freezeButton.Text = "Congelar"
         freezeButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    end
+end
+
+-- Función para toggle de agarrar instantáneo
+local function toggleInstantGrab()
+    instantGrab = not instantGrab
+    
+    if instantGrab then
+        instantGrabButton.Text = "Grab Instantáneo: ON"
+        instantGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        
+        -- Modificar todos los ProximityPrompts existentes
+        for _, descendant in pairs(workspace:GetDescendants()) do
+            if descendant:IsA("ProximityPrompt") then
+                descendant.HoldDuration = 0
+            end
+        end
+        
+        print("Grab instantáneo activado - Todos los brainrots se agarran al instante")
+    else
+        instantGrabButton.Text = "Grab Instantáneo: OFF"
+        instantGrabButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        print("Grab instantáneo desactivado")
     end
 end
 
@@ -321,20 +343,21 @@ end
 -- Crear controles del panel
 floatButton = createButton("FloatButton", "Activar Float", 1, toggleFloat)
 freezeButton = createButton("FreezeButton", "Congelar", 2, toggleFreeze)
+instantGrabButton = createButton("InstantGrabButton", "Grab Instantáneo: OFF", 3, toggleInstantGrab)
 
-createSlider("FrozenSpeed", "Velocidad Congelado", 1, 20, FROZEN_SPEED, 3, function(value)
+createSlider("FrozenSpeed", "Velocidad Congelado", 1, 20, FROZEN_SPEED, 4, function(value)
     FROZEN_SPEED = value
 end)
 
-createSlider("FloatSpeed", "Velocidad Float", 10, 50, FLOAT_SPEED, 4, function(value)
+createSlider("FloatSpeed", "Velocidad Float", 10, 50, FLOAT_SPEED, 5, function(value)
     FLOAT_SPEED = value
 end)
 
-createSlider("KnockbackForce", "Fuerza Bate", 50, 300, KNOCKBACK_FORCE, 5, function(value)
+createSlider("KnockbackForce", "Fuerza Bate", 50, 300, KNOCKBACK_FORCE, 6, function(value)
     KNOCKBACK_FORCE = value
 end)
 
-createButton("LaunchButton", "Lanzar Todos", 6, launchAllPlayers)
+createButton("LaunchButton", "Lanzar Todos", 7, launchAllPlayers)
 
 -- Toggle del panel
 local panelOpen = false
@@ -342,7 +365,7 @@ local panelOpen = false
 local function togglePanel()
     panelOpen = not panelOpen
     
-    local targetPosition = panelOpen and UDim2.new(0, 10, 0.5, -200) or UDim2.new(0, -300, 0.5, -200)
+    local targetPosition = panelOpen and UDim2.new(0, 10, 0.5, -225) or UDim2.new(0, -300, 0.5, -225)
     
     local tween = TweenService:Create(
         mainFrame,
@@ -362,69 +385,92 @@ end
 
 toggleButton.MouseButton1Click:Connect(togglePanel)
 
--- Funciones de movimiento
-local function handleFrozenMovement()
-    if not isFrozen or not bodyPosition then return end
+-- Función para movimiento con W + cámara
+local function handleCameraMovement()
+    if not (isFloating or isFrozen) then return end
     
-    local moveVector = Vector3.new(0, 0, 0)
+    local camera = workspace.CurrentCamera
+    local isMoving = UserInputService:IsKeyDown(FORWARD_KEY)
+    local isGoingUp = UserInputService:IsKeyDown(UP_KEY)
+    local isGoingDown = UserInputService:IsKeyDown(DOWN_KEY)
     
-    if UserInputService:IsKeyDown(FORWARD_KEY) then
-        moveVector = moveVector + Vector3.new(0, 0, -1)
-    end
-        if UserInputService:IsKeyDown(BACKWARD_KEY) then
-        moveVector = moveVector + Vector3.new(0, 0, 1)
-    end
-    if UserInputService:IsKeyDown(LEFT_KEY) then
-        moveVector = moveVector + Vector3.new(-1, 0, 0)
-    end
-    if UserInputService:IsKeyDown(RIGHT_KEY) then
-        moveVector = moveVector + Vector3.new(1, 0, 0)
-    end
-    if UserInputService:IsKeyDown(UP_KEY) then
-        moveVector = moveVector + Vector3.new(0, 1, 0)
-    end
-    if UserInputService:IsKeyDown(DOWN_KEY) then
-        moveVector = moveVector + Vector3.new(0, -1, 0)
-    end
-    
-    if moveVector.Magnitude > 0 then
-        frozenPosition = frozenPosition + (moveVector.Unit * FROZEN_SPEED)
-        bodyPosition.Position = frozenPosition
+    if isFloating and bodyVelocity then
+        local velocity = Vector3.new(0, 0, 0)
+        
+        if isMoving then
+            -- Usar la dirección de la cámara para movimiento hacia adelante
+            local cameraCFrame = camera.CFrame
+            local forward = cameraCFrame.LookVector
+            velocity = velocity + (forward * FLOAT_SPEED)
+        end
+        
+        if isGoingUp then
+            velocity = velocity + Vector3.new(0, FLOAT_SPEED, 0)
+        end
+        
+        if isGoingDown then
+            velocity = velocity + Vector3.new(0, -FLOAT_SPEED, 0)
+        end
+        
+        bodyVelocity.Velocity = velocity
+        
+    elseif isFrozen and bodyPosition then
+        local moveVector = Vector3.new(0, 0, 0)
+        
+        if isMoving then
+            -- Usar la dirección de la cámara para movimiento hacia adelante
+            local cameraCFrame = camera.CFrame
+            local forward = cameraCFrame.LookVector
+            moveVector = moveVector + forward
+        end
+        
+        if isGoingUp then
+            moveVector = moveVector + Vector3.new(0, 1, 0)
+        end
+        
+        if isGoingDown then
+            moveVector = moveVector + Vector3.new(0, -1, 0)
+        end
+        
+        if moveVector.Magnitude > 0 then
+            frozenPosition = frozenPosition + (moveVector.Unit * FROZEN_SPEED)
+            bodyPosition.Position = frozenPosition
+        end
     end
 end
 
-local function handleFloat()
-    if not isFloating or not bodyVelocity then return end
-    
-    local velocity = Vector3.new(0, 0, 0)
-    
-    if UserInputService:IsKeyDown(FORWARD_KEY) then
-        velocity = velocity + Vector3.new(0, 0, -FLOAT_SPEED)
-    end
-    if UserInputService:IsKeyDown(BACKWARD_KEY) then
-        velocity = velocity + Vector3.new(0, 0, FLOAT_SPEED)
-    end
-    if UserInputService:IsKeyDown(LEFT_KEY) then
-        velocity = velocity + Vector3.new(-FLOAT_SPEED, 0, 0)
-    end
-    if UserInputService:IsKeyDown(RIGHT_KEY) then
-        velocity = velocity + Vector3.new(FLOAT_SPEED, 0, 0)
-    end
-    if UserInputService:IsKeyDown(UP_KEY) then
-        velocity = velocity + Vector3.new(0, FLOAT_SPEED, 0)
-    end
-    if UserInputService:IsKeyDown(DOWN_KEY) then
-        velocity = velocity + Vector3.new(0, -FLOAT_SPEED, 0)
+-- Función para monitorear ProximityPrompts nuevos
+local function setupProximityPromptMonitoring()
+    -- Modificar ProximityPrompts existentes
+    local function modifyPrompt(prompt)
+        if instantGrab then
+            prompt.HoldDuration = 0
+        end
     end
     
-    bodyVelocity.Velocity = velocity
+    -- Aplicar a todos los ProximityPrompts existentes
+    for _, descendant in pairs(workspace:GetDescendants()) do
+        if descendant:IsA("ProximityPrompt") then
+            modifyPrompt(descendant)
+        end
+    end
+    
+    -- Monitorear nuevos ProximityPrompts
+    workspace.DescendantAdded:Connect(function(descendant)
+        if descendant:IsA("ProximityPrompt") then
+            wait(0.1) -- Pequeña espera para asegurar que se configure correctamente
+            modifyPrompt(descendant)
+        end
+    end)
 end
 
--- Loop principal
+-- Loop principal para movimiento
 RunService.Heartbeat:Connect(function()
-    handleFloat()
-    handleFrozenMovement()
+    handleCameraMovement()
 end)
+
+-- Configurar monitoreo de ProximityPrompts
+setupProximityPromptMonitoring()
 
 -- Configurar bate al inicio
 makeBatLauncher()
@@ -450,6 +496,13 @@ player.CharacterAdded:Connect(function(newCharacter)
     
     wait(1)
     makeBatLauncher()
+    setupProximityPromptMonitoring()
 end)
 
-print("Panel GUI cargado - Presiona el botón 'Panel' para abrir/cerrar")
+-- Información de controles
+print("=== PANEL GUI CARGADO ===")
+print("Botón 'Panel' - Abrir/Cerrar GUI")
+print("W - Mover hacia donde mira la cámara")
+print("Q/E - Subir/Bajar")
+print("Grab Instantáneo - Agarrar brainrots al instante")
+print("========================")
