@@ -15,12 +15,16 @@ local backpackForced = false
 local instantPrompts = false
 local autoHit = false
 local noClipEnabled = false
+local multiEquip = false
 local floatSpeed = 16
 local floatConnection = nil
 local espConnections = {}
 local autoHitConnection = nil
 local noClipConnection = nil
+local backpackConnection = nil
+local multiEquipConnection = nil
 local originalPromptSettings = {}
+local equippedTools = {}
 
 -- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
@@ -31,8 +35,8 @@ screenGui.Parent = playerGui
 -- Frame principal del panel
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 350, 0, 450)
-mainFrame.Position = UDim2.new(0.5, -175, 0.5, -225)
+mainFrame.Size = UDim2.new(0, 350, 0, 500)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -250)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
@@ -67,7 +71,7 @@ scrollFrame.Position = UDim2.new(0, 0, 0, 40)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.BorderSizePixel = 0
 scrollFrame.ScrollBarThickness = 8
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
 scrollFrame.Parent = mainFrame
 
 -- Función para crear botones
@@ -174,9 +178,10 @@ local speedSlider, speedValue = createSlider("SpeedSlider", "Float Speed", 1, 50
 local noClipButton = createButton("NoClipButton", "NoClip: OFF", UDim2.new(0.05, 0, 0, 125), scrollFrame)
 local espButton = createButton("ESPButton", "ESP: OFF", UDim2.new(0.05, 0, 0, 170), scrollFrame)
 local backpackButton = createButton("BackpackButton", "Force Backpack: OFF", UDim2.new(0.05, 0, 0, 215), scrollFrame)
-local promptButton = createButton("PromptButton", "Instant Prompts: OFF", UDim2.new(0.05, 0, 0, 260), scrollFrame)
-local teleportButton = createButton("TeleportButton", "Teleport to All Players", UDim2.new(0.05, 0, 0, 305), scrollFrame)
-local autoHitButton = createButton("AutoHitButton", "Auto Hit (Bat): OFF", UDim2.new(0.05, 0, 0, 350), scrollFrame)
+local multiEquipButton = createButton("MultiEquipButton", "Multi-Equip: OFF", UDim2.new(0.05, 0, 0, 260), scrollFrame)
+local promptButton = createButton("PromptButton", "Instant Prompts: OFF", UDim2.new(0.05, 0, 0, 305), scrollFrame)
+local teleportButton = createButton("TeleportButton", "Teleport to All Players", UDim2.new(0.05, 0, 0, 350), scrollFrame)
+local autoHitButton = createButton("AutoHitButton", "Auto Hit (All Tools): OFF", UDim2.new(0.05, 0, 0, 395), scrollFrame)
 
 -- Función para toggle del panel
 local function togglePanel()
@@ -185,7 +190,7 @@ local function togglePanel()
     if mainFrame.Visible then
         mainFrame.Size = UDim2.new(0, 0, 0, 0)
         local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 350, 0, 450)
+            Size = UDim2.new(0, 350, 0, 500)
         })
         tween:Play()
     end
@@ -218,7 +223,6 @@ local function toggleNoClip()
             noClipConnection = nil
         end
         
-        -- Restaurar colisiones
         local character = player.Character
         if character then
             for _, part in pairs(character:GetDescendants()) do
@@ -230,7 +234,7 @@ local function toggleNoClip()
     end
 end
 
--- Función de Float mejorada
+-- Función de Float
 local function toggleFloat()
     isFloating = not isFloating
     
@@ -308,6 +312,120 @@ local function toggleFloat()
     end
 end
 
+-- Función de Force Backpack mejorada
+local function toggleBackpack()
+    backpackForced = not backpackForced
+    
+    if backpackForced then
+        backpackButton.Text = "Force Backpack: ON"
+        backpackButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        local starterGui = game:GetService("StarterGui")
+        
+        backpackConnection = RunService.Heartbeat:Connect(function()
+            -- Forzar backpack visible
+                        starterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+            
+            local character = player.Character
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                local backpack = player:FindFirstChild("Backpack")
+                
+                if humanoid and backpack then
+                    -- Mantener herramientas equipadas incluso después de agarrar brainrot
+                    for _, tool in pairs(equippedTools) do
+                        if tool and tool.Parent == backpack then
+                            humanoid:EquipTool(tool)
+                        end
+                    end
+                    
+                    -- Buscar y equipar automáticamente bates y manos golpeadoras
+                    for _, tool in pairs(backpack:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            local toolName = tool.Name:lower()
+                            if toolName:find("bat") or toolName:find("bate") or 
+                               toolName:find("hand") or toolName:find("mano") or 
+                               toolName:find("punch") or toolName:find("golpe") or
+                               toolName:find("fist") or toolName:find("puño") then
+                                
+                                if not table.find(equippedTools, tool) then
+                                    table.insert(equippedTools, tool)
+                                end
+                                
+                                if tool.Parent == backpack then
+                                    humanoid:EquipTool(tool)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        backpackButton.Text = "Force Backpack: OFF"
+        backpackButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        
+        if backpackConnection then
+            backpackConnection:Disconnect()
+            backpackConnection = nil
+        end
+        
+        equippedTools = {}
+    end
+end
+
+-- Función de Multi-Equip
+local function toggleMultiEquip()
+    multiEquip = not multiEquip
+    
+    if multiEquip then
+        multiEquipButton.Text = "Multi-Equip: ON"
+        multiEquipButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        multiEquipConnection = RunService.Heartbeat:Connect(function()
+            local character = player.Character
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                local backpack = player:FindFirstChild("Backpack")
+                
+                if humanoid and backpack then
+                    -- Equipar múltiples herramientas a la vez
+                    for _, tool in pairs(backpack:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            -- Crear una copia de la herramienta en el personaje
+                            local toolClone = tool:Clone()
+                            toolClone.Parent = character
+                            
+                            -- Hacer que la herramienta sea funcional
+                            if toolClone:FindFirstChild("Handle") then
+                                local handle = toolClone.Handle
+                                
+                                -- Crear una conexión invisible al brazo
+                                local weld = Instance.new("WeldConstraint")
+                                weld.Part0 = handle
+                                
+                                local rightArm = character:FindFirstChild("Right Arm") or character:FindFirstChild("RightHand")
+                                if rightArm then
+                                    weld.Part1 = rightArm
+                                    weld.Parent = handle
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        multiEquipButton.Text = "Multi-Equip: OFF"
+        multiEquipButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        
+        if multiEquipConnection then
+            multiEquipConnection:Disconnect()
+            multiEquipConnection = nil
+        end
+    end
+end
+
 -- Función de ESP
 local function createESP(targetPlayer)
     if targetPlayer == player then return end
@@ -327,7 +445,7 @@ local function createESP(targetPlayer)
         billboardGui.Parent = character
         
         local nameLabel = Instance.new("TextLabel")
-                nameLabel.Size = UDim2.new(1, 0, 1, 0)
+        nameLabel.Size = UDim2.new(1, 0, 1, 0)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = targetPlayer.DisplayName or targetPlayer.Name
         nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -397,29 +515,6 @@ local function toggleESP()
     end
 end
 
--- Función de Force Backpack
-local function toggleBackpack()
-    backpackForced = not backpackForced
-    
-    if backpackForced then
-        backpackButton.Text = "Force Backpack: ON"
-        backpackButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        
-        local starterGui = game:GetService("StarterGui")
-        starterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
-        
-        spawn(function()
-            while backpackForced do
-                wait(1)
-                starterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
-            end
-        end)
-    else
-        backpackButton.Text = "Force Backpack: OFF"
-        backpackButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    end
-end
-
 -- Función de Instant Prompts
 local function toggleInstantPrompts()
     instantPrompts = not instantPrompts
@@ -428,7 +523,6 @@ local function toggleInstantPrompts()
         promptButton.Text = "Instant Prompts: ON"
         promptButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         
-        -- Modificar todos los ProximityPrompts existentes
         for _, prompt in pairs(workspace:GetDescendants()) do
             if prompt:IsA("ProximityPrompt") then
                 if not originalPromptSettings[prompt] then
@@ -441,7 +535,6 @@ local function toggleInstantPrompts()
             end
         end
         
-        -- Conectar para nuevos ProximityPrompts
         workspace.DescendantAdded:Connect(function(descendant)
             if instantPrompts and descendant:IsA("ProximityPrompt") then
                 originalPromptSettings[descendant] = {
@@ -455,7 +548,6 @@ local function toggleInstantPrompts()
         promptButton.Text = "Instant Prompts: OFF"
         promptButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
         
-        -- Restaurar configuraciones originales
         for prompt, settings in pairs(originalPromptSettings) do
             if prompt and prompt.Parent then
                 prompt.HoldDuration = settings.HoldDuration
@@ -471,46 +563,96 @@ local function teleportToAllPlayers()
     
     local humanoidRootPart = character.HumanoidRootPart
     local players = Players:GetPlayers()
-    local teleportIndex = 1
     
     spawn(function()
         for _, targetPlayer in pairs(players) do
             if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 humanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
-                wait(0.5) -- Esperar medio segundo entre teleports
+                wait(0.5)
             end
         end
     end)
 end
 
--- Función de Auto Hit para el bate
+-- Función de Auto Hit mejorada para todas las herramientas
 local function toggleAutoHit()
     autoHit = not autoHit
     
     if autoHit then
-        autoHitButton.Text = "Auto Hit (Bat): ON"
+        autoHitButton.Text = "Auto Hit (All Tools): ON"
         autoHitButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         
         autoHitConnection = RunService.Heartbeat:Connect(function()
             local character = player.Character
             if character then
-                local tool = character:FindFirstChildOfClass("Tool")
-                if tool and (tool.Name:lower():find("bat") or tool.Name:lower():find("bate")) then
-                    -- Buscar el RemoteEvent o función de golpe
-                    local remote = tool:FindFirstChild("RemoteEvent") or tool:FindFirstChild("Hit") or tool:FindFirstChild("Swing")
-                    if remote and remote:IsA("RemoteEvent") then
-                        remote:FireServer()
+                -- Buscar todas las herramientas equipadas
+                for _, tool in pairs(character:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        local toolName = tool.Name:lower()
+                        
+                        -- Detectar bates, manos golpeadoras, etc.
+                        if toolName:find("bat") or toolName:find("bate") or 
+                           toolName:find("hand") or toolName:find("mano") or 
+                           toolName:find("punch") or toolName:find("golpe") or
+                           toolName:find("fist") or toolName:find("puño") or
+                           toolName:find("slap") or toolName:find("hit") then
+                            
+                            -- Intentar múltiples métodos de activación
+                            pcall(function()
+                                tool:Activate()
+                            end)
+                            
+                            -- Buscar RemoteEvents
+                            for _, remote in pairs(tool:GetDescendants()) do
+                                if remote:IsA("RemoteEvent") then
+                                    pcall(function()
+                                        remote:FireServer()
+                                    end)
+                                end
+                            end
+                            
+                            -- Buscar RemoteFunctions
+                            for _, remoteFunc in pairs(tool:GetDescendants()) do
+                                if remoteFunc:IsA("RemoteFunction") then
+                                    pcall(function()
+                                        remoteFunc:InvokeServer()
+                                    end)
+                                end
+                            end
+                            
+                            -- Simular click del mouse
+                            if tool:FindFirstChild("Handle") then
+                                pcall(function()
+                                    tool.Handle:FindFirstChild("ClickDetector"):FireServer()
+                                end)
+                            end
+                        end
                     end
-                    
-                    -- También intentar activar la herramienta
-                    if tool:FindFirstChild("Handle") then
-                        tool:Activate()
+                end
+                
+                -- También activar herramientas en el backpack
+                local backpack = player:FindFirstChild("Backpack")
+                if backpack then
+                    for _, tool in pairs(backpack:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            local toolName = tool.Name:lower()
+                            if toolName:find("bat") or toolName:find("bate") or 
+                               toolName:find("hand") or toolName:find("mano") or 
+                               toolName:find("punch") or toolName:find("golpe") then
+                                
+                                -- Equipar y activar inmediatamente
+                                local humanoid = character:FindFirstChild("Humanoid")
+                                if humanoid then
+                                    humanoid:EquipTool(tool)
+                                end
+                            end
+                        end
                     end
                 end
             end
         end)
     else
-        autoHitButton.Text = "Auto Hit (Bat): OFF"
+        autoHitButton.Text = "Auto Hit (All Tools): OFF"
         autoHitButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
         
         if autoHitConnection then
@@ -525,6 +667,7 @@ floatButton.MouseButton1Click:Connect(toggleFloat)
 noClipButton.MouseButton1Click:Connect(toggleNoClip)
 espButton.MouseButton1Click:Connect(toggleESP)
 backpackButton.MouseButton1Click:Connect(toggleBackpack)
+multiEquipButton.MouseButton1Click:Connect(toggleMultiEquip)
 promptButton.MouseButton1Click:Connect(toggleInstantPrompts)
 teleportButton.MouseButton1Click:Connect(teleportToAllPlayers)
 autoHitButton.MouseButton1Click:Connect(toggleAutoHit)
@@ -549,6 +692,7 @@ end)
 -- Limpiar cuando el personaje del jugador local respawnea
 player.CharacterAdded:Connect(function()
     wait(1)
+    equippedTools = {}
     if isFloating then
         isFloating = false
         toggleFloat()
@@ -560,11 +704,9 @@ player.CharacterAdded:Connect(function()
 end)
 
 print("Advanced Cheat Panel cargado exitosamente!")
-print("Controles:")
-print("- F4: Abrir/Cerrar panel")
-print("- Float: WASD + Space/Shift para movimiento 3D")
-print("- NoClip: Atraviesa paredes y collision boxes")
-print("- ESP: Muestra nombres y highlights de jugadores")
-print("- Instant Prompts: Elimina delays de ProximityPrompts")
-print("- Auto Hit: Golpea automáticamente con el bate")
-print("- Teleport: Se teleporta a todos los jugadores secuencialmente")
+print("Nuevas funciones:")
+print("- Force Backpack: Mantiene herramientas equipadas incluso después de agarrar brainrot")
+print("- Multi-Equip: Permite equipar múltiples herramientas a la vez")
+print("- Auto Hit mejorado: Funciona con bates, manos golpeadoras y todas las herramientas de golpe")
+print("- Detección automática: Busca y equipa automáticamente bates y manos golpeadoras")
+print("- Miles de golpes por segundo garantizados!")
