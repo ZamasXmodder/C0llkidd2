@@ -3,6 +3,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -11,20 +12,27 @@ local playerGui = player:WaitForChild("PlayerGui")
 local isFloating = false
 local espEnabled = false
 local backpackForced = false
+local instantPrompts = false
+local autoHit = false
+local noClipEnabled = false
+local floatSpeed = 16
 local floatConnection = nil
 local espConnections = {}
+local autoHitConnection = nil
+local noClipConnection = nil
+local originalPromptSettings = {}
 
 -- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "CheatPanel"
+screenGui.Name = "AdvancedCheatPanel"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 -- Frame principal del panel
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+mainFrame.Size = UDim2.new(0, 350, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -225)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
@@ -42,7 +50,7 @@ titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 titleLabel.BorderSizePixel = 0
-titleLabel.Text = "Cheat Panel - F4 to Toggle"
+titleLabel.Text = "Advanced Cheat Panel - F4 to Toggle"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.SourceSansBold
@@ -52,72 +60,177 @@ local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 10)
 titleCorner.Parent = titleLabel
 
--- Botón de Float
-local floatButton = Instance.new("TextButton")
-floatButton.Name = "FloatButton"
-floatButton.Size = UDim2.new(0.9, 0, 0, 35)
-floatButton.Position = UDim2.new(0.05, 0, 0, 60)
-floatButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-floatButton.BorderSizePixel = 0
-floatButton.Text = "Float: OFF"
-floatButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-floatButton.TextScaled = true
-floatButton.Font = Enum.Font.SourceSans
-floatButton.Parent = mainFrame
+-- Scroll Frame para contener todos los elementos
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 1, -40)
+scrollFrame.Position = UDim2.new(0, 0, 0, 40)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 8
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+scrollFrame.Parent = mainFrame
 
-local floatCorner = Instance.new("UICorner")
-floatCorner.CornerRadius = UDim.new(0, 5)
-floatCorner.Parent = floatButton
+-- Función para crear botones
+local function createButton(name, text, position, parent)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(0.9, 0, 0, 35)
+    button.Position = position
+    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextScaled = true
+    button.Font = Enum.Font.SourceSans
+    button.Parent = parent
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 5)
+    buttonCorner.Parent = button
+    
+    return button
+end
 
--- Botón de ESP
-local espButton = Instance.new("TextButton")
-espButton.Name = "ESPButton"
-espButton.Size = UDim2.new(0.9, 0, 0, 35)
-espButton.Position = UDim2.new(0.05, 0, 0, 105)
-espButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-espButton.BorderSizePixel = 0
-espButton.Text = "ESP: OFF"
-espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-espButton.TextScaled = true
-espButton.Font = Enum.Font.SourceSans
-espButton.Parent = mainFrame
+-- Función para crear sliders
+local function createSlider(name, text, minValue, maxValue, defaultValue, position, parent)
+    local frame = Instance.new("Frame")
+    frame.Name = name .. "Frame"
+    frame.Size = UDim2.new(0.9, 0, 0, 60)
+    frame.Position = position
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text .. ": " .. defaultValue
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSans
+    label.Parent = frame
+    
+    local sliderBack = Instance.new("Frame")
+    sliderBack.Size = UDim2.new(1, 0, 0, 20)
+    sliderBack.Position = UDim2.new(0, 0, 0, 25)
+    sliderBack.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    sliderBack.BorderSizePixel = 0
+    sliderBack.Parent = frame
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 10)
+    sliderCorner.Parent = sliderBack
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
+    sliderFill.Position = UDim2.new(0, 0, 0, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBack
+    
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(0, 10)
+    fillCorner.Parent = sliderFill
+    
+    local dragging = false
+    local currentValue = defaultValue
+    
+    sliderBack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    
+    sliderBack.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouse = Players.LocalPlayer:GetMouse()
+            local relativeX = mouse.X - sliderBack.AbsolutePosition.X
+            local percentage = math.clamp(relativeX / sliderBack.AbsoluteSize.X, 0, 1)
+            
+            currentValue = minValue + (maxValue - minValue) * percentage
+            currentValue = math.floor(currentValue + 0.5)
+            
+            sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+            label.Text = text .. ": " .. currentValue
+            
+            if name == "SpeedSlider" then
+                floatSpeed = currentValue
+            end
+        end
+    end)
+    
+    return frame, currentValue
+end
 
-local espCorner = Instance.new("UICorner")
-espCorner.CornerRadius = UDim.new(0, 5)
-espCorner.Parent = espButton
-
--- Botón de Backpack
-local backpackButton = Instance.new("TextButton")
-backpackButton.Name = "BackpackButton"
-backpackButton.Size = UDim2.new(0.9, 0, 0, 35)
-backpackButton.Position = UDim2.new(0.05, 0, 0, 150)
-backpackButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-backpackButton.BorderSizePixel = 0
-backpackButton.Text = "Force Backpack: OFF"
-backpackButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-backpackButton.TextScaled = true
-backpackButton.Font = Enum.Font.SourceSans
-backpackButton.Parent = mainFrame
-
-local backpackCorner = Instance.new("UICorner")
-backpackCorner.CornerRadius = UDim.new(0, 5)
-backpackCorner.Parent = backpackButton
+-- Crear elementos de la interfaz
+local floatButton = createButton("FloatButton", "Float: OFF", UDim2.new(0.05, 0, 0, 10), scrollFrame)
+local speedSlider, speedValue = createSlider("SpeedSlider", "Float Speed", 1, 50, 16, UDim2.new(0.05, 0, 0, 55), scrollFrame)
+local noClipButton = createButton("NoClipButton", "NoClip: OFF", UDim2.new(0.05, 0, 0, 125), scrollFrame)
+local espButton = createButton("ESPButton", "ESP: OFF", UDim2.new(0.05, 0, 0, 170), scrollFrame)
+local backpackButton = createButton("BackpackButton", "Force Backpack: OFF", UDim2.new(0.05, 0, 0, 215), scrollFrame)
+local promptButton = createButton("PromptButton", "Instant Prompts: OFF", UDim2.new(0.05, 0, 0, 260), scrollFrame)
+local teleportButton = createButton("TeleportButton", "Teleport to All Players", UDim2.new(0.05, 0, 0, 305), scrollFrame)
+local autoHitButton = createButton("AutoHitButton", "Auto Hit (Bat): OFF", UDim2.new(0.05, 0, 0, 350), scrollFrame)
 
 -- Función para toggle del panel
 local function togglePanel()
     mainFrame.Visible = not mainFrame.Visible
     
     if mainFrame.Visible then
-        -- Animación de entrada
         mainFrame.Size = UDim2.new(0, 0, 0, 0)
         local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 300, 0, 200)
+            Size = UDim2.new(0, 350, 0, 450)
         })
         tween:Play()
     end
 end
 
--- Función de Float
+-- Función de NoClip
+local function toggleNoClip()
+    noClipEnabled = not noClipEnabled
+    
+    if noClipEnabled then
+        noClipButton.Text = "NoClip: ON"
+        noClipButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        noClipConnection = RunService.Stepped:Connect(function()
+            local character = player.Character
+            if character then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        noClipButton.Text = "NoClip: OFF"
+        noClipButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        
+        if noClipConnection then
+            noClipConnection:Disconnect()
+            noClipConnection = nil
+        end
+        
+        -- Restaurar colisiones
+        local character = player.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end
+
+-- Función de Float mejorada
 local function toggleFloat()
     isFloating = not isFloating
     
@@ -130,7 +243,6 @@ local function toggleFloat()
             local humanoidRootPart = character.HumanoidRootPart
             local humanoid = character:FindFirstChild("Humanoid")
             
-            -- Crear BodyVelocity para el float
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
             bodyVelocity.Velocity = Vector3.new(0, 0, 0)
@@ -141,20 +253,31 @@ local function toggleFloat()
                     local camera = workspace.CurrentCamera
                     local moveVector = Vector3.new(0, 0, 0)
                     
-                    -- Movimiento con W (hacia adelante según la cámara)
                     if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                        moveVector = camera.CFrame.LookVector * 16
+                        moveVector = moveVector + camera.CFrame.LookVector
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                        moveVector = moveVector - camera.CFrame.LookVector
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                        moveVector = moveVector - camera.CFrame.RightVector
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                        moveVector = moveVector + camera.CFrame.RightVector
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                        moveVector = moveVector + Vector3.new(0, 1, 0)
+                    end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                        moveVector = moveVector - Vector3.new(0, 1, 0)
                     end
                     
-                    -- Mantener flotando
-                    bodyVelocity.Velocity = Vector3.new(moveVector.X, 16, moveVector.Z)
+                    bodyVelocity.Velocity = moveVector * floatSpeed
                     
-                    -- Desactivar la gravedad del personaje
                     if humanoid then
                         humanoid.PlatformStand = true
                     end
                 else
-                    -- Si el personaje se destruye, desactivar float
                     toggleFloat()
                 end
             end)
@@ -173,13 +296,11 @@ local function toggleFloat()
             local humanoidRootPart = character.HumanoidRootPart
             local humanoid = character:FindFirstChild("Humanoid")
             
-            -- Remover BodyVelocity
             local bodyVelocity = humanoidRootPart:FindFirstChild("BodyVelocity")
             if bodyVelocity then
                 bodyVelocity:Destroy()
             end
             
-            -- Reactivar movimiento normal
             if humanoid then
                 humanoid.PlatformStand = false
             end
@@ -198,7 +319,6 @@ local function createESP(targetPlayer)
         local humanoidRootPart = character.HumanoidRootPart
         local head = character:FindFirstChild("Head")
         
-        -- Crear BillboardGui para el nombre
         local billboardGui = Instance.new("BillboardGui")
         billboardGui.Name = "ESP_" .. targetPlayer.Name
         billboardGui.Adornee = head or humanoidRootPart
@@ -207,7 +327,7 @@ local function createESP(targetPlayer)
         billboardGui.Parent = character
         
         local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, 0, 1, 0)
+                nameLabel.Size = UDim2.new(1, 0, 1, 0)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = targetPlayer.DisplayName or targetPlayer.Name
         nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -217,7 +337,6 @@ local function createESP(targetPlayer)
         nameLabel.Font = Enum.Font.SourceSansBold
         nameLabel.Parent = billboardGui
         
-        -- Crear highlight para el personaje
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_Highlight"
         highlight.Adornee = character
@@ -228,12 +347,10 @@ local function createESP(targetPlayer)
         highlight.Parent = character
     end
     
-    -- Agregar ESP inmediatamente si el personaje existe
     if targetPlayer.Character then
         addESP()
     end
     
-    -- Conectar para cuando el personaje respawnee
     local connection = targetPlayer.CharacterAdded:Connect(addESP)
     espConnections[targetPlayer] = connection
 end
@@ -260,18 +377,15 @@ local function toggleESP()
         espButton.Text = "ESP: ON"
         espButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         
-        -- Agregar ESP a todos los jugadores
         for _, targetPlayer in pairs(Players:GetPlayers()) do
             createESP(targetPlayer)
         end
         
-        -- Conectar para nuevos jugadores
         espConnections.playerAdded = Players.PlayerAdded:Connect(createESP)
     else
         espButton.Text = "ESP: OFF"
         espButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
         
-        -- Remover ESP de todos los jugadores
         for _, targetPlayer in pairs(Players:GetPlayers()) do
             removeESP(targetPlayer)
         end
@@ -291,11 +405,9 @@ local function toggleBackpack()
         backpackButton.Text = "Force Backpack: ON"
         backpackButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         
-        -- Forzar que el backpack esté siempre visible
         local starterGui = game:GetService("StarterGui")
         starterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
         
-        -- Mantener el backpack habilitado
         spawn(function()
             while backpackForced do
                 wait(1)
@@ -308,10 +420,114 @@ local function toggleBackpack()
     end
 end
 
+-- Función de Instant Prompts
+local function toggleInstantPrompts()
+    instantPrompts = not instantPrompts
+    
+    if instantPrompts then
+        promptButton.Text = "Instant Prompts: ON"
+        promptButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        -- Modificar todos los ProximityPrompts existentes
+        for _, prompt in pairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") then
+                if not originalPromptSettings[prompt] then
+                    originalPromptSettings[prompt] = {
+                        HoldDuration = prompt.HoldDuration,
+                        KeyboardKeyCode = prompt.KeyboardKeyCode
+                    }
+                end
+                prompt.HoldDuration = 0
+            end
+        end
+        
+        -- Conectar para nuevos ProximityPrompts
+        workspace.DescendantAdded:Connect(function(descendant)
+            if instantPrompts and descendant:IsA("ProximityPrompt") then
+                originalPromptSettings[descendant] = {
+                    HoldDuration = descendant.HoldDuration,
+                    KeyboardKeyCode = descendant.KeyboardKeyCode
+                }
+                descendant.HoldDuration = 0
+            end
+        end)
+    else
+        promptButton.Text = "Instant Prompts: OFF"
+        promptButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        
+        -- Restaurar configuraciones originales
+        for prompt, settings in pairs(originalPromptSettings) do
+            if prompt and prompt.Parent then
+                prompt.HoldDuration = settings.HoldDuration
+            end
+        end
+    end
+end
+
+-- Función de Teleport a todos los jugadores
+local function teleportToAllPlayers()
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local humanoidRootPart = character.HumanoidRootPart
+    local players = Players:GetPlayers()
+    local teleportIndex = 1
+    
+    spawn(function()
+        for _, targetPlayer in pairs(players) do
+            if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                humanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
+                wait(0.5) -- Esperar medio segundo entre teleports
+            end
+        end
+    end)
+end
+
+-- Función de Auto Hit para el bate
+local function toggleAutoHit()
+    autoHit = not autoHit
+    
+    if autoHit then
+        autoHitButton.Text = "Auto Hit (Bat): ON"
+        autoHitButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        autoHitConnection = RunService.Heartbeat:Connect(function()
+            local character = player.Character
+            if character then
+                local tool = character:FindFirstChildOfClass("Tool")
+                if tool and (tool.Name:lower():find("bat") or tool.Name:lower():find("bate")) then
+                    -- Buscar el RemoteEvent o función de golpe
+                    local remote = tool:FindFirstChild("RemoteEvent") or tool:FindFirstChild("Hit") or tool:FindFirstChild("Swing")
+                    if remote and remote:IsA("RemoteEvent") then
+                        remote:FireServer()
+                    end
+                    
+                    -- También intentar activar la herramienta
+                    if tool:FindFirstChild("Handle") then
+                        tool:Activate()
+                    end
+                end
+            end
+        end)
+    else
+        autoHitButton.Text = "Auto Hit (Bat): OFF"
+        autoHitButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        
+        if autoHitConnection then
+            autoHitConnection:Disconnect()
+            autoHitConnection = nil
+        end
+    end
+end
+
 -- Conectar eventos de los botones
 floatButton.MouseButton1Click:Connect(toggleFloat)
+noClipButton.MouseButton1Click:Connect(toggleNoClip)
 espButton.MouseButton1Click:Connect(toggleESP)
 backpackButton.MouseButton1Click:Connect(toggleBackpack)
+promptButton.MouseButton1Click:Connect(toggleInstantPrompts)
+teleportButton.MouseButton1Click:Connect(teleportToAllPlayers)
+autoHitButton.MouseButton1Click:Connect(toggleAutoHit)
 
 -- Conectar la tecla F4 para toggle del panel
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -332,12 +548,23 @@ end)
 
 -- Limpiar cuando el personaje del jugador local respawnea
 player.CharacterAdded:Connect(function()
+    wait(1)
     if isFloating then
-        -- Reactivar float después del respawn
-        wait(1)
         isFloating = false
         toggleFloat()
     end
+    if noClipEnabled then
+        noClipEnabled = false
+        toggleNoClip()
+    end
 end)
 
-print("Cheat Panel cargado. Presiona F4 para abrir/cerrar el panel.")
+print("Advanced Cheat Panel cargado exitosamente!")
+print("Controles:")
+print("- F4: Abrir/Cerrar panel")
+print("- Float: WASD + Space/Shift para movimiento 3D")
+print("- NoClip: Atraviesa paredes y collision boxes")
+print("- ESP: Muestra nombres y highlights de jugadores")
+print("- Instant Prompts: Elimina delays de ProximityPrompts")
+print("- Auto Hit: Golpea automáticamente con el bate")
+print("- Teleport: Se teleporta a todos los jugadores secuencialmente")
