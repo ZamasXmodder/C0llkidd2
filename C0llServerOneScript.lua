@@ -1,1025 +1,343 @@
--- Panel GUI de administración para Steal a Brainrot
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local ProximityPromptService = game:GetService("ProximityPromptService")
+local CoreGui = game:GetService("CoreGui")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Variables de estado
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
-
+-- Variables para las funcionalidades
 local isFloating = false
-local isFrozen = false
-local bodyVelocity = nil
-local bodyPosition = nil
-local frozenPosition = nil
-local instantGrab = false
-local autoEquip = false
-local noclipEnabled = false
-local autoBlock = false
+local espEnabled = false
+local backpackForced = false
+local floatConnection = nil
+local espConnections = {}
 
--- Variables para noclip
-local noclipConnections = {}
-
--- Variables para autobloqueo mejorado
-local countdownConnection = nil
-local baseBlockParts = {}
-local countdownGui = nil
-
--- Configuración de velocidades y teletransporte
-local FLOAT_SPEED = 25
-local FROZEN_SPEED = 3
-local KNOCKBACK_FORCE = 150
-local TELEPORT_HEIGHT = 45
-
--- Configuración de teclas para movimiento
-local FORWARD_KEY = Enum.KeyCode.W
-local UP_KEY = Enum.KeyCode.Q
-local DOWN_KEY = Enum.KeyCode.E
-
--- Crear GUI principal
+-- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AdminPanel"
-screenGui.Parent = playerGui
+screenGui.Name = "CheatPanel"
 screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
--- Panel principal
+-- Frame principal del panel
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 300, 0, 600)
-mainFrame.Position = UDim2.new(0, 10, 0.5, -300)
-mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
 mainFrame.Parent = screenGui
 
--- Esquinas redondeadas para el panel principal
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 10)
-mainCorner.Parent = mainFrame
+-- Esquinas redondeadas
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = mainFrame
 
 -- Título del panel
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "Title"
 titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
-titleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 titleLabel.BorderSizePixel = 0
-titleLabel.Text = "Admin Panel"
+titleLabel.Text = "Cheat Panel - F4 to Toggle"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.Parent = mainFrame
 
 local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 10)
 titleCorner.Parent = titleLabel
 
--- Botón de toggle (abrir/cerrar)
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleButton"
-toggleButton.Size = UDim2.new(0, 80, 0, 30)
-toggleButton.Position = UDim2.new(0, 10, 0, 10)
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-toggleButton.BorderSizePixel = 0
-toggleButton.Text = "Panel"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.Gotham
-toggleButton.Parent = screenGui
+-- Botón de Float
+local floatButton = Instance.new("TextButton")
+floatButton.Name = "FloatButton"
+floatButton.Size = UDim2.new(0.9, 0, 0, 35)
+floatButton.Position = UDim2.new(0.05, 0, 0, 60)
+floatButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+floatButton.BorderSizePixel = 0
+floatButton.Text = "Float: OFF"
+floatButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+floatButton.TextScaled = true
+floatButton.Font = Enum.Font.SourceSans
+floatButton.Parent = mainFrame
 
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 5)
-toggleCorner.Parent = toggleButton
+local floatCorner = Instance.new("UICorner")
+floatCorner.CornerRadius = UDim.new(0, 5)
+floatCorner.Parent = floatButton
 
--- Contenedor de controles
-local controlsFrame = Instance.new("Frame")
-controlsFrame.Name = "Controls"
-controlsFrame.Size = UDim2.new(1, -20, 1, -60)
-controlsFrame.Position = UDim2.new(0, 10, 0, 50)
-controlsFrame.BackgroundTransparency = 1
-controlsFrame.Parent = mainFrame
+-- Botón de ESP
+local espButton = Instance.new("TextButton")
+espButton.Name = "ESPButton"
+espButton.Size = UDim2.new(0.9, 0, 0, 35)
+espButton.Position = UDim2.new(0.05, 0, 0, 105)
+espButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+espButton.BorderSizePixel = 0
+espButton.Text = "ESP: OFF"
+espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+espButton.TextScaled = true
+espButton.Font = Enum.Font.SourceSans
+espButton.Parent = mainFrame
 
--- Layout para organizar controles
-local listLayout = Instance.new("UIListLayout")
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 8)
-listLayout.Parent = controlsFrame
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 5)
+espCorner.Parent = espButton
 
--- Función para crear botones
-local function createButton(name, text, layoutOrder, callback)
-    local button = Instance.new("TextButton")
-    button.Name = name
-    button.Size = UDim2.new(1, 0, 0, 32)
-    button.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-    button.BorderSizePixel = 0
-    button.Text = text
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextScaled = true
-    button.Font = Enum.Font.Gotham
-    button.LayoutOrder = layoutOrder
-    button.Parent = controlsFrame
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
-    corner.Parent = button
-    
-    button.MouseButton1Click:Connect(callback)
-    
-    return button
-end
+-- Botón de Backpack
+local backpackButton = Instance.new("TextButton")
+backpackButton.Name = "BackpackButton"
+backpackButton.Size = UDim2.new(0.9, 0, 0, 35)
+backpackButton.Position = UDim2.new(0.05, 0, 0, 150)
+backpackButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+backpackButton.BorderSizePixel = 0
+backpackButton.Text = "Force Backpack: OFF"
+backpackButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+backpackButton.TextScaled = true
+backpackButton.Font = Enum.Font.SourceSans
+backpackButton.Parent = mainFrame
 
--- Función para crear slider
-local function createSlider(name, text, minVal, maxVal, defaultVal, layoutOrder, callback)
-    local frame = Instance.new("Frame")
-    frame.Name = name .. "Frame"
-    frame.Size = UDim2.new(1, 0, 0, 55)
-    frame.BackgroundTransparency = 1
-    frame.LayoutOrder = layoutOrder
-    frame.Parent = controlsFrame
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 18)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text .. ": " .. defaultVal
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextScaled = true
-    label.Font = Enum.Font.Gotham
-    label.Parent = frame
-    
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Size = UDim2.new(1, 0, 0, 18)
-    sliderFrame.Position = UDim2.new(0, 0, 0, 22)
-    sliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    sliderFrame.BorderSizePixel = 0
-    sliderFrame.Parent = frame
-    
-    local sliderCorner = Instance.new("UICorner")
-    sliderCorner.CornerRadius = UDim.new(0, 9)
-    sliderCorner.Parent = sliderFrame
-    
-    local sliderButton = Instance.new("TextButton")
-    sliderButton.Size = UDim2.new(0, 18, 1, 0)
-    sliderButton.Position = UDim2.new((defaultVal - minVal) / (maxVal - minVal), -9, 0, 0)
-    sliderButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-    sliderButton.BorderSizePixel = 0
-    sliderButton.Text = ""
-    sliderButton.Parent = sliderFrame
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 9)
-    buttonCorner.Parent = sliderButton
-    
-    local dragging = false
-    
-    sliderButton.MouseButton1Down:Connect(function()
-        dragging = true
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mouse = Players.LocalPlayer:GetMouse()
-            local relativeX = mouse.X - sliderFrame.AbsolutePosition.X
-            local percentage = math.clamp(relativeX / sliderFrame.AbsoluteSize.X, 0, 1)
-            
-            sliderButton.Position = UDim2.new(percentage, -9, 0, 0)
-            
-            local value = math.floor(minVal + (maxVal - minVal) * percentage)
-            label.Text = text .. ": " .. value
-            callback(value)
-        end
-    end)
-    
-    return frame
-end
+local backpackCorner = Instance.new("UICorner")
+backpackCorner.CornerRadius = UDim.new(0, 5)
+backpackCorner.Parent = backpackButton
 
--- Variables para los botones
-local floatButton, freezeButton, instantGrabButton, autoEquipButton, noclipButton, autoBlockButton
-
--- Función para teletransporte hacia arriba
-local function teleportUp()
-    if rootPart then
-        local currentPosition = rootPart.Position
-        local newPosition = currentPosition + Vector3.new(0, TELEPORT_HEIGHT, 0)
-        
-        -- Crear efecto visual
-        local teleportEffect = Instance.new("Part")
-        teleportEffect.Name = "TeleportEffect"
-        teleportEffect.Size = Vector3.new(4, 8, 4)
-        teleportEffect.Position = currentPosition
-        teleportEffect.Anchored = true
-        teleportEffect.CanCollide = false
-        teleportEffect.Transparency = 0.5
-        teleportEffect.BrickColor = BrickColor.new("Bright blue")
-        teleportEffect.Material = Enum.Material.Neon
-        teleportEffect.Shape = Enum.PartType.Cylinder
-        teleportEffect.Parent = workspace
-        
-        -- Efecto de rotación
-        local spin = Instance.new("BodyAngularVelocity")
-        spin.AngularVelocity = Vector3.new(0, 10, 0)
-        spin.MaxTorque = Vector3.new(0, math.huge, 0)
-        spin.Parent = teleportEffect
-        
-        -- Teletransportar
-        rootPart.CFrame = CFrame.new(newPosition, newPosition + rootPart.CFrame.LookVector)
-        
-        -- Crear efecto en la nueva posición
-        local arrivalEffect = teleportEffect:Clone()
-        arrivalEffect.Position = newPosition
-        arrivalEffect.Parent = workspace
-        
-        -- Limpiar efectos después de 2 segundos
-        game:GetService("Debris"):AddItem(teleportEffect, 2)
-        game:GetService("Debris"):AddItem(arrivalEffect, 2)
-        
-        print("Teletransportado " .. TELEPORT_HEIGHT .. " studs hacia arriba")
-    end
-end
-
--- Función para encontrar el contador del juego
-local function findCountdownGui()
-    -- Buscar en PlayerGui por GUIs de countdown
-    for _, gui in pairs(playerGui:GetChildren()) do
-        if gui:IsA("ScreenGui") then
-            for _, frame in pairs(gui:GetDescendants()) do
-                if frame:IsA("TextLabel") then
-                    local text = frame.Text:lower()
-                    -- Buscar patrones comunes de countdown
-                    if text:find("countdown") or text:find("timer") or 
-                                              text:find("time") or text:find("seconds") or
-                       text:match("%d+:%d+") or text:match("%d+") then
-                        return frame
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Buscar en workspace por GUIs de countdown
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") then
-            for _, frame in pairs(obj:GetDescendants()) do
-                if frame:IsA("TextLabel") then
-                    local text = frame.Text:lower()
-                    if text:find("countdown") or text:find("timer") or 
-                       text:find("time") or text:find("seconds") or
-                       text:match("%d+:%d+") or text:match("%d+") then
-                        return frame
-                    end
-                end
-            end
-        end
-    end
-    
-    return nil
-end
-
--- Función para encontrar la base del jugador
-local function findPlayerBase()
-    local bases = {}
-    
-    -- Buscar en workspace por estructuras que parezcan bases
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj:IsA("Model") or obj:IsA("Folder") then
-            -- Buscar por nombres comunes de bases
-            local name = obj.Name:lower()
-            if name:find("base") or name:find("house") or name:find("home") or 
-               name:find("spawn") or name:find("plot") then
-                
-                -- Verificar si tiene partes sólidas
-                for _, part in pairs(obj:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
-                        table.insert(bases, part)
-                    end
-                end
-            end
-        elseif obj:IsA("BasePart") then
-            -- Buscar partes individuales que puedan ser de la base
-            local name = obj.Name:lower()
-            if name:find("base") or name:find("floor") or name:find("wall") or
-               name:find("foundation") or name:find("platform") then
-                table.insert(bases, obj)
-            end
-        end
-    end
-    
-    -- Si no encuentra bases específicas, buscar partes grandes cerca del spawn
-    if #bases == 0 then
-        local spawnLocation = workspace.SpawnLocation or workspace:FindFirstChild("Spawn")
-        if spawnLocation then
-            for _, obj in pairs(workspace:GetChildren()) do
-                if obj:IsA("BasePart") and obj ~= spawnLocation then
-                    local distance = (obj.Position - spawnLocation.Position).Magnitude
-                    local size = obj.Size.Magnitude
-                    
-                    -- Si es una parte grande cerca del spawn, probablemente sea parte de la base
-                    if distance < 100 and size > 10 and obj.CanCollide then
-                        table.insert(bases, obj)
-                    end
-                end
-            end
-        end
-    end
-    
-    return bases
-end
-
--- Función para bloquear base cuando el contador llegue a 0
-local function blockBaseOnCountdown()
-    if #baseBlockParts == 0 then
-        baseBlockParts = findPlayerBase()
-    end
-    
-    if #baseBlockParts > 0 then
-        print("¡Contador en 0! Bloqueando base automáticamente...")
-        
-        for _, part in pairs(baseBlockParts) do
-            if part and part.Parent then
-                -- Crear barrera más fuerte
-                local barrier = Instance.new("Part")
-                barrier.Name = "CountdownBlockBarrier_" .. part.Name
-                barrier.Size = part.Size + Vector3.new(4, 4, 4)
-                barrier.Position = part.Position
-                barrier.Anchored = true
-                barrier.CanCollide = true
-                barrier.Transparency = 0.3
-                barrier.BrickColor = BrickColor.new("Really red")
-                barrier.Material = Enum.Material.ForceField
-                barrier.Parent = workspace
-                
-                -- Hacer que solo otros jugadores no puedan pasar
-                local function onTouched(hit)
-                    local humanoidHit = hit.Parent:FindFirstChild("Humanoid")
-                    if humanoidHit then
-                        local playerHit = Players:GetPlayerFromCharacter(hit.Parent)
-                        if playerHit and playerHit ~= player then
-                            -- Empujar al jugador lejos de la base con más fuerza
-                            local humanoidRootPart = hit.Parent:FindFirstChild("HumanoidRootPart")
-                            if humanoidRootPart then
-                                local direction = (humanoidRootPart.Position - part.Position).Unit
-                                local pushForce = Instance.new("BodyVelocity")
-                                pushForce.MaxForce = Vector3.new(8000, 0, 8000)
-                                pushForce.Velocity = direction * 100
-                                pushForce.Parent = humanoidRootPart
-                                
-                                game:GetService("Debris"):AddItem(pushForce, 1)
-                                
-                                -- Mensaje de advertencia
-                                local gui = Instance.new("ScreenGui")
-                                gui.Parent = playerHit.PlayerGui
-                                
-                                local warning = Instance.new("TextLabel")
-                                warning.Size = UDim2.new(0, 300, 0, 50)
-                                warning.Position = UDim2.new(0.5, -150, 0.1, 0)
-                                warning.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-                                warning.Text = "¡BASE PROTEGIDA!"
-                                warning.TextColor3 = Color3.fromRGB(255, 255, 255)
-                                warning.TextScaled = true
-                                warning.Font = Enum.Font.GothamBold
-                                warning.Parent = gui
-                                
-                                local corner = Instance.new("UICorner")
-                                corner.CornerRadius = UDim.new(0, 10)
-                                corner.Parent = warning
-                                
-                                game:GetService("Debris"):AddItem(gui, 3)
-                            end
-                        end
-                    end
-                end
-                
-                barrier.Touched:Connect(onTouched)
-                
-                -- Eliminar barrera después de 60 segundos
-                game:GetService("Debris"):AddItem(barrier, 60)
-            end
-        end
-        
-        print("Base bloqueada - " .. #baseBlockParts .. " barreras creadas por 60 segundos")
-    else
-        print("No se encontraron partes de base para bloquear")
-    end
-end
-
--- Función para monitorear el contador
-local function monitorCountdown()
-    countdownGui = findCountdownGui()
-    
-    if countdownGui then
-        print("Contador encontrado - Monitoreando...")
-        
-        countdownConnection = countdownGui:GetPropertyChangedSignal("Text"):Connect(function()
-            local text = countdownGui.Text
-            
-            -- Buscar patrones que indiquen que el contador llegó a 0
-            if text:find("0:00") or text:find("00:00") or text == "0" or 
-               text:find("time's up") or text:find("finished") or
-               text:find("complete") or text:find("done") then
-                
-                blockBaseOnCountdown()
-                
-                -- Desconectar después de activar para evitar spam
-                if countdownConnection then
-                    countdownConnection:Disconnect()
-                    countdownConnection = nil
-                end
-                
-                -- Reconectar después de 5 segundos para el próximo round
-                wait(5)
-                if autoBlock then
-                    monitorCountdown()
-                end
-            end
-        end)
-    else
-        print("No se encontró contador - Reintentando en 5 segundos...")
-        wait(5)
-        if autoBlock then
-            monitorCountdown()
-        end
-    end
-end
-
--- Función para toggle de autobloqueo optimizado
-local function toggleAutoBlock()
-    autoBlock = not autoBlock
-    
-    if autoBlock then
-        autoBlockButton.Text = "Auto-Block: ON"
-        autoBlockButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-        
-        -- Encontrar partes de la base
-        baseBlockParts = findPlayerBase()
-        
-        if #baseBlockParts > 0 then
-            print("Auto-Block activado - " .. #baseBlockParts .. " partes de base detectadas")
-            print("Esperando a que el contador llegue a 0...")
-            
-            -- Iniciar monitoreo del contador
-            spawn(function()
-                monitorCountdown()
-            end)
-        else
-            print("No se detectaron partes de base automáticamente")
-            autoBlock = false
-            autoBlockButton.Text = "Auto-Block: OFF"
-            autoBlockButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-        end
-    else
-        autoBlockButton.Text = "Auto-Block: OFF"
-        autoBlockButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-        
-        if countdownConnection then
-            countdownConnection:Disconnect()
-            countdownConnection = nil
-        end
-        
-        -- Limpiar barreras existentes
-        for _, obj in pairs(workspace:GetChildren()) do
-            if obj.Name:find("CountdownBlockBarrier_") then
-                obj:Destroy()
-            end
-        end
-        
-        print("Auto-Block desactivado")
-    end
-end
-
--- Función para activar/desactivar noclip
-local function toggleNoclip()
-    noclipEnabled = not noclipEnabled
-    
-    if noclipEnabled then
-        noclipButton.Text = "NoClip: ON"
-        noclipButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-        
-        -- Función para hacer noclip en una parte
-        local function noclipPart(part)
-            if part and part.Parent then
-                part.CanCollide = false
-                
-                -- Crear conexión para mantener CanCollide en false
-                local connection = part:GetPropertyChangedSignal("CanCollide"):Connect(function()
-                    if noclipEnabled then
-                        part.CanCollide = false
-                    end
-                end)
-                
-                table.insert(noclipConnections, connection)
-            end
-        end
-        
-        -- Aplicar noclip a todas las partes del personaje
-        if character then
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    noclipPart(part)
-                end
-            end
-        end
-        
-        -- Conexión para nuevas partes que se agreguen
-        local newPartConnection = character.ChildAdded:Connect(function(child)
-            if child:IsA("BasePart") and noclipEnabled then
-                wait(0.1)
-                noclipPart(child)
-            end
-        end)
-        
-        table.insert(noclipConnections, newPartConnection)
-        
-        print("NoClip activado - Antireversible")
-    else
-        noclipButton.Text = "NoClip: OFF"
-        noclipButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-        
-        -- Desconectar todas las conexiones de noclip
-        for _, connection in pairs(noclipConnections) do
-            if connection then
-                connection:Disconnect()
-            end
-        end
-        noclipConnections = {}
-        
-        -- Restaurar colisiones
-        if character then
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    part.CanCollide = true
-                end
-            end
-        end
-        
-        print("NoClip desactivado")
-    end
-end
-
--- Función para auto-equipar todas las tools
-local function autoEquipAllTools()
-    if not autoEquip then return end
-    
-    for _, tool in pairs(player.Backpack:GetChildren()) do
-                if tool:IsA("Tool") then
-            humanoid:EquipTool(tool)
-            wait(0.1) -- Pequeña pausa entre equipamientos
-        end
-    end
-end
-
--- Función para toggle de auto-equipar
-local function toggleAutoEquip()
-    autoEquip = not autoEquip
-    
-    if autoEquip then
-        autoEquipButton.Text = "Auto-Equip: ON"
-        autoEquipButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-        print("Auto-equipar activado - Las tools se equiparán automáticamente")
-    else
-        autoEquipButton.Text = "Auto-Equip: OFF"
-        autoEquipButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-        print("Auto-equipar desactivado")
-    end
-end
-
--- Función para activar/desactivar flotación
-local function toggleFloat()
-    if not isFloating then
-        isFloating = true
-        
-        bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
-        
-        floatButton.Text = "Desactivar Float"
-        floatButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    else
-        isFloating = false
-        
-        if bodyVelocity then
-            bodyVelocity:Destroy()
-            bodyVelocity = nil
-        end
-        
-        floatButton.Text = "Activar Float"
-        floatButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-    end
-end
-
--- Función para congelar/descongelar personaje
-local function toggleFreeze()
-    if not isFrozen then
-        isFrozen = true
-        frozenPosition = rootPart.Position
-        
-        bodyPosition = Instance.new("BodyPosition")
-        bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyPosition.Position = frozenPosition
-        bodyPosition.Parent = rootPart
-        
-        humanoid.PlatformStand = true
-        
-        freezeButton.Text = "Descongelar"
-        freezeButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    else
-        isFrozen = false
-        frozenPosition = nil
-        
-        if bodyPosition then
-            bodyPosition:Destroy()
-            bodyPosition = nil
-        end
-        
-        humanoid.PlatformStand = false
-        
-        freezeButton.Text = "Congelar"
-        freezeButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-    end
-end
-
--- Función para toggle de agarrar instantáneo
-local function toggleInstantGrab()
-    instantGrab = not instantGrab
-    
-    if instantGrab then
-        instantGrabButton.Text = "Grab Instantáneo: ON"
-        instantGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-        
-        -- Modificar todos los ProximityPrompts existentes
-        for _, descendant in pairs(workspace:GetDescendants()) do
-            if descendant:IsA("ProximityPrompt") then
-                descendant.HoldDuration = 0
-            end
-        end
-        
-        print("Grab instantáneo activado - Todos los brainrots se agarran al instante")
-    else
-        instantGrabButton.Text = "Grab Instantáneo: OFF"
-        instantGrabButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-        print("Grab instantáneo desactivado")
-    end
-end
-
--- Función para lanzar a todos los jugadores
-local function launchAllPlayers()
-    for _, otherPlayer in pairs(Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            
-            if otherRoot then
-                local direction = (otherRoot.Position - rootPart.Position).Unit
-                
-                local bodyVel = Instance.new("BodyVelocity")
-                bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
-                
-                local launchDirection = direction + Vector3.new(0, 0.5, 0)
-                bodyVel.Velocity = launchDirection.Unit * KNOCKBACK_FORCE
-                bodyVel.Parent = otherRoot
-                
-                game:GetService("Debris"):AddItem(bodyVel, 1)
-            end
-        end
-    end
-end
-
--- Función para hacer el bate lanzador
-local function makeBatLauncher()
-    local function setupBat(tool)
-        if tool.Name:lower():find("bat") or tool.Name:lower():find("bate") then
-            local handle = tool:FindFirstChild("Handle")
-            if handle then
-                local connection
-                connection = tool.Activated:Connect(function()
-                    launchAllPlayers()
-                end)
-                
-                tool.Unequipped:Connect(function()
-                    if connection then
-                        connection:Disconnect()
-                    end
-                end)
-            end
-        end
-    end
-    
-    for _, tool in pairs(player.Backpack:GetChildren()) do
-        setupBat(tool)
-    end
-    
-    if character then
-        for _, tool in pairs(character:GetChildren()) do
-            if tool:IsA("Tool") then
-                setupBat(tool)
-            end
-        end
-    end
-    
-    player.Backpack.ChildAdded:Connect(setupBat)
-    if character then
-        character.ChildAdded:Connect(function(child)
-            if child:IsA("Tool") then
-                setupBat(child)
-            end
-        end)
-    end
-end
-
--- Crear controles del panel
-floatButton = createButton("FloatButton", "Activar Float", 1, toggleFloat)
-freezeButton = createButton("FreezeButton", "Congelar", 2, toggleFreeze)
-instantGrabButton = createButton("InstantGrabButton", "Grab Instantáneo: OFF", 3, toggleInstantGrab)
-autoEquipButton = createButton("AutoEquipButton", "Auto-Equip: OFF", 4, toggleAutoEquip)
-noclipButton = createButton("NoclipButton", "NoClip: OFF", 5, toggleNoclip)
-autoBlockButton = createButton("AutoBlockButton", "Auto-Block: OFF", 6, toggleAutoBlock)
-
--- Botón de teletransporte
-createButton("TeleportUpButton", "Teleport +45 Studs", 7, teleportUp)
-
-createSlider("FrozenSpeed", "Velocidad Congelado", 1, 20, FROZEN_SPEED, 8, function(value)
-    FROZEN_SPEED = value
-end)
-
-createSlider("FloatSpeed", "Velocidad Float", 10, 50, FLOAT_SPEED, 9, function(value)
-    FLOAT_SPEED = value
-end)
-
-createSlider("KnockbackForce", "Fuerza Bate", 50, 300, KNOCKBACK_FORCE, 10, function(value)
-    KNOCKBACK_FORCE = value
-end)
-
--- Slider para altura de teletransporte
-createSlider("TeleportHeight", "Altura Teleport", 10, 100, TELEPORT_HEIGHT, 11, function(value)
-    TELEPORT_HEIGHT = value
-end)
-
-createButton("LaunchButton", "Lanzar Todos", 12, launchAllPlayers)
-
--- Función para bloqueo manual de base
-local function manualBlockBase()
-    -- Encontrar partes de la base si no están definidas
-    if #baseBlockParts == 0 then
-        baseBlockParts = findPlayerBase()
-    end
-    
-    if #baseBlockParts > 0 then
-        blockBaseOnCountdown() -- Usar la misma función pero manualmente
-        print("Base bloqueada manualmente - " .. #baseBlockParts .. " barreras creadas")
-    else
-        print("No se encontraron partes de base para bloquear")
-    end
-end
-
--- Agregar botón de bloqueo manual
-createButton("ManualBlockButton", "Bloquear Base Manual", 13, manualBlockBase)
-
--- Toggle del panel
-local panelOpen = false
-
+-- Función para toggle del panel
 local function togglePanel()
-    panelOpen = not panelOpen
+    mainFrame.Visible = not mainFrame.Visible
     
-    local targetPosition = panelOpen and UDim2.new(0, 10, 0.5, -300) or UDim2.new(0, -300, 0.5, -300)
-    
-    local tween = TweenService:Create(
-        mainFrame,
-        TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-        {Position = targetPosition}
-    )
-    
-    mainFrame.Visible = true
-    tween:Play()
-    
-    if not panelOpen then
-        tween.Completed:Connect(function()
-            mainFrame.Visible = false
-        end)
+    if mainFrame.Visible then
+        -- Animación de entrada
+        mainFrame.Size = UDim2.new(0, 0, 0, 0)
+        local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+            Size = UDim2.new(0, 300, 0, 200)
+        })
+        tween:Play()
     end
 end
 
-toggleButton.MouseButton1Click:Connect(togglePanel)
-
--- Función para movimiento con W + cámara
-local function handleCameraMovement()
-    if not (isFloating or isFrozen) then return end
+-- Función de Float
+local function toggleFloat()
+    isFloating = not isFloating
     
-    local camera = workspace.CurrentCamera
-    local isMoving = UserInputService:IsKeyDown(FORWARD_KEY)
-    local isGoingUp = UserInputService:IsKeyDown(UP_KEY)
-    local isGoingDown = UserInputService:IsKeyDown(DOWN_KEY)
-    
-    if isFloating and bodyVelocity then
-        local velocity = Vector3.new(0, 0, 0)
+    if isFloating then
+        floatButton.Text = "Float: ON"
+        floatButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         
-        if isMoving then
-            local cameraCFrame = camera.CFrame
-            local forward = cameraCFrame.LookVector
-            velocity = velocity + (forward * FLOAT_SPEED)
-        end
-        
-        if isGoingUp then
-            velocity = velocity + Vector3.new(0, FLOAT_SPEED, 0)
-        end
-        
-        if isGoingDown then
-            velocity = velocity + Vector3.new(0, -FLOAT_SPEED, 0)
-        end
-        
-        bodyVelocity.Velocity = velocity
-        
-    elseif isFrozen and bodyPosition then
-        local moveVector = Vector3.new(0, 0, 0)
-        
-        if isMoving then
-            local cameraCFrame = camera.CFrame
-            local forward = cameraCFrame.LookVector
-            moveVector = moveVector + forward
-        end
-        
-        if isGoingUp then
-            moveVector = moveVector + Vector3.new(0, 1, 0)
-        end
-        
-        if isGoingDown then
-            moveVector = moveVector + Vector3.new(0, -1, 0)
-        end
-        
-        if moveVector.Magnitude > 0 then
-            frozenPosition = frozenPosition + (moveVector.Unit * FROZEN_SPEED)
-            bodyPosition.Position = frozenPosition
-        end
-    end
-end
-
--- Función para monitorear ProximityPrompts y auto-equipar
-local function setupProximityPromptMonitoring()
-    -- Modificar ProximityPrompts existentes
-    local function modifyPrompt(prompt)
-        if instantGrab then
-            prompt.HoldDuration = 0
-        end
-    end
-    
-    -- Aplicar a todos los ProximityPrompts existentes
-    for _, descendant in pairs(workspace:GetDescendants()) do
-        if descendant:IsA("ProximityPrompt") then
-            modifyPrompt(descendant)
-        end
-    end
-    
-    -- Monitorear nuevos ProximityPrompts
-    workspace.DescendantAdded:Connect(function(descendant)
-        if descendant:IsA("ProximityPrompt") then
-            wait(0.1)
-            modifyPrompt(descendant)
-        end
-    end)
-    
-        -- Monitorear cuando se activa un ProximityPrompt (agarrar brainrot)
-    ProximityPromptService.PromptTriggered:Connect(function(prompt, playerWhoTriggered)
-        if playerWhoTriggered == player and autoEquip then
-            wait(0.2) -- Esperar a que se agregue la tool al backpack
-            autoEquipAllTools()
-        end
-    end)
-end
-
--- Función para aplicar noclip a personaje respawneado
-local function setupNoclipForCharacter()
-    if not noclipEnabled then return end
-    
-    wait(1) -- Esperar a que el personaje cargue completamente
-    
-    local function noclipPart(part)
-        if part and part.Parent and noclipEnabled then
-            part.CanCollide = false
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoidRootPart = character.HumanoidRootPart
+            local humanoid = character:FindFirstChild("Humanoid")
             
-            local connection = part:GetPropertyChangedSignal("CanCollide"):Connect(function()
-                if noclipEnabled then
-                    part.CanCollide = false
+            -- Crear BodyVelocity para el float
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.Parent = humanoidRootPart
+            
+            floatConnection = RunService.Heartbeat:Connect(function()
+                if character and character.Parent and humanoidRootPart and humanoidRootPart.Parent then
+                    local camera = workspace.CurrentCamera
+                    local moveVector = Vector3.new(0, 0, 0)
+                    
+                    -- Movimiento con W (hacia adelante según la cámara)
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                        moveVector = camera.CFrame.LookVector * 16
+                    end
+                    
+                    -- Mantener flotando
+                    bodyVelocity.Velocity = Vector3.new(moveVector.X, 16, moveVector.Z)
+                    
+                    -- Desactivar la gravedad del personaje
+                    if humanoid then
+                        humanoid.PlatformStand = true
+                    end
+                else
+                    -- Si el personaje se destruye, desactivar float
+                    toggleFloat()
                 end
             end)
+        end
+    else
+        floatButton.Text = "Float: OFF"
+        floatButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        
+        if floatConnection then
+            floatConnection:Disconnect()
+            floatConnection = nil
+        end
+        
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local humanoidRootPart = character.HumanoidRootPart
+            local humanoid = character:FindFirstChild("Humanoid")
             
-            table.insert(noclipConnections, connection)
+            -- Remover BodyVelocity
+            local bodyVelocity = humanoidRootPart:FindFirstChild("BodyVelocity")
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+            
+            -- Reactivar movimiento normal
+            if humanoid then
+                humanoid.PlatformStand = false
+            end
         end
     end
-    
-    -- Aplicar a todas las partes del personaje
-    for _, part in pairs(character:GetChildren()) do
-        if part:IsA("BasePart") then
-            noclipPart(part)
-        end
-    end
-    
-    -- Monitorear nuevas partes
-    local newPartConnection = character.ChildAdded:Connect(function(child)
-        if child:IsA("BasePart") and noclipEnabled then
-            wait(0.1)
-            noclipPart(child)
-        end
-    end)
-    
-    table.insert(noclipConnections, newPartConnection)
 end
 
--- Loop principal para movimiento
-RunService.Heartbeat:Connect(function()
-    handleCameraMovement()
-end)
+-- Función de ESP
+local function createESP(targetPlayer)
+    if targetPlayer == player then return end
+    
+    local function addESP()
+        local character = targetPlayer.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local humanoidRootPart = character.HumanoidRootPart
+        local head = character:FindFirstChild("Head")
+        
+        -- Crear BillboardGui para el nombre
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Name = "ESP_" .. targetPlayer.Name
+        billboardGui.Adornee = head or humanoidRootPart
+        billboardGui.Size = UDim2.new(0, 200, 0, 50)
+        billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+        billboardGui.Parent = character
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = targetPlayer.DisplayName or targetPlayer.Name
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextStrokeTransparency = 0
+        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        nameLabel.TextScaled = true
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.Parent = billboardGui
+        
+        -- Crear highlight para el personaje
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_Highlight"
+        highlight.Adornee = character
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineTransparency = 0
+        highlight.Parent = character
+    end
+    
+    -- Agregar ESP inmediatamente si el personaje existe
+    if targetPlayer.Character then
+        addESP()
+    end
+    
+    -- Conectar para cuando el personaje respawnee
+    local connection = targetPlayer.CharacterAdded:Connect(addESP)
+    espConnections[targetPlayer] = connection
+end
 
--- Configurar monitoreo inicial
-setupProximityPromptMonitoring()
-makeBatLauncher()
+local function removeESP(targetPlayer)
+    if espConnections[targetPlayer] then
+        espConnections[targetPlayer]:Disconnect()
+        espConnections[targetPlayer] = nil
+    end
+    
+    if targetPlayer.Character then
+        local esp = targetPlayer.Character:FindFirstChild("ESP_" .. targetPlayer.Name)
+        local highlight = targetPlayer.Character:FindFirstChild("ESP_Highlight")
+        
+        if esp then esp:Destroy() end
+        if highlight then highlight:Destroy() end
+    end
+end
 
--- Reconfigurar cuando respawnee
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
+local function toggleESP()
+    espEnabled = not espEnabled
     
-    -- Resetear estados de movimiento
-    isFloating = false
-    isFrozen = false
-    
-    if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
-    if bodyPosition then bodyPosition:Destroy() bodyPosition = nil end
-    
-    -- Resetear botones de movimiento
-    floatButton.Text = "Activar Float"
-    floatButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-    freezeButton.Text = "Congelar"
-    freezeButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-    
-    -- Limpiar conexiones de noclip anteriores
-    for _, connection in pairs(noclipConnections) do
-        if connection then
-            connection:Disconnect()
+    if espEnabled then
+        espButton.Text = "ESP: ON"
+        espButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        -- Agregar ESP a todos los jugadores
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            createESP(targetPlayer)
+        end
+        
+        -- Conectar para nuevos jugadores
+        espConnections.playerAdded = Players.PlayerAdded:Connect(createESP)
+    else
+        espButton.Text = "ESP: OFF"
+        espButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        
+        -- Remover ESP de todos los jugadores
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            removeESP(targetPlayer)
+        end
+        
+        if espConnections.playerAdded then
+            espConnections.playerAdded:Disconnect()
+            espConnections.playerAdded = nil
         end
     end
-    noclipConnections = {}
+end
+
+-- Función de Force Backpack
+local function toggleBackpack()
+    backpackForced = not backpackForced
     
-    -- Limpiar conexión de countdown
-    if countdownConnection then
-        countdownConnection:Disconnect()
-        countdownConnection = nil
-    end
-    
-    -- Mantener autobloqueo activo si estaba activado
-    if autoBlock then
+    if backpackForced then
+        backpackButton.Text = "Force Backpack: ON"
+        backpackButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        -- Forzar que el backpack esté siempre visible
+        local starterGui = game:GetService("StarterGui")
+        starterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+        
+        -- Mantener el backpack habilitado
         spawn(function()
-            wait(2) -- Esperar a que el personaje se establezca
-            monitorCountdown()
+            while backpackForced do
+                wait(1)
+                starterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+            end
         end)
+    else
+        backpackButton.Text = "Force Backpack: OFF"
+        backpackButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     end
+end
+
+-- Conectar eventos de los botones
+floatButton.MouseButton1Click:Connect(toggleFloat)
+espButton.MouseButton1Click:Connect(toggleESP)
+backpackButton.MouseButton1Click:Connect(toggleBackpack)
+
+-- Conectar la tecla F4 para toggle del panel
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     
-    -- Limpiar barreras existentes del respawn anterior
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj.Name:find("CountdownBlockBarrier_") then
-            obj:Destroy()
-        end
+    if input.KeyCode == Enum.KeyCode.F4 then
+        togglePanel()
     end
-    
-    -- Reconfigurar funciones
-    wait(1)
-    makeBatLauncher()
-    setupProximityPromptMonitoring()
-    setupNoclipForCharacter()
 end)
 
--- Información de controles
-print("=== PANEL GUI OPTIMIZADO - AUTO-BLOCK MEJORADO ===")
-print("Botón 'Panel' - Abrir/Cerrar GUI")
-print("W - Mover hacia donde mira la cámara")
-print("Q/E - Subir/Bajar")
-print("Funciones disponibles:")
-print("• Float - Flotación con cámara")
-print("• Congelar - Movimiento congelado")
-print("• Grab Instantáneo - Brainrots sin espera")
-print("• Auto-Equip - Equipar tools automáticamente")
-print("• NoClip - Atravesar paredes (antireversible)")
-print("• Auto-Block - Bloquear base SOLO cuando contador = 0")
-print("• Teleport +45 Studs - Teletransporte hacia arriba")
-print("• Bloquear Base Manual - Bloqueo inmediato")
-print("• Lanzar Todos - Bate lanzador")
-print("• Sliders - Velocidades y altura personalizables")
-print("==============================================")
-print("AUTO-BLOCK MEJORADO:")
-print("- Sin lag constante")
-print("- Solo se activa cuando el contador llega a 0")
-print("- Barreras más fuertes (60 segundos)")
-print("- Detección automática de contadores")
-print("- Mensajes de advertencia a invasores")
-print("==============================================")
+-- Limpiar conexiones cuando el jugador se va
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if espConnections[leavingPlayer] then
+        espConnections[leavingPlayer]:Disconnect()
+        espConnections[leavingPlayer] = nil
+    end
+end)
+
+-- Limpiar cuando el personaje del jugador local respawnea
+player.CharacterAdded:Connect(function()
+    if isFloating then
+        -- Reactivar float después del respawn
+        wait(1)
+        isFloating = false
+        toggleFloat()
+    end
+end)
+
+print("Cheat Panel cargado. Presiona F4 para abrir/cerrar el panel.")
