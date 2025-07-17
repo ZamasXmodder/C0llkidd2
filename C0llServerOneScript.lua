@@ -151,7 +151,7 @@ end
 local floatButton = createButton("FloatButton", "Float: OFF", UDim2.new(0.075, 0, 0, 50), mainFrame)
 local speedSlider = createSlider("SpeedSlider", "Float Speed", 5, 50, 16, UDim2.new(0.075, 0, 0, 95), mainFrame)
 local espButton = createButton("ESPButton", "ESP: OFF", UDim2.new(0.075, 0, 0, 165), mainFrame)
-local reachButton = createButton("ReachButton", "Infinite Reach: OFF", UDim2.new(0.075, 0, 0, 210), mainFrame)
+local reachButton = createButton("ReachButton", "360° Infinite Reach: OFF", UDim2.new(0.075, 0, 0, 210), mainFrame)
 
 -- Función toggle panel
 local function togglePanel()
@@ -179,7 +179,6 @@ local function toggleFloat()
             local humanoidRootPart = character.HumanoidRootPart
             local humanoid = character:FindFirstChild("Humanoid")
             
-            -- Crear BodyVelocity
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
             bodyVelocity.Velocity = Vector3.new(0, 0, 0)
@@ -191,7 +190,6 @@ local function toggleFloat()
                     local moveVector = Vector3.new(0, 0, 0)
                     local isMoving = false
                     
-                    -- Controles de movimiento
                     if UserInputService:IsKeyDown(Enum.KeyCode.W) then
                         moveVector = moveVector + camera.CFrame.LookVector
                         isMoving = true
@@ -217,14 +215,11 @@ local function toggleFloat()
                         isMoving = true
                     end
                     
-                    -- Aplicar velocidad
                     bodyVelocity.Velocity = moveVector * floatSpeed
                     
-                    -- Simular caminar (animaciones y sonidos)
                     if humanoid then
                         if isMoving then
                             humanoid.WalkSpeed = floatSpeed
-                            -- Simular que está caminando
                             humanoid:Move(moveVector, true)
                         else
                             humanoid.WalkSpeed = 0
@@ -250,13 +245,11 @@ local function toggleFloat()
             local humanoidRootPart = character.HumanoidRootPart
             local humanoid = character:FindFirstChild("Humanoid")
             
-            -- Remover BodyVelocity
             local bodyVelocity = humanoidRootPart:FindFirstChild("BodyVelocity")
             if bodyVelocity then
                 bodyVelocity:Destroy()
             end
             
-            -- Restaurar movimiento normal
             if humanoid then
                 humanoid.PlatformStand = false
                 humanoid.WalkSpeed = 16
@@ -273,17 +266,15 @@ local function createESP(targetPlayer)
         local character = targetPlayer.Character
         if not character or not character:FindFirstChild("HumanoidRootPart") then return end
         
-        -- Crear highlight
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_Highlight"
-        highlight.Adornee = character
+                highlight.Adornee = character
         highlight.FillColor = Color3.fromRGB(255, 0, 0)
         highlight.FillTransparency = 0.5
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
         highlight.OutlineTransparency = 0
         highlight.Parent = character
         
-        -- Crear nombre flotante
         local head = character:FindFirstChild("Head")
         if head then
             local billboardGui = Instance.new("BillboardGui")
@@ -359,75 +350,22 @@ local function toggleESP()
     end
 end
 
--- Función Infinite Reach para bate
+-- Función 360° Infinite Reach - GOLPEA A TODOS LOS JUGADORES A LA VEZ
 local function toggleInfiniteReach()
     infiniteReach = not infiniteReach
     
     if infiniteReach then
-        reachButton.Text = "Infinite Reach: ON"
+        reachButton.Text = "360° Infinite Reach: ON"
         reachButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         
         reachConnection = RunService.Heartbeat:Connect(function()
             local character = player.Character
             if character then
-                -- Buscar bate equipado
-                local tool = character:FindFirstChildOfClass("Tool")
-                if tool and (tool.Name:lower():find("bat") or tool.Name:lower():find("bate")) then
-                    local handle = tool:FindFirstChild("Handle")
-                    if handle then
-                        -- Extender el alcance del bate
-                        local originalSize = handle.Size
-                        handle.Size = Vector3.new(originalSize.X, originalSize.Y, 50) -- Alcance de 50 studs
-                        handle.Transparency = 0.9 -- Hacer casi invisible la extensión
-                        
-                        -- Buscar jugadores cercanos para golpear automáticamente
-                        for _, targetPlayer in pairs(Players:GetPlayers()) do
-                            if targetPlayer ~= player and targetPlayer.Character then
-                                local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                                local playerHRP = character:FindFirstChild("HumanoidRootPart")
-                                
-                                if targetHRP and playerHRP then
-                                    local distance = (targetHRP.Position - playerHRP.Position).Magnitude
-                                    
-                                    -- Si está dentro del rango extendido (50 studs)
-                                    if distance <= 50 then
-                                        -- Activar el bate
-                                        tool:Activate()
-                                        
-                                        -- Buscar RemoteEvents del bate
-                                        for _, remote in pairs(tool:GetDescendants()) do
-                                            if remote:IsA("RemoteEvent") then
-                                                pcall(function()
-                                                    remote:FireServer(targetPlayer.Character)
-                                                end)
-                                                pcall(function()
-                                                    remote:FireServer(targetHRP)
-                                                end)
-                                                pcall(function()
-                                                    remote:FireServer()
-                                                end)
-                                            end
-                                        end
-                                        
-                                        -- Intentar diferentes métodos de golpe
-                                        pcall(function()
-                                            if handle:FindFirstChild("ClickDetector") then
-                                                handle.ClickDetector:FireServer()
-                                            end
-                                        end)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                -- También buscar en el backpack
+                -- Auto-equipar bate si está en backpack
                 local backpack = player:FindFirstChild("Backpack")
                 if backpack then
                     for _, tool in pairs(backpack:GetChildren()) do
                         if tool:IsA("Tool") and (tool.Name:lower():find("bat") or tool.Name:lower():find("bate")) then
-                            -- Auto-equipar el bate
                             local humanoid = character:FindFirstChild("Humanoid")
                             if humanoid then
                                 humanoid:EquipTool(tool)
@@ -435,10 +373,127 @@ local function toggleInfiniteReach()
                         end
                     end
                 end
+                
+                -- Buscar bate equipado
+                local tool = character:FindFirstChildOfClass("Tool")
+                if tool and (tool.Name:lower():find("bat") or tool.Name:lower():find("bate")) then
+                    local handle = tool:FindFirstChild("Handle")
+                    if handle then
+                        -- Hacer el bate invisible y gigante
+                        handle.Transparency = 1
+                        handle.CanCollide = false
+                        handle.Size = Vector3.new(1000, 1000, 1000) -- Tamaño masivo
+                        
+                        -- GOLPEAR A TODOS LOS JUGADORES SIN IMPORTAR LA DISTANCIA
+                        for _, targetPlayer in pairs(Players:GetPlayers()) do
+                            if targetPlayer ~= player and targetPlayer.Character then
+                                local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                                local targetHumanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+                                
+                                if targetHRP and targetHumanoid then
+                                    -- Múltiples métodos de activación del bate
+                                    spawn(function()
+                                        -- Método 1: Activar herramienta
+                                        pcall(function()
+                                            tool:Activate()
+                                        end)
+                                        
+                                        -- Método 2: Buscar y activar RemoteEvents
+                                        for _, remote in pairs(tool:GetDescendants()) do
+                                            if remote:IsA("RemoteEvent") then
+                                                pcall(function()
+                                                    remote:FireServer(targetPlayer)
+                                                end)
+                                                pcall(function()
+                                                    remote:FireServer(targetPlayer.Character)
+                                                end)
+                                                pcall(function()
+                                                    remote:FireServer(targetHRP)
+                                                end)
+                                                pcall(function()
+                                                    remote:FireServer(targetHumanoid)
+                                                end)
+                                                pcall(function()
+                                                    remote:FireServer("hit", targetPlayer)
+                                                end)
+                                                pcall(function()
+                                                    remote:FireServer("damage", targetPlayer)
+                                                end)
+                                                pcall(function()
+                                                    remote:FireServer()
+                                                end)
+                                            end
+                                        end
+                                        
+                                        -- Método 3: RemoteFunctions
+                                        for _, remoteFunc in pairs(tool:GetDescendants()) do
+                                            if remoteFunc:IsA("RemoteFunction") then
+                                                pcall(function()
+                                                    remoteFunc:InvokeServer(targetPlayer)
+                                                end)
+                                                pcall(function()
+                                                    remoteFunc:InvokeServer(targetPlayer.Character)
+                                                end)
+                                                pcall(function()
+                                                    remoteFunc:InvokeServer()
+                                                end)
+                                            end
+                                        end
+                                        
+                                        -- Método 4: ClickDetector
+                                        for _, detector in pairs(tool:GetDescendants()) do
+                                            if detector:IsA("ClickDetector") then
+                                                pcall(function()
+                                                    detector:FireServer()
+                                                end)
+                                            end
+                                        end
+                                        
+                                        -- Método 5: Simular toque físico
+                                        pcall(function()
+                                            handle.Touched:Fire(targetHRP)
+                                        end)
+                                        
+                                        -- Método 6: Buscar scripts locales y activarlos
+                                        for _, script in pairs(tool:GetDescendants()) do
+                                            if script:IsA("LocalScript") then
+                                                pcall(function()
+                                                    script.Disabled = false
+                                                end)
+                                            end
+                                        end
+                                    end)
+                                end
+                            end
+                        end
+                        
+                        -- Buscar RemoteEvents globales del juego relacionados con combate
+                        for _, remote in pairs(game:GetDescendants()) do
+                            if remote:IsA("RemoteEvent") then
+                                local remoteName = remote.Name:lower()
+                                if remoteName:find("hit") or remoteName:find("damage") or 
+                                   remoteName:find("attack") or remoteName:find("punch") or
+                                   remoteName:find("bat") or remoteName:find("combat") then
+                                    
+                                    for _, targetPlayer in pairs(Players:GetPlayers()) do
+                                        if targetPlayer ~= player then
+                                            pcall(function()
+                                                remote:FireServer(targetPlayer)
+                                            end)
+                                            pcall(function()
+                                                remote:FireServer(targetPlayer.Character)
+                                            end)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
             end
         end)
     else
-        reachButton.Text = "Infinite Reach: OFF"
+        reachButton.Text = "360° Infinite Reach: OFF"
         reachButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
         
         if reachConnection then
@@ -446,15 +501,15 @@ local function toggleInfiniteReach()
             reachConnection = nil
         end
         
-        -- Restaurar tamaño original del bate
+        -- Restaurar bate normal
         local character = player.Character
         if character then
             local tool = character:FindFirstChildOfClass("Tool")
             if tool and tool:FindFirstChild("Handle") then
                 local handle = tool.Handle
                 handle.Transparency = 0
-                -- Restaurar tamaño original (esto puede variar según el juego)
-                handle.Size = Vector3.new(1, 4, 1) -- Tamaño típico de un bate
+                handle.CanCollide = true
+                handle.Size = Vector3.new(1, 4, 1) -- Tamaño normal
             end
         end
     end
@@ -485,7 +540,6 @@ end)
 -- Limpiar cuando el personaje respawnea
 player.CharacterAdded:Connect(function()
     wait(1)
-    -- Resetear estados
     if isFloating then
         isFloating = false
         toggleFloat()
@@ -497,10 +551,11 @@ player.CharacterAdded:Connect(function()
 end)
 
 -- Mensaje de confirmación
-print("Simple Cheat Panel cargado!")
+print("360° Infinite Reach Panel cargado!")
 print("Controles:")
 print("- F4: Abrir/Cerrar panel")
 print("- Float: WASD + Space/Shift para volar")
 print("- ESP: Ver jugadores a través de paredes")
-print("- Infinite Reach: Golpear con el bate desde cualquier distancia")
-print("- El float simula caminar normalmente")
+print("- 360° Infinite Reach: GOLPEA A TODOS LOS JUGADORES A LA VEZ desde cualquier distancia!")
+print("- Auto-equipa el bate automáticamente")
+print("- Usa múltiples métodos para garantizar que funcione")
