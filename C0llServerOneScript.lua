@@ -9,229 +9,208 @@ local camera = Workspace.CurrentCamera
 -- Configuración del ESP
 local ESPConfig = {
     enabled = false,
-    toggleKey = Enum.KeyCode.T, -- Tecla para activar/desactivar (puedes cambiarla)
-    textColor = Color3.fromRGB(0, 255, 255), -- Color cyan para frutas tranquil
-    textSize = 16,
-    maxDistance = 500, -- Distancia máxima para mostrar el ESP
-    showDistance = true
+    toggleKey = Enum.KeyCode.T,
+    textColor = Color3.fromRGB(0, 255, 255),
+    textSize = 14,
+    maxDistance = 300,
+    updateRate = 0.5 -- Actualizar cada 0.5 segundos para reducir lag
 }
 
--- Tabla para almacenar las conexiones del ESP
-local espConnections = {}
+-- Almacenamiento optimizado
 local espObjects = {}
+local lastUpdate = 0
+local updateConnection = nil
 
--- Función para crear el texto del ESP
-local function createESPText()
+-- Función para crear ESP más ligero
+local function createESP(plant)
     local billboardGui = Instance.new("BillboardGui")
-    billboardGui.Size = UDim2.new(0, 200, 0, 50)
-    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+    billboardGui.Size = UDim2.new(0, 150, 0, 30)
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
     billboardGui.AlwaysOnTop = true
+    billboardGui.Parent = plant
     
     local textLabel = Instance.new("TextLabel")
     textLabel.Size = UDim2.new(1, 0, 1, 0)
     textLabel.BackgroundTransparency = 1
     textLabel.TextColor3 = ESPConfig.textColor
     textLabel.TextSize = ESPConfig.textSize
-    textLabel.TextStrokeTransparency = 0
+    textLabel.TextStrokeTransparency = 0.5
     textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.Font = Enum.Font.SourceSans
+    textLabel.Text = "🌿 TRANQUIL"
     textLabel.Parent = billboardGui
     
-    return billboardGui, textLabel
+    return billboardGui
 end
 
--- Función para verificar si una fruta tiene la mutación tranquil
-local function hasTranquilMutation(fruit)
-    -- Buscar en los atributos o propiedades de la fruta
-    if fruit:GetAttribute("Mutation") == "tranquil" then
+-- Función optimizada para detectar mutación tranquil
+local function isTranquilPlant(obj)
+    -- Verificar si es una planta primero
+    if not obj:IsA("Model") and not obj:IsA("BasePart") then
+        return false
+    end
+    
+    -- Buscar en diferentes formatos de la mutación
+    local function checkForTranquil(item)
+        -- Verificar atributos
+        local mutation = item:GetAttribute("Mutation")
+        if mutation then
+            local mutStr = tostring(mutation):lower()
+            if mutStr:find("tranquil") then
+                return true
+            end
+        end
+        
+        -- Verificar StringValues/IntValues
+        for _, child in pairs(item:GetChildren()) do
+            if child:IsA("StringValue") or child:IsA("IntValue") then
+                local value = tostring(child.Value):lower()
+                if value:find("tranquil") then
+                    return true
+                end
+            end
+        end
+        
+        return false
+    end
+    
+    -- Verificar el objeto principal
+    if checkForTranquil(obj) then
         return true
     end
     
-    -- Verificar en StringValues o configuraciones
-    local mutationValue = fruit:FindFirstChild("Mutation")
-    if mutationValue and mutationValue.Value == "tranquil" then
-        return true
-    end
-    
-    -- Verificar en el nombre si contiene "tranquil"
-    if string.lower(fruit.Name):find("tranquil") then
-        return true
-    end
-    
-    -- Verificar en configuración de la fruta si existe
-    local config = fruit:FindFirstChild("Config")
-    if config then
-        local mutation = config:FindFirstChild("Mutation")
-        if mutation and mutation.Value == "tranquil" then
-            return true
+    -- Verificar hijos si es un modelo
+    if obj:IsA("Model") then
+        for _, child in pairs(obj:GetChildren()) do
+            if checkForTranquil(child) then
+                return true
+            end
         end
     end
     
     return false
 end
 
--- Función para obtener información de la fruta
-local function getFruitInfo(fruit)
-    local fruitName = fruit.Name
-    local mutation = "Tranquil"
-    
-    -- Intentar obtener más información específica
-    local config = fruit:FindFirstChild("Config")
-    if config then
-        local nameValue = config:FindFirstChild("FruitName")
-        if nameValue then
-            fruitName = nameValue.Value
-        end
-    end
-    
-    return fruitName, mutation
-end
-
--- Función para calcular la distancia
-local function getDistance(fruit)
+-- Función para obtener distancia
+local function getDistance(plant)
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return math.huge
     end
     
+    local plantPos
+    if plant:IsA("Model") then
+        plantPos = plant:GetModelCFrame().Position
+    else
+        plantPos = plant.Position
+    end
+    
     local playerPos = player.Character.HumanoidRootPart.Position
-    local fruitPos = fruit.Position
-    return (playerPos - fruitPos).Magnitude
+    return (playerPos - plantPos).Magnitude
 end
 
--- Función para actualizar el ESP de una fruta
-local function updateFruitESP(fruit, billboardGui, textLabel)
-    if not fruit.Parent then
-        return false
-    end
-    
-    local distance = getDistance(fruit)
-    
-    -- Ocultar si está muy lejos
-    if distance > ESPConfig.maxDistance then
-        billboardGui.Enabled = false
-        return true
-    end
-    
-    billboardGui.Enabled = ESPConfig.enabled
-    
-    if ESPConfig.enabled then
-        local fruitName, mutation = getFruitInfo(fruit)
-        local text = string.format("[%s] %s", mutation, fruitName)
-        
-        if ESPConfig.showDistance then
-            text = text .. string.format(" (%.0fm)", distance)
+-- Función para escanear plantas (optimizada)
+local function scanPlants()
+    -- Limpiar ESPs de plantas que ya no existen
+    for plant, esp in pairs(espObjects) do
+        if not plant.Parent then
+            esp:Destroy()
+            espObjects[plant] = nil
         end
-        
-        textLabel.Text = text
-        
-        -- Cambiar opacidad basada en la distancia
-        local alpha = math.max(0.3, 1 - (distance / ESPConfig.maxDistance))
-        textLabel.TextTransparency = 1 - alpha
     end
     
-    return true
-end
-
--- Función para agregar ESP a una fruta
-local function addFruitESP(fruit)
-    if espObjects[fruit] then
-        return
-    end
-    
-    local billboardGui, textLabel = createESPText()
-    billboardGui.Parent = fruit
-    
-    espObjects[fruit] = {
-        gui = billboardGui,
-        label = textLabel
-    }
-    
-    -- Conexión para actualizar el ESP
-    local connection = RunService.Heartbeat:Connect(function()
-        if not updateFruitESP(fruit, billboardGui, textLabel) then
-            -- La fruta fue eliminada, limpiar
-            if espObjects[fruit] then
-                espObjects[fruit] = nil
-            end
-            connection:Disconnect()
-        end
-    end)
-    
-    table.insert(espConnections, connection)
-end
-
--- Función para escanear frutas con mutación tranquil
-local function scanForTranquilFruits()
-    -- Buscar en diferentes ubicaciones posibles
+    -- Buscar en las ubicaciones más comunes de plantas en Grow a Garden
     local searchAreas = {
-        Workspace:FindFirstChild("Fruits"),
-        Workspace:FindFirstChild("Items"),
-        Workspace:FindFirstChild("Drops"),
-        Workspace
+        Workspace:FindFirstChild("Plants"),
+        Workspace:FindFirstChild("Garden"),
+        Workspace:FindFirstChild("Crops"),
+        player.Character and player.Character.Parent -- Área del jugador
     }
     
     for _, area in pairs(searchAreas) do
         if area then
-            for _, obj in pairs(area:GetDescendants()) do
-                if obj:IsA("BasePart") and hasTranquilMutation(obj) then
-                    addFruitESP(obj)
+            for _, obj in pairs(area:GetChildren()) do
+                -- Solo procesar si no tiene ESP ya y está cerca
+                if not espObjects[obj] and getDistance(obj) <= ESPConfig.maxDistance then
+                    if isTranquilPlant(obj) then
+                        local esp = createESP(obj)
+                        espObjects[obj] = esp
+                    end
                 end
             end
         end
     end
 end
 
--- Función para limpiar todos los ESP
+-- Función para actualizar visibilidad (optimizada)
+local function updateESPVisibility()
+    for plant, esp in pairs(espObjects) do
+        if plant.Parent then
+            local distance = getDistance(plant)
+            local shouldShow = ESPConfig.enabled and distance <= ESPConfig.maxDistance
+            
+            if esp and esp.Parent then
+                esp.Enabled = shouldShow
+                
+                -- Actualizar opacidad basada en distancia
+                if shouldShow and esp:FindFirstChild("TextLabel") then
+                    local alpha = math.max(0.4, 1 - (distance / ESPConfig.maxDistance))
+                    esp.TextLabel.TextTransparency = 1 - alpha
+                end
+            end
+        else
+            -- Planta eliminada
+            if esp then
+                esp:Destroy()
+            end
+            espObjects[plant] = nil
+        end
+    end
+end
+
+-- Función principal de actualización (con rate limiting)
+local function updateESP()
+    local currentTime = tick()
+    if currentTime - lastUpdate >= ESPConfig.updateRate then
+        scanPlants()
+        updateESPVisibility()
+        lastUpdate = currentTime
+    end
+end
+
+-- Función para limpiar todo
 local function clearAllESP()
-    for fruit, espData in pairs(espObjects) do
-        if espData.gui then
-            espData.gui:Destroy()
+    for plant, esp in pairs(espObjects) do
+        if esp then
+            esp:Destroy()
         end
     end
     espObjects = {}
     
-    for _, connection in pairs(espConnections) do
-        connection:Disconnect()
+    if updateConnection then
+        updateConnection:Disconnect()
+        updateConnection = nil
     end
-    espConnections = {}
 end
 
--- Función para toggle del ESP
+-- Toggle del ESP
 local function toggleESP()
     ESPConfig.enabled = not ESPConfig.enabled
     
     if ESPConfig.enabled then
-        print("🍎 Tranquil Fruit ESP: ACTIVADO")
-        scanForTranquilFruits()
+        print("🌿 Tranquil Plant ESP: ACTIVADO")
         
-        -- Escanear continuamente por nuevas frutas
-        local scanConnection = RunService.Heartbeat:Connect(function()
-            if ESPConfig.enabled then
-                scanForTranquilFruits()
-            end
-        end)
-        table.insert(espConnections, scanConnection)
+        -- Escaneo inicial
+        scanPlants()
+        
+        -- Conexión optimizada para actualizaciones
+        updateConnection = RunService.Heartbeat:Connect(updateESP)
     else
-        print("🍎 Tranquil Fruit ESP: DESACTIVADO")
+        print("🌿 Tranquil Plant ESP: DESACTIVADO")
         clearAllESP()
     end
 end
 
--- Detectar cuando se agregan nuevas frutas
-local function onChildAdded(child)
-    if ESPConfig.enabled and child:IsA("BasePart") and hasTranquilMutation(child) then
-        wait(0.1) -- Pequeña espera para asegurar que la fruta esté completamente cargada
-        addFruitESP(child)
-    end
-end
-
--- Conectar eventos
-Workspace.ChildAdded:Connect(onChildAdded)
-if Workspace:FindFirstChild("Fruits") then
-    Workspace.Fruits.ChildAdded:Connect(onChildAdded)
-end
-
--- Input para toggle
+-- Input handler
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
@@ -240,40 +219,58 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Limpiar al salir
+-- Cleanup al salir
 Players.PlayerRemoving:Connect(function(plr)
     if plr == player then
         clearAllESP()
     end
 end)
 
--- Mensaje inicial
-print("🍎 Tranquil Fruit ESP cargado!")
-print("📋 Presiona '" .. ESPConfig.toggleKey.Name .. "' para activar/desactivar")
-print("⚙️ Configuración:")
-print("   - Distancia máxima: " .. ESPConfig.maxDistance .. "m")
-print("   - Color: Cyan")
-print("   - Mostrar distancia: " .. (ESPConfig.showDistance and "Sí" or "No"))
-
--- Función para cambiar configuración (opcional)
-_G.TranquilESPConfig = function(setting, value)
-    if setting == "toggleKey" then
-        ESPConfig.toggleKey = value
-        print("🔧 Tecla de toggle cambiada a: " .. value.Name)
-    elseif setting == "maxDistance" then
-        ESPConfig.maxDistance = value
-        print("🔧 Distancia máxima cambiada a: " .. value .. "m")
-    elseif setting == "textColor" then
-        ESPConfig.textColor = value
-        print("🔧 Color del texto cambiado")
-    elseif setting == "showDistance" then
-        ESPConfig.showDistance = value
-        print("🔧 Mostrar distancia: " .. (value and "Activado" or "Desactivado"))
+-- Detectar nuevas plantas de forma eficiente
+local function onPlantAdded(child)
+    if ESPConfig.enabled then
+        wait(0.2) -- Esperar a que se cargue completamente
+        if child.Parent and isTranquilPlant(child) and getDistance(child) <= ESPConfig.maxDistance then
+            if not espObjects[child] then
+                local esp = createESP(child)
+                espObjects[child] = esp
+            end
+        end
     end
 end
 
-return {
+-- Conectar a áreas comunes donde aparecen plantas
+local plantAreas = {"Plants", "Garden", "Crops"}
+for _, areaName in pairs(plantAreas) do
+    local area = Workspace:FindFirstChild(areaName)
+    if area then
+        area.ChildAdded:Connect(onPlantAdded)
+    end
+end
+
+-- También conectar al workspace principal
+Workspace.ChildAdded:Connect(function(child)
+    if child.Name:lower():find("plant") or child.Name:lower():find("crop") or child.Name:lower():find("garden") then
+        onPlantAdded(child)
+    end
+end)
+
+-- Mensaje inicial
+print("🌿 Tranquil Plant ESP v2.0 cargado!")
+print("📋 Presiona 'T' para activar/desactivar")
+print("⚡ Optimizado para mejor rendimiento")
+print("🎯 Detecta: Tranquil, TRANQUIL, tranquil")
+
+-- Función de configuración rápida
+_G.TranquilESP = {
     toggle = toggleESP,
     clear = clearAllESP,
-    config = _G.TranquilESPConfig
+    setDistance = function(dist)
+        ESPConfig.maxDistance = dist
+        print("🔧 Distancia máxima: " .. dist .. "m")
+    end,
+    setUpdateRate = function(rate)
+        ESPConfig.updateRate = rate
+        print("🔧 Rate de actualización: " .. rate .. "s")
+    end
 }
