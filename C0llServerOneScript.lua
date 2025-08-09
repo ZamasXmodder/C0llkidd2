@@ -1,4 +1,4 @@
--- Script para Steal a Brainrot - Flote Manual Controlable
+-- Script para Steal a Brainrot - Flote Manual Controlable (Corregido)
 -- Control con teclas (PC) y joystick virtual (móvil)
 
 local Players = game:GetService("Players")
@@ -25,6 +25,24 @@ screenGui.Name = "BrainrotFloatGUI"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
+-- Botón para abrir/cerrar panel (CREAR PRIMERO)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 120, 0, 35)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
+toggleButton.BorderSizePixel = 0
+toggleButton.Text = "Abrir Panel"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = screenGui
+toggleButton.Visible = true -- ASEGURAR QUE SEA VISIBLE
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
+
 -- Panel principal
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
@@ -35,6 +53,7 @@ mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 mainFrame.Parent = screenGui
+mainFrame.Visible = false -- INICIALMENTE OCULTO
 
 -- Esquinas redondeadas para el panel
 local mainCorner = Instance.new("UICorner")
@@ -120,7 +139,7 @@ sliderFrameCorner.Parent = speedSliderFrame
 local sliderButton = Instance.new("Frame")
 sliderButton.Name = "SliderButton"
 sliderButton.Size = UDim2.new(0, 20, 1, 0)
-sliderButton.Position = UDim2.new(0.5, -10, 0, 0) -- Posición inicial en el centro
+sliderButton.Position = UDim2.new(0.5, -10, 0, 0)
 sliderButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
 sliderButton.BorderSizePixel = 0
 sliderButton.Parent = speedSliderFrame
@@ -144,6 +163,8 @@ controlsLabel.Parent = mainFrame
 -- Joystick virtual para móvil
 local joystickFrame = nil
 local joystickKnob = nil
+local upButton = nil
+local downButton = nil
 
 if isMobile then
     joystickFrame = Instance.new("Frame")
@@ -154,6 +175,7 @@ if isMobile then
     joystickFrame.BackgroundTransparency = 0.3
     joystickFrame.BorderSizePixel = 0
     joystickFrame.Parent = screenGui
+    joystickFrame.Visible = false
     
     local joystickCorner = Instance.new("UICorner")
     joystickCorner.CornerRadius = UDim.new(0.5, 0)
@@ -172,7 +194,7 @@ if isMobile then
     knobCorner.Parent = joystickKnob
     
     -- Botones de subir/bajar para móvil
-    local upButton = Instance.new("TextButton")
+    upButton = Instance.new("TextButton")
     upButton.Name = "UpButton"
     upButton.Size = UDim2.new(0, 60, 0, 40)
     upButton.Position = UDim2.new(1, -80, 1, -120)
@@ -183,12 +205,13 @@ if isMobile then
     upButton.TextScaled = true
     upButton.Font = Enum.Font.GothamBold
     upButton.Parent = screenGui
+    upButton.Visible = false
     
     local upCorner = Instance.new("UICorner")
     upCorner.CornerRadius = UDim.new(0, 8)
     upCorner.Parent = upButton
     
-    local downButton = Instance.new("TextButton")
+    downButton = Instance.new("TextButton")
     downButton.Name = "DownButton"
     downButton.Size = UDim2.new(0, 60, 0, 40)
     downButton.Position = UDim2.new(1, -80, 1, -70)
@@ -199,28 +222,12 @@ if isMobile then
     downButton.TextScaled = true
     downButton.Font = Enum.Font.GothamBold
     downButton.Parent = screenGui
+    downButton.Visible = false
     
     local downCorner = Instance.new("UICorner")
     downCorner.CornerRadius = UDim.new(0, 8)
     downCorner.Parent = downButton
 end
-
--- Botón para abrir/cerrar panel
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleButton"
-toggleButton.Size = UDim2.new(0, 100, 0, 30)
-toggleButton.Position = UDim2.new(0, 10, 0, 10)
-toggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-toggleButton.BorderSizePixel = 0
-toggleButton.Text = "Abrir Panel"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.Gotham
-toggleButton.Parent = screenGui
-
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 8)
-toggleCorner.Parent = toggleButton
 
 -- Función de flote manual
 local function createManualFloat()
@@ -301,7 +308,8 @@ speedSliderFrame.InputBegan:Connect(function(input)
         
         local connection
         connection = UserInputService.InputChanged:Connect(function(input2)
-            if input2.UserInputType == Enum.UserInputType.MouseMovement or input2.UserInputType == Enum.UserInputType.Touch then
+            if input2.UserInputType == Enum.
+                        UserInputType.MouseMovement or input2.UserInputType == Enum.UserInputType.Touch then
                 if dragging then
                     updateSlider()
                 end
@@ -310,7 +318,7 @@ speedSliderFrame.InputBegan:Connect(function(input)
         
         local endConnection
         endConnection = UserInputService.InputEnded:Connect(function(input2)
-            UserInputType == Enum.UserInputType.MouseButton1 or input2.UserInputType == Enum.UserInputType.Touch then
+            if input2.UserInputType == Enum.UserInputType.MouseButton1 or input2.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
                 connection:Disconnect()
                 endConnection:Disconnect()
@@ -479,24 +487,24 @@ end)
 closeButton.MouseButton1Click:Connect(function()
     mainFrame.Visible = false
     toggleButton.Text = "Abrir Panel"
+    toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
 end)
 
--- Evento del botón toggle
+-- Evento del botón toggle (PRINCIPAL)
 toggleButton.MouseButton1Click:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
-    toggleButton.Text = mainFrame.Visible and "Cerrar Panel" or "Abrir Panel"
+    if mainFrame.Visible then
+        toggleButton.Text = "Cerrar Panel"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
+    else
+        toggleButton.Text = "Abrir Panel"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
+    end
 end)
 
 -- Inicializar slider en posición media
 sliderButton.Position = UDim2.new(0.5, -10, 0, 0)
 updateSliderSpeed()
-
--- Ocultar controles móviles inicialmente
-if isMobile then
-    joystickFrame.Visible = false
-    upButton.Visible = false
-    downButton.Visible = false
-end
 
 -- Limpiar al respawnear
 player.CharacterRemoving:Connect(function()
@@ -506,11 +514,22 @@ player.CharacterRemoving:Connect(function()
         floatButton.Text = "Activar Flote Manual"
         floatButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
     end
+    
+    -- Ocultar controles móviles al respawnear
+    if isMobile then
+        if joystickFrame then joystickFrame.Visible = false end
+        if upButton then upButton.Visible = false end
+        if downButton then downButton.Visible = false end
+    end
 end)
 
--- Ocultar panel inicialmente
-mainFrame.Visible = false
+-- Asegurar que el botón toggle sea visible al cargar
+wait(0.1)
+toggleButton.Visible = true
+toggleButton.Text = "Abrir Panel"
+toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
 
 print("Brainrot Float Manual Script cargado exitosamente!")
+print("¡Botón 'Abrir Panel' visible en la esquina superior izquierda!")
 print("Controles PC: WASD para mover, Space para subir, Shift para bajar")
 print("Controles Móvil: Joystick para mover, botones ↑↓ para subir/bajar")
