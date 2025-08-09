@@ -1,4 +1,4 @@
--- Panel Anti-Hit Pantalla Completa para Roblox
+-- Panel Invisibilidad Anti-Hit para Roblox
 -- Advertencia: Usar scripts en Roblox puede resultar en baneos
 
 local Players = game:GetService("Players")
@@ -10,14 +10,13 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Variables del script
-local antiHitEnabled = false
-local originalPosition = nil
-local connection = nil
+local invisibilityEnabled = false
+local originalTransparencies = {}
 local panelOpen = false
 
 -- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AntiHitFullPanel"
+screenGui.Name = "InvisibilityPanel"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
@@ -27,7 +26,7 @@ toggleButton.Size = UDim2.new(0, 60, 0, 60)
 toggleButton.Position = UDim2.new(0, 20, 0.5, -30)
 toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 toggleButton.BorderSizePixel = 0
-toggleButton.Text = "☰"
+toggleButton.Text = "👁"
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.TextScaled = true
 toggleButton.Font = Enum.Font.GothamBold
@@ -49,8 +48,8 @@ mainPanel.Parent = screenGui
 
 -- Contenedor central del panel
 local centerFrame = Instance.new("Frame")
-centerFrame.Size = UDim2.new(0, 400, 0, 300)
-centerFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+centerFrame.Size = UDim2.new(0, 450, 0, 350)
+centerFrame.Position = UDim2.new(0.5, -225, 0.5, -175)
 centerFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 centerFrame.BorderSizePixel = 0
 centerFrame.Parent = mainPanel
@@ -76,7 +75,7 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(0.8, 0, 1, 0)
 titleLabel.Position = UDim2.new(0.1, 0, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "ANTI-HIT PANEL"
+titleLabel.Text = "INVISIBILIDAD ANTI-HIT"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
@@ -105,42 +104,143 @@ contentFrame.Position = UDim2.new(0, 20, 0, 80)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = centerFrame
 
--- Botón principal Anti-Hit
-local antiHitButton = Instance.new("TextButton")
-antiHitButton.Size = UDim2.new(0.8, 0, 0, 80)
-antiHitButton.Position = UDim2.new(0.1, 0, 0.2, 0)
-antiHitButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-antiHitButton.BorderSizePixel = 0
-antiHitButton.Text = "ANTI-HIT: DESACTIVADO"
-antiHitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-antiHitButton.TextScaled = true
-antiHitButton.Font = Enum.Font.GothamBold
-antiHitButton.Parent = contentFrame
+-- Botón principal Invisibilidad
+local invisButton = Instance.new("TextButton")
+invisButton.Size = UDim2.new(0.8, 0, 0, 80)
+invisButton.Position = UDim2.new(0.1, 0, 0.1, 0)
+invisButton.BackgroundColor3 = Color3.fromRGB(100, 50, 255)
+invisButton.BorderSizePixel = 0
+invisButton.Text = "INVISIBILIDAD: OFF"
+invisButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+invisButton.TextScaled = true
+invisButton.Font = Enum.Font.GothamBold
+invisButton.Parent = contentFrame
 
 local buttonCorner = Instance.new("UICorner")
 buttonCorner.CornerRadius = UDim.new(0, 10)
-buttonCorner.Parent = antiHitButton
+buttonCorner.Parent = invisButton
 
--- Estado y descripción
+-- Estado
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.8, 0, 0, 40)
-statusLabel.Position = UDim2.new(0.1, 0, 0.5, 0)
+statusLabel.Position = UDim2.new(0.1, 0, 0.4, 0)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Estado: Desactivado"
+statusLabel.Text = "Estado: Visible"
 statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = contentFrame
 
+-- Descripción
 local descLabel = Instance.new("TextLabel")
-descLabel.Size = UDim2.new(0.8, 0, 0, 60)
-descLabel.Position = UDim2.new(0.1, 0, 0.65, 0)
+descLabel.Size = UDim2.new(0.8, 0, 0, 80)
+descLabel.Position = UDim2.new(0.1, 0, 0.55, 0)
 descLabel.BackgroundTransparency = 1
-descLabel.Text = "Presiona el botón para activar/desactivar\nTecla rápida: F"
+descLabel.Text = "Te vuelve invisible pero mantiene el HumanoidRootPart\nvisible para evitar golpes\n\nTecla rápida: V"
 descLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 descLabel.TextScaled = true
 descLabel.Font = Enum.Font.Gotham
 descLabel.Parent = contentFrame
+
+-- Función para guardar transparencias originales
+local function saveOriginalTransparencies(character)
+    originalTransparencies = {}
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            originalTransparencies[part] = part.Transparency
+        elseif part:IsA("Accessory") then
+            local handle = part:FindFirstChild("Handle")
+            if handle then
+                originalTransparencies[handle] = handle.Transparency
+            end
+        end
+    end
+end
+
+-- Función para hacer invisible (excepto HumanoidRootPart)
+local function makeInvisible(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 1
+            -- Ocultar decals/textures
+            for _, child in pairs(part:GetChildren()) do
+                if child:IsA("Decal") or child:IsA("Texture") then
+                    child.Transparency = 1
+                end
+            end
+        elseif part:IsA("Accessory") then
+            local handle = part:FindFirstChild("Handle")
+            if handle then
+                handle.Transparency = 1
+                for _, child in pairs(handle:GetChildren()) do
+                    if child:IsA("Decal") or child:IsA("Texture") or child:IsA("SpecialMesh") then
+                        if child:IsA("SpecialMesh") then
+                            child.TextureId = ""
+                        else
+                            child.Transparency = 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Hacer visible solo el HumanoidRootPart (como un cuadrado)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        humanoidRootPart.Transparency = 0.5 -- Semi-transparente para que se vea
+        humanoidRootPart.BrickColor = BrickColor.new("Bright red") -- Color rojo para identificarlo
+    end
+end
+
+-- Función para restaurar visibilidad
+local function makeVisible(character)
+    for part, transparency in pairs(originalTransparencies) do
+        if part and part.Parent then
+            part.Transparency = transparency
+            -- Restaurar decals/textures
+            for _, child in pairs(part:GetChildren()) do
+                if child:IsA("Decal") or child:IsA("Texture") then
+                    child.Transparency = 0
+                end
+            end
+        end
+    end
+    
+    -- Restaurar HumanoidRootPart
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        humanoidRootPart.Transparency = 1 -- Volver a ser invisible
+        humanoidRootPart.BrickColor = BrickColor.new("Medium stone grey") -- Color original
+    end
+end
+
+-- Función principal de invisibilidad
+local function toggleInvisibility()
+    if not player.Character then return end
+    
+    invisibilityEnabled = not invisibilityEnabled
+    
+    if invisibilityEnabled then
+        -- Activar invisibilidad
+        invisButton.Text = "INVISIBILIDAD: ON"
+        invisButton.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
+        statusLabel.Text = "Estado: Invisible (Solo HumanoidRootPart visible)"
+        statusLabel.TextColor3 = Color3.fromRGB(50, 255, 100)
+        
+        saveOriginalTransparencies(player.Character)
+        makeInvisible(player.Character)
+        
+    else
+        -- Desactivar invisibilidad
+        invisButton.Text = "INVISIBILIDAD: OFF"
+        invisButton.BackgroundColor3 = Color3.fromRGB(100, 50, 255)
+        statusLabel.Text = "Estado: Visible"
+        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        
+        makeVisible(player.Character)
+    end
+end
 
 -- Función para abrir/cerrar panel
 local function togglePanel()
@@ -156,12 +256,12 @@ local function togglePanel()
         centerFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
         
         local tween = TweenService:Create(centerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 400, 0, 300),
-            Position = UDim2.new(0.5, -200, 0.5, -150)
+            Size = UDim2.new(0, 450, 0, 350),
+            Position = UDim2.new(0.5, -225, 0.5, -175)
         })
         tween:Play()
     else
-        toggleButton.Text = "☰"
+        toggleButton.Text = "👁"
         toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         
         -- Animación de salida
@@ -177,53 +277,20 @@ local function togglePanel()
     end
 end
 
--- Función Anti-Hit
-local function toggleAntiHit()
-    antiHitEnabled = not antiHitEnabled
-    
-    if antiHitEnabled then
-        -- Activar Anti-Hit
-        antiHitButton.Text = "ANTI-HIT: ACTIVADO"
-        antiHitButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        statusLabel.Text = "Estado: Activado - Protección activa"
-        statusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
-        
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            originalPosition = player.Character.HumanoidRootPart.CFrame
-            
-            connection = RunService.Heartbeat:Connect(function()
-                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and originalPosition then
-                    local humanoidRootPart = player.Character.HumanoidRootPart
-                    local currentPos = humanoidRootPart.CFrame
-                    
-                    -- Si la posición cambió drásticamente (posible hit), restaurar
-                    local distance = (currentPos.Position - originalPosition.Position).Magnitude
-                    if distance > 5 then
-                        humanoidRootPart.CFrame = originalPosition
-                    else
-                        originalPosition = currentPos
-                    end
-                end
-            end)
-        end
-    else
-        -- Desactivar Anti-Hit
-        antiHitButton.Text = "ANTI-HIT: DESACTIVADO"
-        antiHitButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        statusLabel.Text = "Estado: Desactivado"
-        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
+-- Auto-aplicar invisibilidad cuando respawneas
+player.CharacterAdded:Connect(function(character)
+    if invisibilityEnabled then
+        character:WaitForChild("HumanoidRootPart")
+        wait(0.1) -- Esperar un poco para que cargue todo
+        saveOriginalTransparencies(character)
+        makeInvisible(character)
     end
-end
+end)
 
 -- Conectar eventos
 toggleButton.MouseButton1Click:Connect(togglePanel)
 closeButton.MouseButton1Click:Connect(togglePanel)
-antiHitButton.MouseButton1Click:Connect(toggleAntiHit)
+invisButton.MouseButton1Click:Connect(toggleInvisibility)
 
 -- Cerrar panel al hacer clic en el fondo
 mainPanel.MouseButton1Click:Connect(function()
@@ -234,42 +301,33 @@ end)
 
 -- Evitar que el clic en el centro frame cierre el panel
 centerFrame.MouseButton1Click:Connect(function()
-    -- No hacer nada, solo evitar que se propague el evento
+    -- No hacer nada
 end)
 
 -- Animaciones de hover
-antiHitButton.MouseEnter:Connect(function()
-    local tween = TweenService:Create(antiHitButton, TweenInfo.new(0.2), {Size = UDim2.new(0.85, 0, 0, 85)})
+invisButton.MouseEnter:Connect(function()
+    local tween = TweenService:Create(invisButton, TweenInfo.new(0.2), {Size = UDim2.new(0.85, 0, 0, 85)})
     tween:Play()
 end)
 
-antiHitButton.MouseLeave:Connect(function()
-    local tween = TweenService:Create(antiHitButton, TweenInfo.new(0.2), {Size = UDim2.new(0.8, 0, 0, 80)})
-    tween:Play()
-end)
-
-toggleButton.MouseEnter:Connect(function()
-    local tween = TweenService:Create(toggleButton, TweenInfo.new(0.2), {Size = UDim2.new(0, 65, 0, 65)})
-    tween:Play()
-end)
-
-toggleButton.MouseLeave:Connect(function()
-    local tween = TweenService:Create(toggleButton, TweenInfo.new(0.2), {Size = UDim2.new(0, 60, 0, 60)})
+invisButton.MouseLeave:Connect(function()
+    local tween = TweenService:Create(invisButton, TweenInfo.new(0.2), {Size = UDim2.new(0.8, 0, 0, 80)})
     tween:Play()
 end)
 
 -- Teclas rápidas
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed then
-        if input.KeyCode == Enum.KeyCode.F then
-            toggleAntiHit()
+        if input.KeyCode == Enum.KeyCode.V then
+            toggleInvisibility()
         elseif input.KeyCode == Enum.KeyCode.Insert then
             togglePanel()
         end
     end
 end)
 
-print("Panel Anti-Hit cargado!")
-print("- Botón flotante para abrir/cerrar panel")
+print("Panel Invisibilidad Anti-Hit cargado!")
 print("- INSERT: Abrir/cerrar panel")
-print("- F: Activar/desactivar Anti-Hit")
+print("- V: Activar/desactivar invisibilidad")
+print("- Solo el HumanoidRootPart será visible como un cuadrado rojo")
+print("- Automáticamente se aplica al respawnear si está activado")
