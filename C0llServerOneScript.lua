@@ -1,4 +1,4 @@
--- Panel Invisibilidad Anti-Hit para Roblox
+-- Panel Anti-Hit Definitivo - Invisibilidad Total + Teletransporte
 -- Advertencia: Usar scripts en Roblox puede resultar en baneos
 
 local Players = game:GetService("Players")
@@ -10,13 +10,15 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Variables del script
-local invisibilityEnabled = false
+local antiHitEnabled = false
 local originalTransparencies = {}
 local panelOpen = false
+local teleportConnection = nil
+local lastPosition = nil
 
 -- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "InvisibilityPanel"
+screenGui.Name = "UltimateAntiHitPanel"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
@@ -26,7 +28,7 @@ toggleButton.Size = UDim2.new(0, 60, 0, 60)
 toggleButton.Position = UDim2.new(0, 20, 0.5, -30)
 toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 toggleButton.BorderSizePixel = 0
-toggleButton.Text = "👁"
+toggleButton.Text = "🛡️"
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.TextScaled = true
 toggleButton.Font = Enum.Font.GothamBold
@@ -48,8 +50,8 @@ mainPanel.Parent = screenGui
 
 -- Contenedor central del panel
 local centerFrame = Instance.new("Frame")
-centerFrame.Size = UDim2.new(0, 450, 0, 350)
-centerFrame.Position = UDim2.new(0.5, -225, 0.5, -175)
+centerFrame.Size = UDim2.new(0, 500, 0, 400)
+centerFrame.Position = UDim2.new(0.5, -250, 0.5, -200)
 centerFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 centerFrame.BorderSizePixel = 0
 centerFrame.Parent = mainPanel
@@ -75,7 +77,7 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(0.8, 0, 1, 0)
 titleLabel.Position = UDim2.new(0.1, 0, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "INVISIBILIDAD ANTI-HIT"
+titleLabel.Text = "ANTI-HIT DEFINITIVO"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
@@ -104,73 +106,60 @@ contentFrame.Position = UDim2.new(0, 20, 0, 80)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = centerFrame
 
--- Botón principal Invisibilidad
-local invisButton = Instance.new("TextButton")
-invisButton.Size = UDim2.new(0.8, 0, 0, 80)
-invisButton.Position = UDim2.new(0.1, 0, 0.1, 0)
-invisButton.BackgroundColor3 = Color3.fromRGB(100, 50, 255)
-invisButton.BorderSizePixel = 0
-invisButton.Text = "INVISIBILIDAD: OFF"
-invisButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-invisButton.TextScaled = true
-invisButton.Font = Enum.Font.GothamBold
-invisButton.Parent = contentFrame
+-- Botón principal Anti-Hit
+local antiHitButton = Instance.new("TextButton")
+antiHitButton.Size = UDim2.new(0.8, 0, 0, 80)
+antiHitButton.Position = UDim2.new(0.1, 0, 0.05, 0)
+antiHitButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+antiHitButton.BorderSizePixel = 0
+antiHitButton.Text = "ANTI-HIT: OFF"
+antiHitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+antiHitButton.TextScaled = true
+antiHitButton.Font = Enum.Font.GothamBold
+antiHitButton.Parent = contentFrame
 
 local buttonCorner = Instance.new("UICorner")
 buttonCorner.CornerRadius = UDim.new(0, 10)
-buttonCorner.Parent = invisButton
+buttonCorner.Parent = antiHitButton
 
 -- Estado
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.8, 0, 0, 40)
-statusLabel.Position = UDim2.new(0.1, 0, 0.4, 0)
+statusLabel.Position = UDim2.new(0.1, 0, 0.35, 0)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Estado: Visible"
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.Text = "Estado: Vulnerable"
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = contentFrame
 
 -- Descripción
 local descLabel = Instance.new("TextLabel")
-descLabel.Size = UDim2.new(0.8, 0, 0, 80)
-descLabel.Position = UDim2.new(0.1, 0, 0.55, 0)
+descLabel.Size = UDim2.new(0.8, 0, 0, 100)
+descLabel.Position = UDim2.new(0.1, 0, 0.5, 0)
 descLabel.BackgroundTransparency = 1
-descLabel.Text = "Te vuelve invisible pero mantiene el HumanoidRootPart\nvisible para evitar golpes\n\nTecla rápida: V"
+descLabel.Text = "MODO DEFINITIVO:\n• Invisibilidad total (incluso HumanoidRootPart)\n• Teletransporte micro constante\n• Imposible de golpear\n\nTecla rápida: G"
 descLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 descLabel.TextScaled = true
 descLabel.Font = Enum.Font.Gotham
 descLabel.Parent = contentFrame
 
--- Función para guardar transparencias originales
-local function saveOriginalTransparencies(character)
-    originalTransparencies = {}
+-- Función para hacer completamente invisible
+local function makeCompletelyInvisible(character)
     for _, part in pairs(character:GetChildren()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+        if part:IsA("BasePart") then
             originalTransparencies[part] = part.Transparency
-        elseif part:IsA("Accessory") then
-            local handle = part:FindFirstChild("Handle")
-            if handle then
-                originalTransparencies[handle] = handle.Transparency
-            end
-        end
-    end
-end
-
--- Función para hacer invisible (excepto HumanoidRootPart)
-local function makeInvisible(character)
-    for _, part in pairs(character:GetChildren()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
             part.Transparency = 1
-            -- Ocultar decals/textures
+            -- Ocultar todo tipo de decoraciones
             for _, child in pairs(part:GetChildren()) do
-                if child:IsA("Decal") or child:IsA("Texture") then
+                if child:IsA("Decal") or child:IsA("Texture") or child:IsA("SurfaceGui") then
                     child.Transparency = 1
                 end
             end
         elseif part:IsA("Accessory") then
             local handle = part:FindFirstChild("Handle")
             if handle then
+                originalTransparencies[handle] = handle.Transparency
                 handle.Transparency = 1
                 for _, child in pairs(handle:GetChildren()) do
                     if child:IsA("Decal") or child:IsA("Texture") or child:IsA("SpecialMesh") then
@@ -184,13 +173,6 @@ local function makeInvisible(character)
             end
         end
     end
-    
-    -- Hacer visible solo el HumanoidRootPart (como un cuadrado)
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if humanoidRootPart then
-        humanoidRootPart.Transparency = 0.5 -- Semi-transparente para que se vea
-        humanoidRootPart.BrickColor = BrickColor.new("Bright red") -- Color rojo para identificarlo
-    end
 end
 
 -- Función para restaurar visibilidad
@@ -198,47 +180,88 @@ local function makeVisible(character)
     for part, transparency in pairs(originalTransparencies) do
         if part and part.Parent then
             part.Transparency = transparency
-            -- Restaurar decals/textures
             for _, child in pairs(part:GetChildren()) do
-                if child:IsA("Decal") or child:IsA("Texture") then
+                if child:IsA("Decal") or child:IsA("Texture") or child:IsA("SurfaceGui") then
                     child.Transparency = 0
                 end
             end
         end
     end
-    
-    -- Restaurar HumanoidRootPart
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if humanoidRootPart then
-        humanoidRootPart.Transparency = 1 -- Volver a ser invisible
-        humanoidRootPart.BrickColor = BrickColor.new("Medium stone grey") -- Color original
-    end
+    originalTransparencies = {}
 end
 
--- Función principal de invisibilidad
-local function toggleInvisibility()
+-- Función de teletransporte micro
+local function startMicroTeleport()
+    if teleportConnection then
+        teleportConnection:Disconnect()
+    end
+    
+    teleportConnection = RunService.Heartbeat:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local humanoidRootPart = player.Character.HumanoidRootPart
+            local currentPos = humanoidRootPart.CFrame
+            
+            -- Micro teletransporte aleatorio (muy pequeño para que no se note)
+            local randomX = math.random(-2, 2) * 0.1
+            local randomZ = math.random(-2, 2) * 0.1
+            
+            -- Solo teletransportar si no nos estamos moviendo mucho
+            if lastPosition then
+                local distance = (currentPos.Position - lastPosition.Position).Magnitude
+                if distance < 10 then -- Solo si no nos movemos muy rápido
+                    humanoidRootPart.CFrame = currentPos + Vector3.new(randomX, 0, randomZ)
+                end
+            end
+            
+            lastPosition = currentPos
+        end
+    end)
+end
+
+-- Función principal del anti-hit definitivo
+local function toggleUltimateAntiHit()
     if not player.Character then return end
     
-    invisibilityEnabled = not invisibilityEnabled
+    antiHitEnabled = not antiHitEnabled
     
-    if invisibilityEnabled then
-        -- Activar invisibilidad
-        invisButton.Text = "INVISIBILIDAD: ON"
-        invisButton.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
-        statusLabel.Text = "Estado: Invisible (Solo HumanoidRootPart visible)"
-        statusLabel.TextColor3 = Color3.fromRGB(50, 255, 100)
+    if antiHitEnabled then
+        -- Activar modo definitivo
+        antiHitButton.Text = "ANTI-HIT: ON"
+        antiHitButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        statusLabel.Text = "Estado: INVENCIBLE - Invisible + Teletransporte"
+        statusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
         
-        saveOriginalTransparencies(player.Character)
-        makeInvisible(player.Character)
+        -- Hacer completamente invisible
+        makeCompletelyInvisible(player.Character)
+        
+        -- Iniciar micro teletransporte
+        startMicroTeleport()
+        
+        -- Hacer que el personaje no pueda ser empujado
+        if player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.PlatformStand = true
+        end
         
     else
-        -- Desactivar invisibilidad
-        invisButton.Text = "INVISIBILIDAD: OFF"
-        invisButton.BackgroundColor3 = Color3.fromRGB(100, 50, 255)
-        statusLabel.Text = "Estado: Visible"
-        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        -- Desactivar modo definitivo
+        antiHitButton.Text = "ANTI-HIT: OFF"
+        antiHitButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        statusLabel.Text = "Estado: Vulnerable"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         
+        -- Restaurar visibilidad
         makeVisible(player.Character)
+        
+        -- Detener teletransporte
+        if teleportConnection then
+            teleportConnection:Disconnect()
+            teleportConnection = nil
+        end
+        
+        -- Restaurar física normal
+        if player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.PlatformStand = false
+        end
     end
 end
 
@@ -251,20 +274,18 @@ local function togglePanel()
         toggleButton.Text = "✕"
         toggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         
-        -- Animación de entrada
         centerFrame.Size = UDim2.new(0, 0, 0, 0)
         centerFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
         
         local tween = TweenService:Create(centerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 450, 0, 350),
-            Position = UDim2.new(0.5, -225, 0.5, -175)
+            Size = UDim2.new(0, 500, 0, 400),
+            Position = UDim2.new(0.5, -250, 0.5, -200)
         })
         tween:Play()
     else
-        toggleButton.Text = "👁"
+        toggleButton.Text = "🛡️"
         toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         
-        -- Animación de salida
         local tween = TweenService:Create(centerFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
             Size = UDim2.new(0, 0, 0, 0),
             Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -277,57 +298,107 @@ local function togglePanel()
     end
 end
 
--- Auto-aplicar invisibilidad cuando respawneas
+-- Auto-aplicar al respawnear
 player.CharacterAdded:Connect(function(character)
-    if invisibilityEnabled then
+    if antiHitEnabled then
         character:WaitForChild("HumanoidRootPart")
-        wait(0.1) -- Esperar un poco para que cargue todo
-        saveOriginalTransparencies(character)
-        makeInvisible(character)
+        wait(0.2)
+        makeCompletelyInvisible(character)
+        startMicroTeleport()
+        if character:FindFirstChild("Humanoid") then
+            character.Humanoid.PlatformStand = true
+        end
     end
 end)
 
 -- Conectar eventos
 toggleButton.MouseButton1Click:Connect(togglePanel)
 closeButton.MouseButton1Click:Connect(togglePanel)
-invisButton.MouseButton1Click:Connect(toggleInvisibility)
+antiHitButton.MouseButton1Click:Connect(toggleUltimateAntiHit)
 
 -- Cerrar panel al hacer clic en el fondo
 mainPanel.MouseButton1Click:Connect(function()
-    if panelOpen then
-        togglePanel()
-    end
+    if panelOpen then togglePanel() end
 end)
 
--- Evitar que el clic en el centro frame cierre el panel
-centerFrame.MouseButton1Click:Connect(function()
-    -- No hacer nada
-end)
+centerFrame.MouseButton1Click:Connect(function() end)
 
--- Animaciones de hover
-invisButton.MouseEnter:Connect(function()
-    local tween = TweenService:Create(invisButton, TweenInfo.new(0.2), {Size = UDim2.new(0.85, 0, 0, 85)})
+-- Animaciones
+antiHitButton.MouseEnter:Connect(function()
+    local tween = TweenService:Create(antiHitButton, TweenInfo.new(0.2), {Size = UDim2.new(0.85, 0, 0, 85)})
     tween:Play()
 end)
 
-invisButton.MouseLeave:Connect(function()
-    local tween = TweenService:Create(invisButton, TweenInfo.new(0.2), {Size = UDim2.new(0.8, 0, 0, 80)})
+antiHitButton.MouseLeave:Connect(function()
+        local tween = TweenService:Create(antiHitButton, TweenInfo.new(0.2), {Size = UDim2.new(0.8, 0, 0, 80)})
     tween:Play()
 end)
 
 -- Teclas rápidas
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed then
-        if input.KeyCode == Enum.KeyCode.V then
-            toggleInvisibility()
+        if input.KeyCode == Enum.KeyCode.G then
+            toggleUltimateAntiHit()
         elseif input.KeyCode == Enum.KeyCode.Insert then
             togglePanel()
         end
     end
 end)
 
-print("Panel Invisibilidad Anti-Hit cargado!")
-print("- INSERT: Abrir/cerrar panel")
-print("- V: Activar/desactivar invisibilidad")
-print("- Solo el HumanoidRootPart será visible como un cuadrado rojo")
-print("- Automáticamente se aplica al respawnear si está activado")
+-- Función adicional: Anti-fling (evitar ser lanzado)
+local function setupAntiFling()
+    if player.Character then
+        for _, part in pairs(player.Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                local bodyVelocity = Instance.new("BodyVelocity")
+                bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+                bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                bodyVelocity.Parent = part
+                
+                -- Remover después de un tiempo para no interferir con el movimiento normal
+                game:GetService("Debris"):AddItem(bodyVelocity, 0.1)
+            end
+        end
+    end
+end
+
+-- Aplicar anti-fling constantemente cuando está activado
+local antiFlingConnection = nil
+
+local function startAntiFling()
+    if antiFlingConnection then
+        antiFlingConnection:Disconnect()
+    end
+    
+    antiFlingConnection = RunService.Heartbeat:Connect(function()
+        if antiHitEnabled then
+            setupAntiFling()
+        end
+    end)
+end
+
+-- Iniciar anti-fling
+startAntiFling()
+
+-- Limpiar conexiones al salir
+game.Players.PlayerRemoving:Connect(function(playerLeaving)
+    if playerLeaving == player then
+        if teleportConnection then
+            teleportConnection:Disconnect()
+        end
+        if antiFlingConnection then
+            antiFlingConnection:Disconnect()
+        end
+    end
+end)
+
+print("🛡️ ANTI-HIT DEFINITIVO CARGADO!")
+print("📋 CONTROLES:")
+print("   - INSERT: Abrir/cerrar panel")
+print("   - G: Activar/desactivar anti-hit definitivo")
+print("🔥 CARACTERÍSTICAS:")
+print("   - Invisibilidad 100% total")
+print("   - Micro-teletransporte constante")
+print("   - Anti-fling integrado")
+print("   - Imposible de golpear")
+print("⚠️  ADVERTENCIA: Uso bajo tu responsabilidad")
