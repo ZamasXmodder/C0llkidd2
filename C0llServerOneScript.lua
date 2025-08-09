@@ -1,20 +1,18 @@
--- Script Sigiloso usando controles originales del juego
--- Usa el joystick/controles nativos - Máxima compatibilidad
+-- Script con velocidades corregidas - Usa controles originales
+-- Velocidades realistas y funcionales
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local ContextActionService = game:GetService("ContextActionService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Variables principales
 local _enabled = false
-local _speed = 8
+local _speed = 25 -- Velocidad inicial más alta
 local _connection = nil
 local _bodyObj = nil
-local _moveVector = Vector3.new(0, 0, 0)
 local _verticalInput = 0
 
 -- Detectar plataforma
@@ -31,13 +29,13 @@ local function randomName()
     return name
 end
 
--- Crear GUI minimalista
+-- Crear GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = randomName()
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
--- Botón toggle discreto
+-- Botón toggle
 local toggleButton = Instance.new("TextButton")
 toggleButton.Name = randomName()
 toggleButton.Size = UDim2.new(0, 70, 0, 25)
@@ -78,7 +76,7 @@ titleLabel.Size = UDim2.new(1, 0, 0, 25)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 titleLabel.BorderSizePixel = 0
-titleLabel.Text = "Movement Helper"
+titleLabel.Text = "Float Helper v2.1"
 titleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.Gotham
@@ -145,7 +143,7 @@ sliderFrameCorner.Parent = speedSliderFrame
 
 local sliderButton = Instance.new("Frame")
 sliderButton.Size = UDim2.new(0, 12, 1, 0)
-sliderButton.Position = UDim2.new(0.4, -6, 0, 0)
+sliderButton.Position = UDim2.new(0.5, -6, 0, 0) -- Posición inicial en el medio
 sliderButton.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
 sliderButton.BorderSizePixel = 0
 sliderButton.Parent = speedSliderFrame
@@ -159,13 +157,13 @@ local infoLabel = Instance.new("TextLabel")
 infoLabel.Size = UDim2.new(1, 0, 0, 15)
 infoLabel.Position = UDim2.new(0, 0, 0, 102)
 infoLabel.BackgroundTransparency = 1
-infoLabel.Text = isMobile and "Use original joystick + up/down buttons" or "Use WASD + Space/Shift normally"
+infoLabel.Text = isMobile and "Original joystick + ↑↓ buttons" or "WASD + Space/Shift"
 infoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 infoLabel.TextScaled = true
 infoLabel.Font = Enum.Font.Gotham
 infoLabel.Parent = configFrame
 
--- Botones de control vertical para móvil (solo cuando está activo)
+-- Botones verticales para móvil
 local upButton = nil
 local downButton = nil
 
@@ -207,7 +205,7 @@ if isMobile then
     downCorner.Parent = downButton
 end
 
--- Función de movimiento usando controles originales
+-- Función de movimiento con velocidades corregidas
 local function createNativeFloat()
     local character = player.Character
     if not character then return end
@@ -217,38 +215,30 @@ local function createNativeFloat()
     
     if not humanoid or not rootPart then return end
     
-    -- Crear BodyPosition para el flote
+    -- Usar BodyVelocity para mejor control de velocidad
     if _bodyObj then
         _bodyObj:Destroy()
     end
     
-    _bodyObj = Instance.new("BodyPosition")
-    _bodyObj.MaxForce = Vector3.new(2000, 2000, 2000)
-    _bodyObj.Position = rootPart.Position
-    _bodyObj.D = 1200
-    _bodyObj.P = 3000
+    _bodyObj = Instance.new("BodyVelocity")
+    _bodyObj.MaxForce = Vector3.new(4000, 4000, 4000)
+    _bodyObj.Velocity = Vector3.new(0, 0, 0)
     _bodyObj.Parent = rootPart
     
-    -- Conexión que usa los controles nativos del juego
-    _connection = RunService.Heartbeat:Connect(function(deltaTime)
+    -- Conexión con velocidades corregidas
+    _connection = RunService.Heartbeat:Connect(function()
         if _bodyObj and rootPart and humanoid then
-            -- Obtener el vector de movimiento del humanoid (controles nativos)
+            -- Obtener dirección de movimiento del humanoid
             local moveVector = humanoid.MoveDirection
             
-            -- Agregar componente vertical manual
-            local finalVector = Vector3.new(
-                moveVector.X,
-                _verticalInput,
-                moveVector.Z
+            -- Crear vector final con componente vertical
+            local finalVelocity = Vector3.new(
+                moveVector.X * _speed,
+                _verticalInput * _speed,
+                moveVector.Z * _speed
             )
             
-            -- Aplicar movimiento suave
-            if finalVector.Magnitude > 0 then
-                local targetPos = rootPart.Position + (finalVector * _speed * deltaTime)
-                _bodyObj.Position = targetPos
-            else
-                _bodyObj.Position = rootPart.Position
-            end
+            _bodyObj.Velocity = finalVelocity
             
             if humanoid.Health <= 0 then
                 stopFloat()
@@ -272,10 +262,10 @@ local function stopFloat()
     _verticalInput = 0
 end
 
--- Función para actualizar velocidad
+-- Función para actualizar velocidad (rango corregido)
 local function updateSpeed()
     local sliderPosition = sliderButton.Position.X.Scale
-    _speed = math.floor(3 + (sliderPosition * 12)) -- Rango de 3 a 15
+    _speed = math.floor(10 + (sliderPosition * 40)) -- Rango de 10 a 50
     speedLabel.Text = "Speed: " .. _speed
 end
 
@@ -305,8 +295,7 @@ speedSliderFrame.InputBegan:Connect(function(input)
             if input2.UserInputType == Enum.UserInputType.MouseMovement or input2.UserInputType == Enum.UserInputType.Touch then
                 if dragging then
                     updateSlider()
-                end
-            end
+                            end
         end)
         
         local endConnection
@@ -375,7 +364,6 @@ mainButton.MouseButton1Click:Connect(function()
         toggleButton.Text = "ON"
         toggleButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
         
-        -- Mostrar controles verticales en móvil
         if isMobile then
             upButton.Visible = true
             downButton.Visible = true
@@ -387,7 +375,6 @@ mainButton.MouseButton1Click:Connect(function()
         toggleButton.Text = "Helper"
         toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         
-        -- Ocultar controles verticales en móvil
         if isMobile then
             upButton.Visible = false
             downButton.Visible = false
@@ -404,7 +391,7 @@ toggleButton.MouseButton1Click:Connect(function()
     configFrame.Visible = not configFrame.Visible
 end)
 
--- Inicializar
+-- Inicializar velocidad
 updateSpeed()
 
 -- Auto-limpieza al respawnear
@@ -429,16 +416,15 @@ player.CharacterRemoving:Connect(function()
     end
 end)
 
--- Sistema de seguridad mejorado
+-- Sistema de seguridad básico
 spawn(function()
-    while wait(math.random(45, 90)) do -- Pausa cada 45-90 segundos
+    while wait(math.random(60, 120)) do -- Pausa cada 1-2 minutos
         if _enabled then
-            -- Pausa automática para simular comportamiento humano
             local wasEnabled = _enabled
             _enabled = false
             stopFloat()
             
-            wait(math.random(2, 5)) -- Pausa de 2-5 segundos
+            wait(math.random(3, 8)) -- Pausa de 3-8 segundos
             
             if wasEnabled then
                 _enabled = true
@@ -450,7 +436,7 @@ end)
 
 -- Detección básica de staff
 spawn(function()
-    while wait(10) do
+    while wait(15) do
         for _, v in pairs(Players:GetPlayers()) do
             local name = v.Name:lower()
             if name:find("admin") or name:find("mod") or name:find("owner") or name:find("staff") then
@@ -468,17 +454,39 @@ spawn(function()
                     end
                     
                     configFrame.Visible = false
-                    warn("Staff detectado - Helper desactivado automáticamente")
+                    warn("Staff detectado - Helper desactivado")
                 end
             end
         end
     end
 end)
 
--- Ocultar GUI inicialmente
-configFrame.Visible = false
+-- Función de emergencia (tecla P para desactivar rápido)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.P then
+        if _enabled then
+            _enabled = false
+            stopFloat()
+            mainButton.Text = "Enable Float"
+            mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+            toggleButton.Text = "Helper"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            
+            if isMobile then
+                upButton.Visible = false
+                downButton.Visible = false
+            end
+            
+            configFrame.Visible = false
+            print("Float desactivado por tecla de emergencia (P)")
+        end
+    end
+end)
 
-print("Native Controls Float Helper cargado")
-print("Usa los controles originales del juego + botones verticales")
-print("PC: WASD para mover, Space/Shift para subir/bajar")
-print("Móvil: Joystick original + botones ↑↓")
+print("Fast Native Float Helper cargado exitosamente!")
+print("Velocidades corregidas: 10-50 studs/segundo")
+print("PC: WASD + Space/Shift | Móvil: Joystick original + ↑↓")
+print("Tecla P = Desactivación de emergencia")
+print("Rango de velocidad: 10 (lento) a 50 (rápido)")
