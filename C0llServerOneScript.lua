@@ -1,28 +1,26 @@
--- Script Sigiloso para Steal a Brainrot - Anti-Detección
--- Versión mejorada con múltiples capas de protección
+-- Script Sigiloso usando controles originales del juego
+-- Usa el joystick/controles nativos - Máxima compatibilidad
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ContextActionService = game:GetService("ContextActionService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Variables principales con nombres ofuscados
+-- Variables principales
 local _enabled = false
-local _speed = 8 -- Velocidad más baja para evitar detección
+local _speed = 8
 local _connection = nil
 local _bodyObj = nil
-local _direction = Vector3.new(0, 0, 0)
-local _lastPos = nil
-local _moveTime = 0
+local _moveVector = Vector3.new(0, 0, 0)
+local _verticalInput = 0
 
 -- Detectar plataforma
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
--- Función para crear nombres aleatorios (anti-detección)
+-- Función para nombres aleatorios
 local function randomName()
     local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     local name = ""
@@ -33,21 +31,21 @@ local function randomName()
     return name
 end
 
--- Crear GUI con nombres aleatorios
+-- Crear GUI minimalista
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = randomName()
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
--- Botón toggle (más discreto)
+-- Botón toggle discreto
 local toggleButton = Instance.new("TextButton")
 toggleButton.Name = randomName()
-toggleButton.Size = UDim2.new(0, 80, 0, 25)
+toggleButton.Size = UDim2.new(0, 70, 0, 25)
 toggleButton.Position = UDim2.new(0, 10, 0, 50)
 toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-toggleButton.BackgroundTransparency = 0.3
+toggleButton.BackgroundTransparency = 0.4
 toggleButton.BorderSizePixel = 0
-toggleButton.Text = "Menu"
+toggleButton.Text = "Helper"
 toggleButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 toggleButton.TextScaled = true
 toggleButton.Font = Enum.Font.Gotham
@@ -57,24 +55,24 @@ local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(0, 6)
 toggleCorner.Parent = toggleButton
 
--- Panel principal (más pequeño y discreto)
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = randomName()
-mainFrame.Size = UDim2.new(0, 250, 0, isMobile and 200 or 160)
-mainFrame.Position = UDim2.new(0.5, -125, 0.5, isMobile and -100 or -80)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BackgroundTransparency = 0.1
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
-mainFrame.Visible = false
+-- Panel de configuración
+local configFrame = Instance.new("Frame")
+configFrame.Name = randomName()
+configFrame.Size = UDim2.new(0, 220, 0, 120)
+configFrame.Position = UDim2.new(0.5, -110, 0.5, -60)
+configFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+configFrame.BackgroundTransparency = 0.1
+configFrame.BorderSizePixel = 0
+configFrame.Active = true
+configFrame.Draggable = true
+configFrame.Parent = screenGui
+configFrame.Visible = false
 
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 8)
-mainCorner.Parent = mainFrame
+local configCorner = Instance.new("UICorner")
+configCorner.CornerRadius = UDim.new(0, 8)
+configCorner.Parent = configFrame
 
--- Título discreto
+-- Título
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, 0, 0, 25)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
@@ -84,16 +82,16 @@ titleLabel.Text = "Movement Helper"
 titleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.Gotham
-titleLabel.Parent = mainFrame
+titleLabel.Parent = configFrame
 
 local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 8)
 titleCorner.Parent = titleLabel
 
--- Botón de cerrar
+-- Botón cerrar
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 20, 0, 20)
-closeButton.Position = UDim2.new(1, -25, 0, 2.5)
+closeButton.Position = UDim2.new(1, -22, 0, 2.5)
 closeButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
 closeButton.BorderSizePixel = 0
 closeButton.Text = "×"
@@ -106,101 +104,76 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 4)
 closeCorner.Parent = closeButton
 
--- Botón principal (nombre discreto)
+-- Botón principal
 local mainButton = Instance.new("TextButton")
-mainButton.Size = UDim2.new(0, 180, 0, 30)
-mainButton.Position = UDim2.new(0.5, -90, 0, 35)
+mainButton.Size = UDim2.new(0, 160, 0, 25)
+mainButton.Position = UDim2.new(0.5, -80, 0, 35)
 mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
 mainButton.BorderSizePixel = 0
-mainButton.Text = "Enable Helper"
+mainButton.Text = "Enable Float"
 mainButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 mainButton.TextScaled = true
 mainButton.Font = Enum.Font.Gotham
-mainButton.Parent = mainFrame
+mainButton.Parent = configFrame
 
-local mainCorner2 = Instance.new("UICorner")
-mainCorner2.CornerRadius = UDim.new(0, 6)
-mainCorner2.Parent = mainButton
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 6)
+mainCorner.Parent = mainButton
 
 -- Label de velocidad
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, 0, 0, 20)
-speedLabel.Position = UDim2.new(0, 0, 0, 75)
+speedLabel.Size = UDim2.new(1, 0, 0, 15)
+speedLabel.Position = UDim2.new(0, 0, 0, 65)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "Speed: " .. _speed
 speedLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.Gotham
-speedLabel.Parent = mainFrame
+speedLabel.Parent = configFrame
 
--- Slider más discreto
+-- Slider de velocidad
 local speedSliderFrame = Instance.new("Frame")
-speedSliderFrame.Size = UDim2.new(0, 160, 0, 15)
-speedSliderFrame.Position = UDim2.new(0.5, -80, 0, 100)
+speedSliderFrame.Size = UDim2.new(0, 140, 0, 12)
+speedSliderFrame.Position = UDim2.new(0.5, -70, 0, 85)
 speedSliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 speedSliderFrame.BorderSizePixel = 0
-speedSliderFrame.Parent = mainFrame
+speedSliderFrame.Parent = configFrame
 
 local sliderFrameCorner = Instance.new("UICorner")
-sliderFrameCorner.CornerRadius = UDim.new(0, 8)
+sliderFrameCorner.CornerRadius = UDim.new(0, 6)
 sliderFrameCorner.Parent = speedSliderFrame
 
 local sliderButton = Instance.new("Frame")
-sliderButton.Size = UDim2.new(0, 15, 1, 0)
-sliderButton.Position = UDim2.new(0.3, -7.5, 0, 0)
+sliderButton.Size = UDim2.new(0, 12, 1, 0)
+sliderButton.Position = UDim2.new(0.4, -6, 0, 0)
 sliderButton.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
 sliderButton.BorderSizePixel = 0
 sliderButton.Parent = speedSliderFrame
 
 local sliderButtonCorner = Instance.new("UICorner")
-sliderButtonCorner.CornerRadius = UDim.new(0, 8)
+sliderButtonCorner.CornerRadius = UDim.new(0, 6)
 sliderButtonCorner.Parent = sliderButton
 
--- Controles info
-local controlsLabel = Instance.new("TextLabel")
-controlsLabel.Size = UDim2.new(1, 0, 0, 25)
-controlsLabel.Position = UDim2.new(0, 0, 0, 125)
-controlsLabel.BackgroundTransparency = 1
-controlsLabel.Text = isMobile and "Touch controls when active" or "WASD + Space/Shift when active"
-controlsLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-controlsLabel.TextScaled = true
-controlsLabel.Font = Enum.Font.Gotham
-controlsLabel.Parent = mainFrame
+-- Info de controles
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(1, 0, 0, 15)
+infoLabel.Position = UDim2.new(0, 0, 0, 102)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = isMobile and "Use original joystick + up/down buttons" or "Use WASD + Space/Shift normally"
+infoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+infoLabel.TextScaled = true
+infoLabel.Font = Enum.Font.Gotham
+infoLabel.Parent = configFrame
 
--- Controles móviles (más discretos)
-local joystickFrame = nil
-local joystickKnob = nil
+-- Botones de control vertical para móvil (solo cuando está activo)
 local upButton = nil
 local downButton = nil
 
 if isMobile then
-    joystickFrame = Instance.new("Frame")
-    joystickFrame.Size = UDim2.new(0, 80, 0, 80)
-    joystickFrame.Position = UDim2.new(0, 15, 1, -100)
-    joystickFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    joystickFrame.BackgroundTransparency = 0.5
-    joystickFrame.BorderSizePixel = 0
-    joystickFrame.Parent = screenGui
-    joystickFrame.Visible = false
-    
-    local joystickCorner = Instance.new("UICorner")
-    joystickCorner.CornerRadius = UDim.new(0.5, 0)
-    joystickCorner.Parent = joystickFrame
-    
-    joystickKnob = Instance.new("Frame")
-    joystickKnob.Size = UDim2.new(0, 25, 0, 25)
-    joystickKnob.Position = UDim2.new(0.5, -12.5, 0.5, -12.5)
-    joystickKnob.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
-    joystickKnob.BorderSizePixel = 0
-    joystickKnob.Parent = joystickFrame
-    
-    local knobCorner = Instance.new("UICorner")
-    knobCorner.CornerRadius = UDim.new(0.5, 0)
-    knobCorner.Parent = joystickKnob
-    
     upButton = Instance.new("TextButton")
-    upButton.Size = UDim2.new(0, 40, 0, 30)
-    upButton.Position = UDim2.new(1, -60, 1, -100)
+    upButton.Name = randomName()
+    upButton.Size = UDim2.new(0, 50, 0, 35)
+    upButton.Position = UDim2.new(1, -70, 1, -120)
     upButton.BackgroundColor3 = Color3.fromRGB(50, 50, 100)
     upButton.BackgroundTransparency = 0.3
     upButton.BorderSizePixel = 0
@@ -211,9 +184,14 @@ if isMobile then
     upButton.Parent = screenGui
     upButton.Visible = false
     
+    local upCorner = Instance.new("UICorner")
+    upCorner.CornerRadius = UDim.new(0, 8)
+    upCorner.Parent = upButton
+    
     downButton = Instance.new("TextButton")
-    downButton.Size = UDim2.new(0, 40, 0, 30)
-    downButton.Position = UDim2.new(1, -60, 1, -65)
+    downButton.Name = randomName()
+    downButton.Size = UDim2.new(0, 50, 0, 35)
+    downButton.Position = UDim2.new(1, -70, 1, -80)
     downButton.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
     downButton.BackgroundTransparency = 0.3
     downButton.BorderSizePixel = 0
@@ -223,10 +201,14 @@ if isMobile then
     downButton.Font = Enum.Font.GothamBold
     downButton.Parent = screenGui
     downButton.Visible = false
+    
+    local downCorner = Instance.new("UICorner")
+    downCorner.CornerRadius = UDim.new(0, 8)
+    downCorner.Parent = downButton
 end
 
--- Función de movimiento sigiloso (anti-detección)
-local function createStealthMovement()
+-- Función de movimiento usando controles originales
+local function createNativeFloat()
     local character = player.Character
     if not character then return end
     
@@ -235,52 +217,48 @@ local function createStealthMovement()
     
     if not humanoid or not rootPart then return end
     
-    -- Usar BodyPosition en lugar de BodyVelocity (menos detectable)
+    -- Crear BodyPosition para el flote
     if _bodyObj then
         _bodyObj:Destroy()
     end
     
     _bodyObj = Instance.new("BodyPosition")
-    _bodyObj.MaxForce = Vector3.new(2000, 2000, 2000) -- Fuerza más baja
+    _bodyObj.MaxForce = Vector3.new(2000, 2000, 2000)
     _bodyObj.Position = rootPart.Position
-    _bodyObj.D = 1000 -- Damping para movimiento más natural
-    _bodyObj.P = 3000 -- Power más bajo
+    _bodyObj.D = 1200
+    _bodyObj.P = 3000
     _bodyObj.Parent = rootPart
     
-    _lastPos = rootPart.Position
-    
-    -- Conexión con movimiento más natural
+    -- Conexión que usa los controles nativos del juego
     _connection = RunService.Heartbeat:Connect(function(deltaTime)
-        if _bodyObj and rootPart then
-            _moveTime = _moveTime + deltaTime
+        if _bodyObj and rootPart and humanoid then
+            -- Obtener el vector de movimiento del humanoid (controles nativos)
+            local moveVector = humanoid.MoveDirection
             
-            -- Movimiento más suave y natural
-            if _direction.Magnitude > 0 then
-                local targetPos = _lastPos + (_direction * _speed * deltaTime)
-                
-                -- Agregar pequeñas variaciones para simular movimiento humano
-                local variation = Vector3.new(
-                    math.sin(_moveTime * 3) * 0.1,
-                    math.cos(_moveTime * 2) * 0.05,
-                    math.sin(_moveTime * 4) * 0.1
-                )
-                
-                _bodyObj.Position = targetPos + variation
-                _lastPos = targetPos
+            -- Agregar componente vertical manual
+            local finalVector = Vector3.new(
+                moveVector.X,
+                _verticalInput,
+                moveVector.Z
+            )
+            
+            -- Aplicar movimiento suave
+            if finalVector.Magnitude > 0 then
+                local targetPos = rootPart.Position + (finalVector * _speed * deltaTime)
+                _bodyObj.Position = targetPos
             else
                 _bodyObj.Position = rootPart.Position
-                _lastPos = rootPart.Position
             end
             
             if humanoid.Health <= 0 then
-                stopMovement()
+                stopFloat()
             end
         end
     end)
 end
 
--- Función para detener movimiento
-local function stopMovement()
+-- Función para detener el flote
+local function stopFloat()
     if _connection then
         _connection:Disconnect()
         _connection = nil
@@ -291,14 +269,13 @@ local function stopMovement()
         _bodyObj = nil
     end
     
-    _direction = Vector3.new(0, 0, 0)
-    _moveTime = 0
+    _verticalInput = 0
 end
 
 -- Función para actualizar velocidad
 local function updateSpeed()
     local sliderPosition = sliderButton.Position.X.Scale
-    _speed = math.floor(3 + (sliderPosition * 12)) -- Rango de 3 a 15 (más bajo)
+    _speed = math.floor(3 + (sliderPosition * 12)) -- Rango de 3 a 15
     speedLabel.Text = "Speed: " .. _speed
 end
 
@@ -315,10 +292,9 @@ speedSliderFrame.InputBegan:Connect(function(input)
             local frameSize = speedSliderFrame.AbsoluteSize
             
             local relativeX = mousePos.X - framePos.X
-            local percentage = math.clamp(
-                    relativeX / frameSize.X, 0, 1)
+            local percentage = math.clamp(relativeX / frameSize.X, 0, 1)
             
-            sliderButton.Position = UDim2.new(percentage, -7.5, 0, 0)
+            sliderButton.Position = UDim2.new(percentage, -6, 0, 0)
             updateSpeed()
         end
         
@@ -344,126 +320,47 @@ speedSliderFrame.InputBegan:Connect(function(input)
     end
 end)
 
--- Controles para PC (con anti-detección)
-local keysPressed = {}
-local keyCheckDelay = 0
-
+-- Controles verticales para PC (Space/Shift)
 if not isMobile then
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed or not _enabled then return end
         
-        -- Pequeño delay para evitar detección de input rápido
-        wait(0.01)
-        keysPressed[input.KeyCode] = true
-        updateMovement()
+        if input.KeyCode == Enum.KeyCode.Space then
+            _verticalInput = 1
+        elseif input.KeyCode == Enum.KeyCode.LeftShift then
+            _verticalInput = -1
+        end
     end)
     
     UserInputService.InputEnded:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         
-        keysPressed[input.KeyCode] = false
-        updateMovement()
+        if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.LeftShift then
+            _verticalInput = 0
+        end
     end)
 end
 
-function updateMovement()
-    if not _enabled then return end
-    
-    local moveVector = Vector3.new(0, 0, 0)
-    
-    -- Movimiento más suave
-    if keysPressed[Enum.KeyCode.W] then
-        moveVector = moveVector + Vector3.new(0, 0, -0.8) -- Reducido para ser más natural
-    end
-    if keysPressed[Enum.KeyCode.S] then
-        moveVector = moveVector + Vector3.new(0, 0, 0.8)
-    end
-    if keysPressed[Enum.KeyCode.A] then
-        moveVector = moveVector + Vector3.new(-0.8, 0, 0)
-    end
-    if keysPressed[Enum.KeyCode.D] then
-        moveVector = moveVector + Vector3.new(0.8, 0, 0)
-    end
-    if keysPressed[Enum.KeyCode.Space] then
-        moveVector = moveVector + Vector3.new(0, 0.6, 0) -- Movimiento vertical más lento
-    end
-    if keysPressed[Enum.KeyCode.LeftShift] then
-        moveVector = moveVector + Vector3.new(0, -0.6, 0)
-    end
-    
-    _direction = moveVector
-end
-
--- Controles para móvil
+-- Controles verticales para móvil
 if isMobile then
-    local joystickDragging = false
-    
-    joystickFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            joystickDragging = true
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if joystickDragging and input.UserInputType == Enum.UserInputType.Touch and _enabled then
-            local touchPos = input.Position
-            local framePos = joystickFrame.AbsolutePosition
-            local frameSize = joystickFrame.AbsoluteSize
-            
-            local relativePos = Vector2.new(
-                touchPos.X - framePos.X - frameSize.X/2,
-                touchPos.Y - framePos.Y - frameSize.Y/2
-            )
-            
-            local distance = relativePos.Magnitude
-            local maxDistance = frameSize.X/2 - 12.5
-            
-            if distance > maxDistance then
-                relativePos = relativePos.Unit * maxDistance
-            end
-            
-            joystickKnob.Position = UDim2.new(0.5, relativePos.X, 0.5, relativePos.Y)
-            
-            local normalizedX = relativePos.X / maxDistance * 0.8
-            local normalizedY = relativePos.Y / maxDistance * 0.8
-            
-            _direction = Vector3.new(normalizedX, 0, normalizedY)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            joystickDragging = false
-            joystickKnob.Position = UDim2.new(0.5, 0, 0.5, 0)
-            if _enabled then
-                _direction = Vector3.new(0, 0, 0)
-            end
-        end
-    end)
-    
-    -- Botones verticales
     upButton.MouseButton1Down:Connect(function()
         if _enabled then
-            _direction = _direction + Vector3.new(0, 0.6, 0)
+            _verticalInput = 1
         end
     end)
     
     upButton.MouseButton1Up:Connect(function()
-        if _enabled then
-            _direction = _direction - Vector3.new(0, 0.6, 0)
-        end
+        _verticalInput = 0
     end)
     
     downButton.MouseButton1Down:Connect(function()
         if _enabled then
-            _direction = _direction + Vector3.new(0, -0.6, 0)
+            _verticalInput = -1
         end
     end)
     
     downButton.MouseButton1Up:Connect(function()
-        if _enabled then
-            _direction = _direction - Vector3.new(0, -0.6, 0)
-        end
+        _verticalInput = 0
     end)
 end
 
@@ -472,22 +369,26 @@ mainButton.MouseButton1Click:Connect(function()
     _enabled = not _enabled
     
     if _enabled then
-        createStealthMovement()
-        mainButton.Text = "Disable Helper"
+        createNativeFloat()
+        mainButton.Text = "Disable Float"
         mainButton.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
+        toggleButton.Text = "ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
         
+        -- Mostrar controles verticales en móvil
         if isMobile then
-            joystickFrame.Visible = true
             upButton.Visible = true
             downButton.Visible = true
         end
     else
-        stopMovement()
-        mainButton.Text = "Enable Helper"
+        stopFloat()
+        mainButton.Text = "Enable Float"
         mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+        toggleButton.Text = "Helper"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         
+        -- Ocultar controles verticales en móvil
         if isMobile then
-            joystickFrame.Visible = false
             upButton.Visible = false
             downButton.Visible = false
         end
@@ -496,79 +397,88 @@ end)
 
 -- Eventos de UI
 closeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-    toggleButton.Text = "Menu"
-    toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    configFrame.Visible = false
 end)
 
 toggleButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
-    if mainFrame.Visible then
-        toggleButton.Text = "Hide"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
-    else
-        toggleButton.Text = "Menu"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    end
+    configFrame.Visible = not configFrame.Visible
 end)
 
 -- Inicializar
 updateSpeed()
 
--- Sistema de auto-limpieza mejorado
+-- Auto-limpieza al respawnear
 player.CharacterRemoving:Connect(function()
-    stopMovement()
+    stopFloat()
     _enabled = false
+    _verticalInput = 0
+    
     if mainButton then
-        mainButton.Text = "Enable Helper"
+        mainButton.Text = "Enable Float"
         mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
     end
     
+    if toggleButton then
+        toggleButton.Text = "Helper"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    end
+    
     if isMobile then
-        if joystickFrame then joystickFrame.Visible = false end
         if upButton then upButton.Visible = false end
         if downButton then downButton.Visible = false end
     end
 end)
 
--- Protección adicional contra detección
+-- Sistema de seguridad mejorado
 spawn(function()
-    while wait(math.random(30, 60)) do -- Pausa aleatoria cada 30-60 segundos
+    while wait(math.random(45, 90)) do -- Pausa cada 45-90 segundos
         if _enabled then
-            -- Pequeña pausa para simular comportamiento humano
-            stopMovement()
-            wait(math.random(1, 3))
-            if _enabled then
-                createStealthMovement()
+            -- Pausa automática para simular comportamiento humano
+            local wasEnabled = _enabled
+            _enabled = false
+            stopFloat()
+            
+            wait(math.random(2, 5)) -- Pausa de 2-5 segundos
+            
+            if wasEnabled then
+                _enabled = true
+                createNativeFloat()
             end
         end
     end
 end)
 
--- Detección de moderadores/admins (básica)
+-- Detección básica de staff
 spawn(function()
-    while wait(5) do
+    while wait(10) do
         for _, v in pairs(Players:GetPlayers()) do
-            if v.Name:lower():find("admin") or v.Name:lower():find("mod") or v.Name:lower():find("owner") then
+            local name = v.Name:lower()
+            if name:find("admin") or name:find("mod") or name:find("owner") or name:find("staff") then
                 if _enabled then
                     _enabled = false
-                    stopMovement()
-                    mainButton.Text = "Enable Helper"
+                    stopFloat()
+                    mainButton.Text = "Enable Float"
                     mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+                    toggleButton.Text = "Helper"
+                    toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
                     
                     if isMobile then
-                        joystickFrame.Visible = false
                         upButton.Visible = false
                         downButton.Visible = false
                     end
                     
-                    warn("Posible staff detectado - Helper desactivado automáticamente")
+                    configFrame.Visible = false
+                    warn("Staff detectado - Helper desactivado automáticamente")
                 end
             end
         end
     end
 end)
 
-print("Stealth Movement Helper cargado")
-print("Características anti-detección activadas")
-print("Velocidades reducidas para mayor sigilo")
+-- Ocultar GUI inicialmente
+configFrame.Visible = false
+
+print("Native Controls Float Helper cargado")
+print("Usa los controles originales del juego + botones verticales")
+print("PC: WASD para mover, Space/Shift para subir/bajar")
+print("Móvil: Joystick original + botones ↑↓")
