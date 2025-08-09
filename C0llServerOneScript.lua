@@ -1,5 +1,5 @@
--- Script con velocidades corregidas - Usa controles originales
--- Velocidades realistas y funcionales
+-- Script con velocidades corregidas y botón toggle visible
+-- Versión corregida con botón siempre visible
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -10,7 +10,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- Variables principales
 local _enabled = false
-local _speed = 25 -- Velocidad inicial más alta
+local _speed = 25
 local _connection = nil
 local _bodyObj = nil
 local _verticalInput = 0
@@ -29,35 +29,36 @@ local function randomName()
     return name
 end
 
--- Crear GUI
+-- Crear GUI principal
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = randomName()
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
--- Botón toggle
+-- CREAR BOTÓN TOGGLE PRIMERO Y ASEGURAR VISIBILIDAD
 local toggleButton = Instance.new("TextButton")
-toggleButton.Name = randomName()
-toggleButton.Size = UDim2.new(0, 70, 0, 25)
-toggleButton.Position = UDim2.new(0, 10, 0, 50)
-toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-toggleButton.BackgroundTransparency = 0.4
+toggleButton.Name = "ToggleButton" -- Nombre fijo para debug
+toggleButton.Size = UDim2.new(0, 80, 0, 30)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
 toggleButton.BorderSizePixel = 0
-toggleButton.Text = "Helper"
-toggleButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+toggleButton.Text = "Float Menu"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.Gotham
+toggleButton.Font = Enum.Font.GothamBold
 toggleButton.Parent = screenGui
+toggleButton.Visible = true -- FORZAR VISIBILIDAD
+toggleButton.ZIndex = 10 -- Asegurar que esté al frente
 
 local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.CornerRadius = UDim.new(0, 8)
 toggleCorner.Parent = toggleButton
 
 -- Panel de configuración
 local configFrame = Instance.new("Frame")
 configFrame.Name = randomName()
-configFrame.Size = UDim2.new(0, 220, 0, 120)
-configFrame.Position = UDim2.new(0.5, -110, 0.5, -60)
+configFrame.Size = UDim2.new(0, 240, 0, 130)
+configFrame.Position = UDim2.new(0.5, -120, 0.5, -65)
 configFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 configFrame.BackgroundTransparency = 0.1
 configFrame.BorderSizePixel = 0
@@ -65,32 +66,33 @@ configFrame.Active = true
 configFrame.Draggable = true
 configFrame.Parent = screenGui
 configFrame.Visible = false
+configFrame.ZIndex = 5
 
 local configCorner = Instance.new("UICorner")
-configCorner.CornerRadius = UDim.new(0, 8)
+configCorner.CornerRadius = UDim.new(0, 10)
 configCorner.Parent = configFrame
 
 -- Título
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, 0, 0, 25)
+titleLabel.Size = UDim2.new(1, 0, 0, 30)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 titleLabel.BorderSizePixel = 0
-titleLabel.Text = "Float Helper v2.1"
+titleLabel.Text = "Float Helper - Fast Edition"
 titleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.Gotham
+titleLabel.Font = Enum.Font.GothamBold
 titleLabel.Parent = configFrame
 
 local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.CornerRadius = UDim.new(0, 10)
 titleCorner.Parent = titleLabel
 
 -- Botón cerrar
 local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 20, 0, 20)
-closeButton.Position = UDim2.new(1, -22, 0, 2.5)
-closeButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+closeButton.Size = UDim2.new(0, 25, 0, 25)
+closeButton.Position = UDim2.new(1, -30, 0, 2.5)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 closeButton.BorderSizePixel = 0
 closeButton.Text = "×"
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -99,31 +101,31 @@ closeButton.Font = Enum.Font.GothamBold
 closeButton.Parent = titleLabel
 
 local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 4)
+closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
 
 -- Botón principal
 local mainButton = Instance.new("TextButton")
-mainButton.Size = UDim2.new(0, 160, 0, 25)
-mainButton.Position = UDim2.new(0.5, -80, 0, 35)
-mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+mainButton.Size = UDim2.new(0, 180, 0, 30)
+mainButton.Position = UDim2.new(0.5, -90, 0, 40)
+mainButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
 mainButton.BorderSizePixel = 0
-mainButton.Text = "Enable Float"
+mainButton.Text = "Activar Float"
 mainButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 mainButton.TextScaled = true
-mainButton.Font = Enum.Font.Gotham
+mainButton.Font = Enum.Font.GothamBold
 mainButton.Parent = configFrame
 
 local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 6)
+mainCorner.CornerRadius = UDim.new(0, 8)
 mainCorner.Parent = mainButton
 
 -- Label de velocidad
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, 0, 0, 15)
-speedLabel.Position = UDim2.new(0, 0, 0, 65)
+speedLabel.Size = UDim2.new(1, 0, 0, 18)
+speedLabel.Position = UDim2.new(0, 0, 0, 75)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed: " .. _speed
+speedLabel.Text = "Velocidad: " .. _speed .. " studs/seg"
 speedLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.Gotham
@@ -131,33 +133,33 @@ speedLabel.Parent = configFrame
 
 -- Slider de velocidad
 local speedSliderFrame = Instance.new("Frame")
-speedSliderFrame.Size = UDim2.new(0, 140, 0, 12)
-speedSliderFrame.Position = UDim2.new(0.5, -70, 0, 85)
+speedSliderFrame.Size = UDim2.new(0, 160, 0, 15)
+speedSliderFrame.Position = UDim2.new(0.5, -80, 0, 95)
 speedSliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 speedSliderFrame.BorderSizePixel = 0
 speedSliderFrame.Parent = configFrame
 
 local sliderFrameCorner = Instance.new("UICorner")
-sliderFrameCorner.CornerRadius = UDim.new(0, 6)
+sliderFrameCorner.CornerRadius = UDim.new(0, 8)
 sliderFrameCorner.Parent = speedSliderFrame
 
 local sliderButton = Instance.new("Frame")
-sliderButton.Size = UDim2.new(0, 12, 1, 0)
-sliderButton.Position = UDim2.new(0.5, -6, 0, 0) -- Posición inicial en el medio
-sliderButton.BackgroundColor3 = Color3.fromRGB(80, 120, 80)
+sliderButton.Size = UDim2.new(0, 15, 1, 0)
+sliderButton.Position = UDim2.new(0.375, -7.5, 0, 0) -- Posición para velocidad 25
+sliderButton.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
 sliderButton.BorderSizePixel = 0
 sliderButton.Parent = speedSliderFrame
 
 local sliderButtonCorner = Instance.new("UICorner")
-sliderButtonCorner.CornerRadius = UDim.new(0, 6)
+sliderButtonCorner.CornerRadius = UDim.new(0, 8)
 sliderButtonCorner.Parent = sliderButton
 
 -- Info de controles
 local infoLabel = Instance.new("TextLabel")
 infoLabel.Size = UDim2.new(1, 0, 0, 15)
-infoLabel.Position = UDim2.new(0, 0, 0, 102)
+infoLabel.Position = UDim2.new(0, 0, 0, 112)
 infoLabel.BackgroundTransparency = 1
-infoLabel.Text = isMobile and "Original joystick + ↑↓ buttons" or "WASD + Space/Shift"
+infoLabel.Text = isMobile and "Joystick original + botones ↑↓" or "WASD + Space/Shift + Tecla P (emergencia)"
 infoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 infoLabel.TextScaled = true
 infoLabel.Font = Enum.Font.Gotham
@@ -169,39 +171,41 @@ local downButton = nil
 
 if isMobile then
     upButton = Instance.new("TextButton")
-    upButton.Name = randomName()
-    upButton.Size = UDim2.new(0, 50, 0, 35)
-    upButton.Position = UDim2.new(1, -70, 1, -120)
-    upButton.BackgroundColor3 = Color3.fromRGB(50, 50, 100)
-    upButton.BackgroundTransparency = 0.3
+    upButton.Name = "UpButton"
+    upButton.Size = UDim2.new(0, 55, 0, 40)
+    upButton.Position = UDim2.new(1, -75, 1, -130)
+    upButton.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+    upButton.BackgroundTransparency = 0.2
     upButton.BorderSizePixel = 0
-    upButton.Text = "↑"
-    upButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    upButton.Text = "↑ SUBIR"
+    upButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     upButton.TextScaled = true
     upButton.Font = Enum.Font.GothamBold
     upButton.Parent = screenGui
     upButton.Visible = false
+    upButton.ZIndex = 8
     
     local upCorner = Instance.new("UICorner")
-    upCorner.CornerRadius = UDim.new(0, 8)
+    upCorner.CornerRadius = UDim.new(0, 10)
     upCorner.Parent = upButton
     
     downButton = Instance.new("TextButton")
-    downButton.Name = randomName()
-    downButton.Size = UDim2.new(0, 50, 0, 35)
-    downButton.Position = UDim2.new(1, -70, 1, -80)
-    downButton.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
-    downButton.BackgroundTransparency = 0.3
+    downButton.Name = "DownButton"
+    downButton.Size = UDim2.new(0, 55, 0, 40)
+    downButton.Position = UDim2.new(1, -75, 1, -85)
+    downButton.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+    downButton.BackgroundTransparency = 0.2
     downButton.BorderSizePixel = 0
-    downButton.Text = "↓"
-    downButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    downButton.Text = "↓ BAJAR"
+    downButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     downButton.TextScaled = true
     downButton.Font = Enum.Font.GothamBold
     downButton.Parent = screenGui
     downButton.Visible = false
+    downButton.ZIndex = 8
     
     local downCorner = Instance.new("UICorner")
-    downCorner.CornerRadius = UDim.new(0, 8)
+    downCorner.CornerRadius = UDim.new(0, 10)
     downCorner.Parent = downButton
 end
 
@@ -215,7 +219,6 @@ local function createNativeFloat()
     
     if not humanoid or not rootPart then return end
     
-    -- Usar BodyVelocity para mejor control de velocidad
     if _bodyObj then
         _bodyObj:Destroy()
     end
@@ -225,20 +228,18 @@ local function createNativeFloat()
     _bodyObj.Velocity = Vector3.new(0, 0, 0)
     _bodyObj.Parent = rootPart
     
-    -- Conexión con velocidades corregidas
     _connection = RunService.Heartbeat:Connect(function()
         if _bodyObj and rootPart and humanoid then
-            -- Obtener dirección de movimiento del humanoid
             local moveVector = humanoid.MoveDirection
             
-            -- Crear vector final con componente vertical
             local finalVelocity = Vector3.new(
                 moveVector.X * _speed,
                 _verticalInput * _speed,
                 moveVector.Z * _speed
             )
             
-            _bodyObj.Velocity = finalVelocity
+            _bodyObj.Velocity =
+                finalVelocity
             
             if humanoid.Health <= 0 then
                 stopFloat()
@@ -262,11 +263,11 @@ local function stopFloat()
     _verticalInput = 0
 end
 
--- Función para actualizar velocidad (rango corregido)
+-- Función para actualizar velocidad
 local function updateSpeed()
     local sliderPosition = sliderButton.Position.X.Scale
     _speed = math.floor(10 + (sliderPosition * 40)) -- Rango de 10 a 50
-    speedLabel.Text = "Speed: " .. _speed
+    speedLabel.Text = "Velocidad: " .. _speed .. " studs/seg"
 end
 
 -- Sistema de slider
@@ -284,7 +285,7 @@ speedSliderFrame.InputBegan:Connect(function(input)
             local relativeX = mousePos.X - framePos.X
             local percentage = math.clamp(relativeX / frameSize.X, 0, 1)
             
-            sliderButton.Position = UDim2.new(percentage, -6, 0, 0)
+            sliderButton.Position = UDim2.new(percentage, -7.5, 0, 0)
             updateSpeed()
         end
         
@@ -295,7 +296,8 @@ speedSliderFrame.InputBegan:Connect(function(input)
             if input2.UserInputType == Enum.UserInputType.MouseMovement or input2.UserInputType == Enum.UserInputType.Touch then
                 if dragging then
                     updateSlider()
-                            end
+                end
+            end
         end)
         
         local endConnection
@@ -309,7 +311,7 @@ speedSliderFrame.InputBegan:Connect(function(input)
     end
 end)
 
--- Controles verticales para PC (Space/Shift)
+-- Controles verticales para PC
 if not isMobile then
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed or not _enabled then return end
@@ -359,40 +361,71 @@ mainButton.MouseButton1Click:Connect(function()
     
     if _enabled then
         createNativeFloat()
-        mainButton.Text = "Disable Float"
-        mainButton.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
-        toggleButton.Text = "ON"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+        mainButton.Text = "Desactivar Float"
+        mainButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleButton.Text = "ACTIVO"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
         
         if isMobile then
             upButton.Visible = true
             downButton.Visible = true
         end
+        
+        print("Float activado - Velocidad: " .. _speed)
     else
         stopFloat()
-        mainButton.Text = "Enable Float"
-        mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
-        toggleButton.Text = "Helper"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        mainButton.Text = "Activar Float"
+        mainButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        toggleButton.Text = "Float Menu"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
         
         if isMobile then
             upButton.Visible = false
             downButton.Visible = false
         end
+        
+        print("Float desactivado")
     end
 end)
 
 -- Eventos de UI
 closeButton.MouseButton1Click:Connect(function()
     configFrame.Visible = false
+    print("Panel cerrado")
 end)
 
 toggleButton.MouseButton1Click:Connect(function()
     configFrame.Visible = not configFrame.Visible
+    if configFrame.Visible then
+        print("Panel abierto")
+    else
+        print("Panel cerrado")
+    end
 end)
 
--- Inicializar velocidad
-updateSpeed()
+-- Tecla de emergencia (P para desactivar rápido)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.P then
+        if _enabled then
+            _enabled = false
+            stopFloat()
+            mainButton.Text = "Activar Float"
+            mainButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+            toggleButton.Text = "Float Menu"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
+            
+            if isMobile then
+                upButton.Visible = false
+                downButton.Visible = false
+            end
+            
+            configFrame.Visible = false
+            print("EMERGENCIA: Float desactivado con tecla P")
+        end
+    end
+end)
 
 -- Auto-limpieza al respawnear
 player.CharacterRemoving:Connect(function()
@@ -401,34 +434,38 @@ player.CharacterRemoving:Connect(function()
     _verticalInput = 0
     
     if mainButton then
-        mainButton.Text = "Enable Float"
-        mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+        mainButton.Text = "Activar Float"
+        mainButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
     end
     
     if toggleButton then
-        toggleButton.Text = "Helper"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        toggleButton.Text = "Float Menu"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
     end
     
     if isMobile then
         if upButton then upButton.Visible = false end
         if downButton then downButton.Visible = false end
     end
+    
+    print("Character respawned - Float reset")
 end)
 
 -- Sistema de seguridad básico
 spawn(function()
-    while wait(math.random(60, 120)) do -- Pausa cada 1-2 minutos
+    while wait(math.random(90, 180)) do -- Pausa cada 1.5-3 minutos
         if _enabled then
             local wasEnabled = _enabled
             _enabled = false
             stopFloat()
             
-            wait(math.random(3, 8)) -- Pausa de 3-8 segundos
+            print("Pausa automática de seguridad...")
+            wait(math.random(5, 10)) -- Pausa de 5-10 segundos
             
             if wasEnabled then
                 _enabled = true
                 createNativeFloat()
+                print("Float reactivado automáticamente")
             end
         end
     end
@@ -436,17 +473,17 @@ end)
 
 -- Detección básica de staff
 spawn(function()
-    while wait(15) do
+    while wait(20) do
         for _, v in pairs(Players:GetPlayers()) do
             local name = v.Name:lower()
             if name:find("admin") or name:find("mod") or name:find("owner") or name:find("staff") then
                 if _enabled then
                     _enabled = false
                     stopFloat()
-                    mainButton.Text = "Enable Float"
-                    mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
-                    toggleButton.Text = "Helper"
-                    toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                    mainButton.Text = "Activar Float"
+                    mainButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+                    toggleButton.Text = "Float Menu"
+                    toggleButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
                     
                     if isMobile then
                         upButton.Visible = false
@@ -454,39 +491,35 @@ spawn(function()
                     end
                     
                     configFrame.Visible = false
-                    warn("Staff detectado - Helper desactivado")
+                    warn("STAFF DETECTADO: " .. v.Name .. " - Float desactivado automáticamente")
                 end
             end
         end
     end
 end)
 
--- Función de emergencia (tecla P para desactivar rápido)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.P then
-        if _enabled then
-            _enabled = false
-            stopFloat()
-            mainButton.Text = "Enable Float"
-            mainButton.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
-            toggleButton.Text = "Helper"
-            toggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            
-            if isMobile then
-                upButton.Visible = false
-                downButton.Visible = false
-            end
-            
-            configFrame.Visible = false
-            print("Float desactivado por tecla de emergencia (P)")
-        end
+-- Inicializar
+updateSpeed()
+
+-- Debug: Verificar que el botón esté visible
+wait(1)
+print("=== FLOAT HELPER CARGADO ===")
+print("Botón toggle visible:", toggleButton.Visible)
+print("Botón toggle parent:", toggleButton.Parent.Name)
+print("Velocidad inicial:", _speed, "studs/seg")
+print("Plataforma:", isMobile and "Móvil" or "PC")
+print("Controles PC: WASD + Space/Shift + P(emergencia)")
+print("Controles Móvil: Joystick original + botones ↑↓")
+print("Rango velocidad: 10-50 studs/seg")
+print("=============================")
+
+-- Hacer el botón más visible si no aparece
+spawn(function()
+    wait(2)
+    if toggleButton and toggleButton.Parent then
+        toggleButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100) -- Verde más brillante
+        toggleButton.Size = UDim2.new(0, 90, 0, 35) -- Más grande
+        toggleButton.Position = UDim2.new(0, 5, 0, 5) -- Esquina superior izquierda
+        print("Botón reposicionado y redimensionado para mayor visibilidad")
     end
 end)
-
-print("Fast Native Float Helper cargado exitosamente!")
-print("Velocidades corregidas: 10-50 studs/segundo")
-print("PC: WASD + Space/Shift | Móvil: Joystick original + ↑↓")
-print("Tecla P = Desactivación de emergencia")
-print("Rango de velocidad: 10 (lento) a 50 (rápido)")
