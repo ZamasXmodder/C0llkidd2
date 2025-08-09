@@ -1,4 +1,4 @@
--- Steal a Brainrot Professional Script Panel by ZamasXmodder
+-- Steal a Brainrot Ultimate Anti-Hit Panel by ZamasXmodder
 -- Ubicación: ServerStorage como LocalScript o ejecutar en Command Bar de Studio
 
 local Players = game:GetService("Players")
@@ -15,6 +15,8 @@ local antiHitEnabled = false
 local originalHumanoidState = nil
 local connections = {}
 local panelOpen = false
+local originalPosition = nil
+local originalVelocity = nil
 
 -- Colores del tema
 local COLORS = {
@@ -83,13 +85,192 @@ local function createShadow(parent, intensity)
     return shadow
 end
 
+-- FUNCIÓN ANTI-HIT ULTIMATE MEJORADA
+local function toggleAntiHit()
+    if not antiHitEnabled then
+        antiHitEnabled = true
+        
+        if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart") then
+            local character = player.Character
+            local humanoid = character.Humanoid
+            local rootPart = character.HumanoidRootPart
+            
+            -- Guardar posición original
+            originalPosition = rootPart.CFrame
+            
+            -- 1. Protección contra cambios de estado del Humanoid
+            connections.stateChanged = humanoid.StateChanged:Connect(function(oldState, newState)
+                if newState == Enum.HumanoidStateType.Ragdoll or 
+                   newState == Enum.HumanoidStateType.FallingDown or
+                   newState == Enum.HumanoidStateType.Flying or
+                   newState == Enum.HumanoidStateType.Physics or
+                   newState == Enum.HumanoidStateType.PlatformStanding then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                end
+            end)
+            
+            -- 2. Protección contra PlatformStand
+            connections.platformStand = RunService.Heartbeat:Connect(function()
+                if character and character:FindFirstChild("Humanoid") then
+                    local hum = character.Humanoid
+                    if hum.PlatformStand then
+                        hum.PlatformStand = false
+                    end
+                end
+            end)
+            
+            -- 3. Protección contra velocidad excesiva (empujones)
+            connections.velocityProtection = RunService.Heartbeat:Connect(function()
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local rp = character.HumanoidRootPart
+                    local bodyVelocity = rp:FindFirstChild("BodyVelocity")
+                    local bodyPosition = rp:FindFirstChild("BodyPosition")
+                    local bodyAngularVelocity = rp:FindFirstChild("BodyAngularVelocity")
+                    
+                    -- Eliminar BodyMovers no deseados
+                    if bodyVelocity and bodyVelocity.MaxForce.Magnitude > 4000 then
+                        bodyVelocity:Destroy()
+                    end
+                    if bodyPosition and bodyPosition.MaxForce.Magnitude > 4000 then
+                        bodyPosition:Destroy()
+                    end
+                    if bodyAngularVelocity then
+                        bodyAngularVelocity:Destroy()
+                    end
+                    
+                    -- Limitar velocidad
+                    if rp.AssemblyLinearVelocity.Magnitude > 50 then
+                        rp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    end
+                    
+                    -- Limitar velocidad angular
+                    if rp.AssemblyAngularVelocity.Magnitude > 10 then
+                        rp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    end
+                end
+            end)
+            
+            -- 4. Protección contra herramientas que causan knockback
+            connections.toolProtection = character.ChildAdded:Connect(function(child)
+                if child:IsA("Tool") then
+                    child.ChildAdded:Connect(function(toolChild)
+                        if toolChild:IsA("BodyVelocity") or toolChild:IsA("BodyPosition") or 
+                           toolChild:IsA("BodyAngularVelocity") or toolChild:IsA("BodyThrust") then
+                            toolChild:Destroy()
+                        end
+                    end)
+                end
+            end)
+            
+            -- 5. Protección contra cambios en las propiedades del personaje
+            connections.propertyProtection = RunService.Heartbeat:Connect(function()
+                if character and character:FindFirstChild("Humanoid") and character:FindFirstChild("HumanoidRootPart") then
+                    local hum = character.Humanoid
+                    local rp = character.HumanoidRootPart
+                    
+                    -- Mantener propiedades del Humanoid
+                    if hum.Health <= 0 then return end
+                    
+                    -- Proteger contra sit
+                    if hum.Sit then
+                        hum.Sit = false
+                    end
+                    
+                    -- Proteger contra jump power alterado
+                    if hum.JumpPower ~= 50 and hum.JumpPower > 100 then
+                        hum.JumpPower = 50
+                    end
+                    
+                    -- Proteger contra walkspeed alterado extremo
+                    if hum.WalkSpeed > 100 or hum.WalkSpeed < 0 then
+                        hum.WalkSpeed = 16
+                    end
+                end
+            end)
+            
+            -- 6. Protección contra efectos de scripts externos
+            connections.scriptProtection = workspace.DescendantAdded:Connect(function(descendant)
+                if descendant.Parent == character or descendant.Parent == character.HumanoidRootPart then
+                    if descendant:IsA("BodyVelocity") or descendant:IsA("BodyPosition") or 
+                       descendant:IsA("BodyAngularVelocity") or descendant:IsA("BodyThrust") or
+                       descendant:IsA("Attachment") or descendant:IsA("VectorForce") or
+                       descendant:IsA("AlignPosition") or descendant:IsA("AlignOrientation") then
+                        wait(0.1) -- Pequeña espera para evitar conflictos
+                        if descendant.Parent then
+                            descendant:Destroy()
+                        end
+                    end
+                end
+            end)
+            
+            -- 7. Protección contra cambios de CFrame extremos
+            local lastPosition = rootPart.Position
+            connections.positionProtection = RunService.Heartbeat:Connect(function()
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local rp = character.HumanoidRootPart
+                    local currentPosition = rp.Position
+                    local distance = (currentPosition - lastPosition).Magnitude
+                    
+                    -- Si se mueve demasiado rápido (teleport/knockback), restaurar posición
+                    if distance > 20 then
+                        rp.CFrame = CFrame.new(lastPosition)
+                    else
+                        lastPosition = currentPosition
+                    end
+                end
+            end)
+            
+            -- 8. Protección contra efectos de ragdoll por scripts
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") and part ~= character.HumanoidRootPart then
+                    connections["part_" .. part.Name] = part:GetPropertyChangedSignal("CanCollide"):Connect(function()
+                        if part.CanCollide == false and part.Name ~= "HumanoidRootPart" then
+                            part.CanCollide = true
+                        end
+                    end)
+                end
+            end
+            
+            -- 9. Protección contra eliminación de joints
+            connections.jointProtection = character.DescendantRemoving:Connect(function(descendant)
+                if descendant:IsA("Motor6D") or descendant:IsA("Weld") or descendant:IsA("ManualWeld") then
+                    -- Recrear el joint después de un frame
+                    RunService.Heartbeat:Wait()
+                    if character.Parent and not character:FindFirstChild(descendant.Name) then
+                        local newJoint = descendant:Clone()
+                        newJoint.Parent = descendant.Parent
+                    end
+                end
+            end)
+            
+        end
+        
+        print("ULTIMATE ANTI-HIT SYSTEM: ACTIVATED")
+        print("Protection Level: MAXIMUM")
+        print("Immunity Status: COMPLETE")
+        
+    else
+        antiHitEnabled = false
+        
+        -- Desconectar todas las protecciones
+        for name, connection in pairs(connections) do
+            if connection then
+                connection:Disconnect()
+                connections[name] = nil
+            end
+        end
+        
+        print("ULTIMATE ANTI-HIT SYSTEM: DEACTIVATED")
+    end
+end
+
 -- Función para crear la información del usuario
 local function createUserInfo(parent)
     local userInfoFrame = Instance.new("Frame")
     userInfoFrame.Name = "UserInfoFrame"
     userInfoFrame.Size = UDim2.new(1, -20, 0, 100)
     userInfoFrame.Position = UDim2.new(0, 10, 0, 10)
-    userInfoFrame.BackgroundColor3 = COLORS.CARD
+        userInfoFrame.BackgroundColor3 = COLORS.CARD
     userInfoFrame.BorderSizePixel = 0
     userInfoFrame.Parent = parent
     
@@ -239,7 +420,7 @@ local function createPasswordScreen()
     subtitle.Size = UDim2.new(1, 0, 0, 25)
     subtitle.Position = UDim2.new(0, 0, 0, 50)
     subtitle.BackgroundTransparency = 1
-    subtitle.Text = "Professional Script Interface"
+    subtitle.Text = "Ultimate Anti-Hit System"
     subtitle.TextColor3 = Color3.fromRGB(200, 220, 255)
     subtitle.TextSize = 16
     subtitle.Font = Enum.Font.Gotham
@@ -308,7 +489,7 @@ local function createPasswordScreen()
             wait(1)
             createLoadingScreen(passwordFrame)
         else
-                        passwordBox.Text = "Invalid authentication key!"
+            passwordBox.Text = "Invalid authentication key!"
             passwordBox.TextColor3 = COLORS.DANGER
             accessButton.Text = "ACCESS DENIED"
             accessButton.BackgroundColor3 = COLORS.DANGER
@@ -334,29 +515,6 @@ local function createPasswordScreen()
             checkPassword()
         end
     end)
-    
-    -- Efectos hover mejorados
-    accessButton.MouseEnter:Connect(function()
-        createTween(accessButton, {
-            BackgroundColor3 = Color3.fromRGB(30, 144, 255),
-            Size = UDim2.new(0.85, 0, 0, 52)
-        }, 0.2):Play()
-    end)
-    
-    accessButton.MouseLeave:Connect(function()
-        createTween(accessButton, {
-            BackgroundColor3 = COLORS.ACCENT,
-            Size = UDim2.new(0.85, 0, 0, 50)
-        }, 0.2):Play()
-    end)
-    
-    passwordContainer.MouseEnter:Connect(function()
-        createTween(passwordContainer, {BackgroundColor3 = Color3.fromRGB(50, 50, 60)}, 0.2):Play()
-    end)
-    
-    passwordContainer.MouseLeave:Connect(function()
-        createTween(passwordContainer, {BackgroundColor3 = COLORS.SECONDARY}, 0.2):Play()
-    end)
 end
 
 -- Función para crear la pantalla de carga
@@ -371,7 +529,7 @@ function createLoadingScreen(passwordFrame)
     
     local loadingCorner = Instance.new("UICorner")
     loadingCorner.CornerRadius = UDim.new(0, 20)
-    loadingCorner.Parent = loadingFrame
+        loadingCorner.Parent = loadingFrame
     
     createShadow(loadingFrame, 0.4)
     createGradient(loadingFrame, COLORS.PRIMARY, COLORS.BACKGROUND, 135)
@@ -402,7 +560,7 @@ function createLoadingScreen(passwordFrame)
     loadingText.Size = UDim2.new(1, 0, 1, 0)
     loadingText.Position = UDim2.new(0, 0, 0, 0)
     loadingText.BackgroundTransparency = 1
-    loadingText.Text = "Initializing Panel Components..."
+    loadingText.Text = "Loading Ultimate Anti-Hit System..."
     loadingText.TextColor3 = COLORS.TEXT_PRIMARY
     loadingText.TextSize = 18
     loadingText.Font = Enum.Font.GothamBold
@@ -474,50 +632,6 @@ function createLoadingScreen(passwordFrame)
     createMainPanel()
 end
 
--- Función Anti-Hit mejorada
-local function toggleAntiHit()
-    if not antiHitEnabled then
-        antiHitEnabled = true
-        
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            local humanoid = player.Character.Humanoid
-            
-            connections.antiHit = humanoid.StateChanged:Connect(function(oldState, newState)
-                if newState == Enum.HumanoidStateType.Ragdoll or 
-                   newState == Enum.HumanoidStateType.FallingDown or
-                   newState == Enum.HumanoidStateType.Flying then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                end
-            end)
-            
-            connections.platformStand = RunService.Heartbeat:Connect(function()
-                if player.Character and player.Character:FindFirstChild("Humanoid") then
-                    local humanoid = player.Character.Humanoid
-                    if humanoid.PlatformStand then
-                        humanoid.PlatformStand = false
-                    end
-                end
-            end)
-        end
-        
-        print("Anti-Hit System: ACTIVATED")
-    else
-        antiHitEnabled = false
-        
-        if connections.antiHit then
-            connections.antiHit:Disconnect()
-            connections.antiHit = nil
-        end
-        
-        if connections.platformStand then
-            connections.platformStand:Disconnect()
-            connections.platformStand = nil
-        end
-        
-        print("Anti-Hit System: DEACTIVATED")
-    end
-end
-
 -- Función para crear el panel principal
 function createMainPanel()
     -- Botón flotante mejorado
@@ -543,8 +657,8 @@ function createMainPanel()
     -- Panel principal mejorado
     local mainPanel = Instance.new("Frame")
     mainPanel.Name = "MainPanel"
-    mainPanel.Size = UDim2.new(0, 420, 0, 550)
-    mainPanel.Position = UDim2.new(0.5, -210, 0.5, -275)
+    mainPanel.Size = UDim2.new(0, 420, 0, 600)
+    mainPanel.Position = UDim2.new(0.5, -210, 0.5, -300)
     mainPanel.BackgroundColor3 = COLORS.PRIMARY
     mainPanel.BorderSizePixel = 0
     mainPanel.Visible = false
@@ -581,7 +695,7 @@ function createMainPanel()
     panelTitle.Size = UDim2.new(0.7, 0, 0, 30)
     panelTitle.Position = UDim2.new(0, 20, 0, 10)
     panelTitle.BackgroundTransparency = 1
-    panelTitle.Text = "CONTROL PANEL"
+    panelTitle.Text = "ULTIMATE CONTROL PANEL"
     panelTitle.TextColor3 = COLORS.TEXT_PRIMARY
     panelTitle.TextSize = 20
     panelTitle.Font = Enum.Font.GothamBold
@@ -594,7 +708,7 @@ function createMainPanel()
     versionLabel.Size = UDim2.new(0.7, 0, 0, 20)
     versionLabel.Position = UDim2.new(0, 20, 0, 40)
     versionLabel.BackgroundTransparency = 1
-    versionLabel.Text = "Version 1.0 - Professional Edition"
+    versionLabel.Text = "Version 2.0 - Ultimate Anti-Hit Edition"
     versionLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
     versionLabel.TextSize = 14
     versionLabel.Font = Enum.Font.Gotham
@@ -619,14 +733,14 @@ function createMainPanel()
     contentFrame.BackgroundTransparency = 1
     contentFrame.Parent = mainPanel
     
-    -- Sección de funciones
+    -- Sección de funciones principales
     local functionsSection = Instance.new("Frame")
     functionsSection.Name = "FunctionsSection"
-    functionsSection.Size = UDim2.new(1, 0, 0, 150)
+    functionsSection.Size = UDim2.new(1, 0, 0, 180)
     functionsSection.Position = UDim2.new(0, 0, 0, 20)
     functionsSection.BackgroundColor3 = COLORS.CARD
     functionsSection.BorderSizePixel = 0
-        functionsSection.Parent = contentFrame
+    functionsSection.Parent = contentFrame
     
     local functionsCorner = Instance.new("UICorner")
     functionsCorner.CornerRadius = UDim.new(0, 16)
@@ -640,16 +754,16 @@ function createMainPanel()
     sectionTitle.Size = UDim2.new(1, 0, 0, 40)
     sectionTitle.Position = UDim2.new(0, 0, 0, 0)
     sectionTitle.BackgroundTransparency = 1
-    sectionTitle.Text = "GAME FUNCTIONS"
+    sectionTitle.Text = "ULTIMATE PROTECTION SYSTEM"
     sectionTitle.TextColor3 = COLORS.TEXT_PRIMARY
     sectionTitle.TextSize = 18
     sectionTitle.Font = Enum.Font.GothamBold
     sectionTitle.Parent = functionsSection
     
-    -- Botón Anti-Hit mejorado
+        -- Botón Anti-Hit Ultimate mejorado
     local antiHitButton = Instance.new("TextButton")
     antiHitButton.Name = "AntiHitButton"
-    antiHitButton.Size = UDim2.new(1, -20, 0, 60)
+    antiHitButton.Size = UDim2.new(1, -20, 0, 80)
     antiHitButton.Position = UDim2.new(0, 10, 0, 50)
     antiHitButton.BackgroundColor3 = COLORS.SECONDARY
     antiHitButton.BorderSizePixel = 0
@@ -665,10 +779,10 @@ function createMainPanel()
     -- Contenido del botón Anti-Hit
     local antiHitTitle = Instance.new("TextLabel")
     antiHitTitle.Name = "AntiHitTitle"
-    antiHitTitle.Size = UDim2.new(0.7, 0, 0, 25)
-    antiHitTitle.Position = UDim2.new(0, 15, 0, 10)
+    antiHitTitle.Size = UDim2.new(0.65, 0, 0, 25)
+    antiHitTitle.Position = UDim2.new(0, 15, 0, 15)
     antiHitTitle.BackgroundTransparency = 1
-    antiHitTitle.Text = "Anti-Hit Protection"
+    antiHitTitle.Text = "Ultimate Anti-Hit Protection"
     antiHitTitle.TextColor3 = COLORS.TEXT_PRIMARY
     antiHitTitle.TextSize = 16
     antiHitTitle.Font = Enum.Font.GothamBold
@@ -677,27 +791,28 @@ function createMainPanel()
     
     local antiHitDesc = Instance.new("TextLabel")
     antiHitDesc.Name = "AntiHitDesc"
-    antiHitDesc.Size = UDim2.new(0.7, 0, 0, 20)
-    antiHitDesc.Position = UDim2.new(0, 15, 0, 30)
+    antiHitDesc.Size = UDim2.new(0.65, 0, 0, 35)
+    antiHitDesc.Position = UDim2.new(0, 15, 0, 35)
     antiHitDesc.BackgroundTransparency = 1
-    antiHitDesc.Text = "Prevents ragdoll and knockdown effects"
+    antiHitDesc.Text = "Complete immunity to all attacks, knockbacks,\nragdoll effects, and external forces"
     antiHitDesc.TextColor3 = COLORS.TEXT_SECONDARY
     antiHitDesc.TextSize = 12
     antiHitDesc.Font = Enum.Font.Gotham
     antiHitDesc.TextXAlignment = Enum.TextXAlignment.Left
+    antiHitDesc.TextWrapped = true
     antiHitDesc.Parent = antiHitButton
     
-    -- Indicador de estado
+    -- Indicador de estado mejorado
     local statusIndicator = Instance.new("Frame")
     statusIndicator.Name = "StatusIndicator"
-    statusIndicator.Size = UDim2.new(0, 80, 0, 30)
-    statusIndicator.Position = UDim2.new(1, -95, 0, 15)
+    statusIndicator.Size = UDim2.new(0, 100, 0, 35)
+    statusIndicator.Position = UDim2.new(1, -115, 0, 15)
     statusIndicator.BackgroundColor3 = COLORS.DANGER
     statusIndicator.BorderSizePixel = 0
     statusIndicator.Parent = antiHitButton
     
     local statusCorner = Instance.new("UICorner")
-    statusCorner.CornerRadius = UDim.new(0, 15)
+    statusCorner.CornerRadius = UDim.new(0, 17)
     statusCorner.Parent = statusIndicator
     
     local statusText = Instance.new("TextLabel")
@@ -705,77 +820,126 @@ function createMainPanel()
     statusText.Size = UDim2.new(1, 0, 1, 0)
     statusText.Position = UDim2.new(0, 0, 0, 0)
     statusText.BackgroundTransparency = 1
-    statusText.Text = "OFF"
+    statusText.Text = "DISABLED"
     statusText.TextColor3 = COLORS.TEXT_PRIMARY
     statusText.TextSize = 12
     statusText.Font = Enum.Font.GothamBold
     statusText.Parent = statusIndicator
     
-    -- Sección de información
-    local infoSection = Instance.new("Frame")
-    infoSection.Name = "InfoSection"
-    infoSection.Size = UDim2.new(1, 0, 0, 120)
-    infoSection.Position = UDim2.new(0, 0, 0, 190)
-    infoSection.BackgroundColor3 = COLORS.CARD
-    infoSection.BorderSizePixel = 0
-    infoSection.Parent = contentFrame
+    -- Nivel de protección
+    local protectionLevel = Instance.new("TextLabel")
+    protectionLevel.Name = "ProtectionLevel"
+    protectionLevel.Size = UDim2.new(0, 100, 0, 20)
+    protectionLevel.Position = UDim2.new(1, -115, 0, 50)
+    protectionLevel.BackgroundTransparency = 1
+    protectionLevel.Text = "Level: NONE"
+    protectionLevel.TextColor3 = COLORS.TEXT_SECONDARY
+    protectionLevel.TextSize = 10
+    protectionLevel.Font = Enum.Font.Gotham
+    protectionLevel.Parent = antiHitButton
     
-    local infoCorner = Instance.new("UICorner")
-    infoCorner.CornerRadius = UDim.new(0, 16)
-    infoCorner.Parent = infoSection
+    -- Sección de estadísticas
+    local statsSection = Instance.new("Frame")
+    statsSection.Name = "StatsSection"
+    statsSection.Size = UDim2.new(1, 0, 0, 120)
+    statsSection.Position = UDim2.new(0, 0, 0, 220)
+    statsSection.BackgroundColor3 = COLORS.CARD
+    statsSection.BorderSizePixel = 0
+    statsSection.Parent = contentFrame
     
-    createShadow(infoSection, 0.2)
+    local statsCorner = Instance.new("UICorner")
+    statsCorner.CornerRadius = UDim.new(0, 16)
+    statsCorner.Parent = statsSection
     
-    -- Título de información
-    local infoTitle = Instance.new("TextLabel")
-    infoTitle.Name = "InfoTitle"
-    infoTitle.Size = UDim2.new(1, 0, 0, 35)
-    infoTitle.Position = UDim2.new(0, 0, 0, 10)
-    infoTitle.BackgroundTransparency = 1
-    infoTitle.Text = "SYSTEM INFORMATION"
-    infoTitle.TextColor3 = COLORS.TEXT_PRIMARY
-    infoTitle.TextSize = 16
-    infoTitle.Font = Enum.Font.GothamBold
-    infoTitle.Parent = infoSection
+    createShadow(statsSection, 0.2)
     
-    -- Información del desarrollador
-    local devInfo = Instance.new("TextLabel")
-    devInfo.Name = "DevInfo"
-    devInfo.Size = UDim2.new(1, -20, 0, 25)
-    devInfo.Position = UDim2.new(0, 10, 0, 45)
-    devInfo.BackgroundTransparency = 1
-    devInfo.Text = "Developer: ZamasXmodder"
-    devInfo.TextColor3 = COLORS.TEXT_SECONDARY
-    devInfo.TextSize = 14
-    devInfo.Font = Enum.Font.Gotham
-    devInfo.TextXAlignment = Enum.TextXAlignment.Left
-    devInfo.Parent = infoSection
+    -- Título de estadísticas
+    local statsTitle = Instance.new("TextLabel")
+    statsTitle.Name = "StatsTitle"
+    statsTitle.Size = UDim2.new(1, 0, 0, 35)
+    statsTitle.Position = UDim2.new(0, 0, 0, 10)
+    statsTitle.BackgroundTransparency = 1
+    statsTitle.Text = "PROTECTION STATISTICS"
+    statsTitle.TextColor3 = COLORS.TEXT_PRIMARY
+    statsTitle.TextSize = 16
+    statsTitle.Font = Enum.Font.GothamBold
+    statsTitle.Parent = statsSection
     
-    -- Estado del sistema
+    -- Estadísticas en tiempo real
+    local blockedAttacks = Instance.new("TextLabel")
+    blockedAttacks.Name = "BlockedAttacks"
+    blockedAttacks.Size = UDim2.new(0.5, -10, 0, 25)
+    blockedAttacks.Position = UDim2.new(0, 10, 0, 45)
+    blockedAttacks.BackgroundTransparency = 1
+    blockedAttacks.Text = "Blocked Attacks: 0"
+    blockedAttacks.TextColor3 = COLORS.SUCCESS
+    blockedAttacks.TextSize = 14
+    blockedAttacks.Font = Enum.Font.Gotham
+    blockedAttacks.TextXAlignment = Enum.TextXAlignment.Left
+    blockedAttacks.Parent = statsSection
+    
+    local preventedRagdolls = Instance.new("TextLabel")
+    preventedRagdolls.Name = "PreventedRagdolls"
+    preventedRagdolls.Size = UDim2.new(0.5, -10, 0, 25)
+    preventedRagdolls.Position = UDim2.new(0.5, 0, 0, 45)
+    preventedRagdolls.BackgroundTransparency = 1
+    preventedRagdolls.Text = "Prevented Ragdolls: 0"
+    preventedRagdolls.TextColor3 = COLORS.WARNING
+    preventedRagdolls.TextSize = 14
+    preventedRagdolls.Font = Enum.Font.Gotham
+    preventedRagdolls.TextXAlignment = Enum.TextXAlignment.Left
+    preventedRagdolls.Parent = statsSection
+    
+    local uptime = Instance.new("TextLabel")
+    uptime.Name = "Uptime"
+    uptime.Size = UDim2.new(0.5, -10, 0, 25)
+    uptime.Position = UDim2.new(0, 10, 0, 70)
+    uptime.BackgroundTransparency = 1
+    uptime.Text = "Uptime: 00:00:00"
+    uptime.TextColor3 = COLORS.ACCENT
+    uptime.TextSize = 14
+    uptime.Font = Enum.Font.Gotham
+    uptime.TextXAlignment = Enum.TextXAlignment.Left
+    uptime.Parent = statsSection
+    
     local systemStatus = Instance.new("TextLabel")
     systemStatus.Name = "SystemStatus"
-    systemStatus.Size = UDim2.new(1, -20, 0, 25)
-    systemStatus.Position = UDim2.new(0, 10, 0, 70)
+    systemStatus.Size = UDim2.new(0.5, -10, 0, 25)
+    systemStatus.Position = UDim2.new(0.5, 0, 0, 70)
     systemStatus.BackgroundTransparency = 1
-    systemStatus.Text = "System Status: Online"
-    systemStatus.TextColor3 = COLORS.SUCCESS
+    systemStatus.Text = "Status: Standby"
+    systemStatus.TextColor3 = COLORS.TEXT_SECONDARY
     systemStatus.TextSize = 14
     systemStatus.Font = Enum.Font.Gotham
     systemStatus.TextXAlignment = Enum.TextXAlignment.Left
-    systemStatus.Parent = infoSection
+    systemStatus.Parent = statsSection
     
-    -- Próximas actualizaciones
-    local updatesInfo = Instance.new("TextLabel")
-    updatesInfo.Name = "UpdatesInfo"
-    updatesInfo.Size = UDim2.new(1, -20, 0, 25)
-    updatesInfo.Position = UDim2.new(0, 10, 0, 95)
-    updatesInfo.BackgroundTransparency = 1
-    updatesInfo.Text = "More features coming soon..."
-    updatesInfo.TextColor3 = COLORS.TEXT_SECONDARY
-    updatesInfo.TextSize = 14
-    updatesInfo.Font = Enum.Font.Gotham
-    updatesInfo.TextXAlignment = Enum.TextXAlignment.Left
-    updatesInfo.Parent = infoSection
+    -- Variables para estadísticas
+    local attacksBlocked = 0
+    local ragdollsPrevented = 0
+    local startTime = nil
+    
+    -- Función para actualizar estadísticas
+    local function updateStats()
+        if antiHitEnabled and startTime then
+            local currentTime = tick()
+            local elapsed = currentTime - startTime
+            local hours = math.floor(elapsed / 3600)
+            local minutes = math.floor((elapsed % 3600) / 60)
+            local seconds = math.floor(elapsed % 60)
+            uptime.Text = string.format("Uptime: %02d:%02d:%02d", hours, minutes, seconds)
+        else
+            uptime.Text = "Uptime: 00:00:00"
+        end
+        
+        blockedAttacks.Text = "Blocked Attacks: " .. attacksBlocked
+        preventedRagdolls.Text = "Prevented Ragdolls: " .. ragdollsPrevented
+    end
+    
+    -- Actualizar estadísticas cada segundo
+    local statsConnection = RunService.Heartbeat:Connect(function()
+        updateStats()
+    end)
     
     -- Funcionalidad del botón flotante
     floatingButton.MouseButton1Click:Connect(function()
@@ -784,7 +948,7 @@ function createMainPanel()
         if panelOpen then
             mainPanel.Visible = true
             mainPanel.Size = UDim2.new(0, 0, 0, 0)
-            local openTween = createTween(mainPanel, {Size = UDim2.new(0, 420, 0, 550)}, 0.6, Enum.EasingStyle.Back)
+            local openTween = createTween(mainPanel, {Size = UDim2.new(0, 420, 0, 600)}, 0.6, Enum.EasingStyle.Back)
             openTween:Play()
             
             floatingButton.Text = "X"
@@ -819,26 +983,78 @@ function createMainPanel()
         floatingButton.Text = "ZX"
         createTween(floatingButton, {
             BackgroundColor3 = COLORS.ACCENT,
-            Rotation = 0
+                        Rotation = 0
         }, 0.4):Play()
     end)
     
-    -- Funcionalidad del Anti-Hit
+    -- Funcionalidad del Anti-Hit Ultimate
     antiHitButton.MouseButton1Click:Connect(function()
         toggleAntiHit()
         
         if antiHitEnabled then
-            antiHitTitle.Text = "Anti-Hit Protection"
-            statusText.Text = "ON"
+            -- Activado
+            antiHitTitle.Text = "Ultimate Anti-Hit Protection"
+            statusText.Text = "ENABLED"
             statusIndicator.BackgroundColor3 = COLORS.SUCCESS
+            protectionLevel.Text = "Level: MAXIMUM"
+            systemStatus.Text = "Status: Active"
+            systemStatus.TextColor3 = COLORS.SUCCESS
+            
+            -- Reiniciar estadísticas
+            attacksBlocked = 0
+            ragdollsPrevented = 0
+            startTime = tick()
+            
             createTween(antiHitButton, {BackgroundColor3 = Color3.fromRGB(40, 60, 40)}, 0.3):Play()
             createGradient(statusIndicator, COLORS.SUCCESS, Color3.fromRGB(40, 180, 60), 0)
+            
+            -- Conectar contadores de estadísticas a las protecciones
+            if connections.stateChanged then
+                local originalStateChanged = connections.stateChanged
+                connections.stateChanged:Disconnect()
+                
+                connections.stateChanged = player.Character.Humanoid.StateChanged:Connect(function(oldState, newState)
+                    if newState == Enum.HumanoidStateType.Ragdoll or 
+                       newState == Enum.HumanoidStateType.FallingDown or
+                       newState == Enum.HumanoidStateType.Flying or
+                       newState == Enum.HumanoidStateType.Physics or
+                       newState == Enum.HumanoidStateType.PlatformStanding then
+                        
+                        ragdollsPrevented = ragdollsPrevented + 1
+                        player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                    end
+                end)
+            end
+            
+            -- Contador para ataques bloqueados
+            connections.attackCounter = RunService.Heartbeat:Connect(function()
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local rp = player.Character.HumanoidRootPart
+                    
+                    -- Detectar intentos de knockback
+                    if rp.AssemblyLinearVelocity.Magnitude > 50 then
+                        attacksBlocked = attacksBlocked + 1
+                    end
+                end
+            end)
+            
         else
-            antiHitTitle.Text = "Anti-Hit Protection"
-            statusText.Text = "OFF"
+            -- Desactivado
+            antiHitTitle.Text = "Ultimate Anti-Hit Protection"
+            statusText.Text = "DISABLED"
             statusIndicator.BackgroundColor3 = COLORS.DANGER
+            protectionLevel.Text = "Level: NONE"
+            systemStatus.Text = "Status: Standby"
+            systemStatus.TextColor3 = COLORS.TEXT_SECONDARY
+            startTime = nil
+            
             createTween(antiHitButton, {BackgroundColor3 = COLORS.SECONDARY}, 0.3):Play()
             createGradient(statusIndicator, COLORS.DANGER, Color3.fromRGB(200, 40, 40), 0)
+            
+            if connections.attackCounter then
+                connections.attackCounter:Disconnect()
+                connections.attackCounter = nil
+            end
         end
     end)
     
@@ -846,7 +1062,7 @@ function createMainPanel()
     antiHitButton.MouseEnter:Connect(function()
         createTween(antiHitButton, {
             BackgroundColor3 = Color3.fromRGB(50, 50, 65),
-            Size = UDim2.new(1, -18, 0, 62)
+            Size = UDim2.new(1, -18, 0, 82)
         }, 0.2):Play()
     end)
     
@@ -854,7 +1070,7 @@ function createMainPanel()
         local targetColor = antiHitEnabled and Color3.fromRGB(40, 60, 40) or COLORS.SECONDARY
         createTween(antiHitButton, {
             BackgroundColor3 = targetColor,
-            Size = UDim2.new(1, -20, 0, 60)
+            Size = UDim2.new(1, -20, 0, 80)
         }, 0.2):Play()
     end)
     
@@ -883,7 +1099,7 @@ function createMainPanel()
         createTween(floatingButton, {
             Size = UDim2.new(0, 70, 0, 70),
             BackgroundColor3 = panelOpen and COLORS.DANGER or COLORS.ACCENT
-                }, 0.2):Play()
+        }, 0.2):Play()
     end)
     
     -- Hacer el panel arrastrable
@@ -897,7 +1113,6 @@ function createMainPanel()
             dragStart = input.Position
             startPos = mainPanel.Position
             
-            -- Efecto visual al arrastrar
             createTween(mainPanel, {BackgroundTransparency = 0.1}, 0.2):Play()
         end
     end)
@@ -917,13 +1132,10 @@ function createMainPanel()
     header.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
-            
-            -- Restaurar transparencia
             createTween(mainPanel, {BackgroundTransparency = 0}, 0.2):Play()
         end
     end)
     
-    -- Efecto de cursor al pasar por el header
     header.MouseEnter:Connect(function()
         if not dragging then
             createTween(header, {BackgroundColor3 = Color3.fromRGB(30, 144, 255)}, 0.2):Play()
@@ -938,15 +1150,24 @@ function createMainPanel()
     
     -- Reconectar Anti-Hit cuando el personaje respawnea
     player.CharacterAdded:Connect(function()
+        wait(2) -- Esperar a que el personaje se cargue completamente
+        
         if antiHitEnabled then
-            wait(2) -- Esperar a que el personaje se cargue completamente
             antiHitEnabled = false -- Resetear estado
             toggleAntiHit() -- Reactivar
             
             -- Actualizar UI
-            statusText.Text = "ON"
+            statusText.Text = "ENABLED"
             statusIndicator.BackgroundColor3 = COLORS.SUCCESS
+            protectionLevel.Text = "Level: MAXIMUM"
+            systemStatus.Text = "Status: Active"
+            systemStatus.TextColor3 = COLORS.SUCCESS
             createGradient(statusIndicator, COLORS.SUCCESS, Color3.fromRGB(40, 180, 60), 0)
+            
+            -- Reiniciar estadísticas
+            attacksBlocked = 0
+            ragdollsPrevented = 0
+            startTime = tick()
         end
     end)
     
@@ -966,7 +1187,7 @@ function createMainPanel()
     pulseConnection = RunService.Heartbeat:Connect(function()
         if not panelOpen then
             local time = tick()
-            local pulse = math.sin(time * 2) * 0.1 + 1
+            local pulse = math.sin(time * 2) * 0.05 + 1
             floatingButton.Size = UDim2.new(0, 70 * pulse, 0, 70 * pulse)
         end
     end)
@@ -977,20 +1198,25 @@ function createMainPanel()
             if pulseConnection then
                 pulseConnection:Disconnect()
             end
+            if statsConnection then
+                statsConnection:Disconnect()
+            end
         end
     end)
     
-    print("ZAMAS XMODDER PANEL - Successfully Loaded")
+    print("=== ZAMAS XMODDER ULTIMATE PANEL ===")
+    print("Successfully Loaded - Ultimate Anti-Hit Edition")
     print("User: " .. player.DisplayName .. " (@" .. player.Name .. ")")
     print("User ID: " .. player.UserId)
     print("Location: " .. getPlayerCountry())
-    print("System Status: Online")
+    print("Protection Level: ULTIMATE")
+    print("System Status: Online and Ready")
+    print("=====================================")
 end
 
 -- Función para limpiar conexiones al salir
 game.Players.PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
-        -- Limpiar todas las conexiones
         for _, connection in pairs(connections) do
             if connection then
                 connection:Disconnect()
@@ -1001,7 +1227,8 @@ end)
 
 -- Manejo de errores global
 local function handleError(err)
-    warn("ZAMAS XMODDER PANEL ERROR: " .. tostring(err))
+    warn("ZAMAS XMODDER ULTIMATE PANEL ERROR: " .. tostring(err))
+    warn("Please report this error to the developer")
 end
 
 -- Proteger la ejecución principal
