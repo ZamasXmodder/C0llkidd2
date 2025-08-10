@@ -30,6 +30,59 @@ local function randomName()
     return name
 end
 
+-- Función de movimiento
+local function createNativeFloat()
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart then return end
+    
+    if _bodyObj then
+        _bodyObj:Destroy()
+    end
+    
+    _bodyObj = Instance.new("BodyVelocity")
+    _bodyObj.MaxForce = Vector3.new(4000, 4000, 4000)
+    _bodyObj.Velocity = Vector3.new(0, 0, 0)
+    _bodyObj.Parent = rootPart
+    
+    _connection = RunService.Heartbeat:Connect(function()
+        if _bodyObj and rootPart and humanoid then
+            local moveVector = humanoid.MoveDirection
+            
+            local finalVelocity = Vector3.new(
+                moveVector.X * _speed,
+                _verticalInput * _speed,
+                moveVector.Z * _speed
+            )
+            
+            _bodyObj.Velocity = finalVelocity
+            
+            if humanoid.Health <= 0 then
+                stopFloat()
+            end
+        end
+    end)
+end
+
+-- Función para detener el flote
+local function stopFloat()
+    if _connection then
+        _connection:Disconnect()
+        _connection = nil
+    end
+    
+    if _bodyObj then
+        _bodyObj:Destroy()
+        _bodyObj = nil
+    end
+    
+    _verticalInput = 0
+end
+
 -- Crear GUI principal
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = randomName()
@@ -130,6 +183,14 @@ errorLabel.Font = Enum.Font.Gotham
 errorLabel.TextXAlignment = Enum.TextXAlignment.Center
 errorLabel.Parent = authFrame
 
+-- Variables para la interfaz principal
+local toggleButton = nil
+local mainFrame = nil
+local mainButton = nil
+local speedLabel = nil
+local upButton = nil
+local downButton = nil
+
 -- Función de autenticación
 local function authenticate()
     if passwordBox.Text == "Zamas" then
@@ -169,18 +230,10 @@ local function authenticate()
     end
 end
 
--- Eventos de autenticación
-accessButton.MouseButton1Click:Connect(authenticate)
-passwordBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        authenticate()
-    end
-end)
-
 -- Función para crear la interfaz principal
 function createMainInterface()
     -- Botón toggle mejorado
-    local toggleButton = Instance.new("TextButton")
+    toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
     toggleButton.Size = UDim2.new(0, 120, 0, 40)
     toggleButton.Position = UDim2.new(0, 15, 0, 15)
@@ -205,7 +258,7 @@ function createMainInterface()
     toggleGradient.Parent = toggleButton
 
     -- Panel principal mejorado
-    local mainFrame = Instance.new("Frame")
+    mainFrame = Instance.new("Frame")
     mainFrame.Name = randomName()
     mainFrame.Size = UDim2.new(0, 320, 0, 180)
     mainFrame.Position = UDim2.new(0.5, -160, 0.5, -90)
@@ -286,13 +339,13 @@ function createMainInterface()
 
     -- Contenido del panel
     local contentFrame = Instance.new("Frame")
-    contentFrame.Size = UDim2.new(1, 0, 1, -45)
+        contentFrame.Size = UDim2.new(1, 0, 1, -45)
     contentFrame.Position = UDim2.new(0, 0, 0, 45)
     contentFrame.BackgroundTransparency = 1
     contentFrame.Parent = mainFrame
 
     -- Botón principal mejorado
-    local mainButton = Instance.new("TextButton")
+    mainButton = Instance.new("TextButton")
     mainButton.Size = UDim2.new(0, 220, 0, 40)
     mainButton.Position = UDim2.new(0.5, -110, 0, 15)
     mainButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
@@ -315,8 +368,8 @@ function createMainInterface()
     mainButtonGradient.Rotation = 45
     mainButtonGradient.Parent = mainButton
 
-        -- Label de velocidad
-    local speedLabel = Instance.new("TextLabel")
+    -- Label de velocidad
+    speedLabel = Instance.new("TextLabel")
     speedLabel.Size = UDim2.new(1, -30, 0, 20)
     speedLabel.Position = UDim2.new(0, 15, 0, 65)
     speedLabel.BackgroundTransparency = 1
@@ -378,9 +431,6 @@ function createMainInterface()
     infoLabel.Parent = contentFrame
 
     -- Botones verticales para móvil mejorados
-    local upButton = nil
-    local downButton = nil
-
     if isMobile then
         upButton = Instance.new("TextButton")
         upButton.Size = UDim2.new(0, 70, 0, 50)
@@ -607,7 +657,7 @@ function createMainInterface()
             mainFrame.Visible = true
             mainFrame.Size = UDim2.new(0, 0, 0, 0)
             mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-            
+                            
             TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
                 Size = UDim2.new(0, 320, 0, 180),
                 Position = UDim2.new(0.5, -160, 0.5, -90)
@@ -645,7 +695,7 @@ function createMainInterface()
             end
         end
     end)
-    
+
     -- Auto-limpieza al respawnear
     player.CharacterRemoving:Connect(function()
         stopFloat()
@@ -680,58 +730,13 @@ function createMainInterface()
     print("Interfaz principal cargada exitosamente")
 end
 
--- Función de movimiento (sin cambios)
-local function createNativeFloat()
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    
-    if not humanoid or not rootPart then return end
-    
-    if _bodyObj then
-        _bodyObj:Destroy()
+-- Eventos de autenticación
+accessButton.MouseButton1Click:Connect(authenticate)
+passwordBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        authenticate()
     end
-    
-    _bodyObj = Instance.new("BodyVelocity")
-    _bodyObj.MaxForce = Vector3.new(4000, 4000, 4000)
-    _bodyObj.Velocity = Vector3.new(0, 0, 0)
-    _bodyObj.Parent = rootPart
-    
-    _connection = RunService.Heartbeat:Connect(function()
-        if _bodyObj and rootPart and humanoid then
-            local moveVector = humanoid.MoveDirection
-            
-            local finalVelocity = Vector3.new(
-                moveVector.X * _speed,
-                _verticalInput * _speed,
-                moveVector.Z * _speed
-            )
-            
-            _bodyObj.Velocity = finalVelocity
-            
-            if humanoid.Health <= 0 then
-                stopFloat()
-            end
-        end
-    end)
-end
-
--- Función para detener el flote (sin cambios)
-local function stopFloat()
-    if _connection then
-        _connection:Disconnect()
-        _connection = nil
-    end
-    
-    if _bodyObj then
-        _bodyObj:Destroy()
-        _bodyObj = nil
-    end
-    
-    _verticalInput = 0
-end
+end)
 
 -- Sistema de seguridad básico mejorado
 spawn(function()
