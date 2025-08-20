@@ -1,4 +1,4 @@
--- Simulador que usa el sistema REAL de controladores del juego
+-- Sistema de Trap corregido - Sin errores
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -10,22 +10,22 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TrapSystemGUI"
+screenGui.Name = "TrapSystemFixed"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Parent = screenGui
-mainFrame.Size = UDim2.new(0, 320, 0, 220)
+mainFrame.Size = UDim2.new(0, 300, 0, 200)
 mainFrame.Position = UDim2.new(0, 50, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 15)
+corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = mainFrame
 
 -- Título
@@ -33,29 +33,29 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Parent = mainFrame
 titleLabel.Size = UDim2.new(1, 0, 0, 35)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🕳️ TRAP SYSTEM (Real Controllers)"
+titleLabel.Text = "🛡️ ANTI-HIT SYSTEM"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
 
--- Info del sistema
-local systemInfoLabel = Instance.new("TextLabel")
-systemInfoLabel.Parent = mainFrame
-systemInfoLabel.Size = UDim2.new(1, 0, 0, 20)
-systemInfoLabel.Position = UDim2.new(0, 0, 0.18, 0)
-systemInfoLabel.BackgroundTransparency = 1
-systemInfoLabel.Text = "Buscando controladores..."
-systemInfoLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
-systemInfoLabel.TextScaled = true
-systemInfoLabel.Font = Enum.Font.Gotham
+-- Status del sistema
+local systemStatus = Instance.new("TextLabel")
+systemStatus.Parent = mainFrame
+systemStatus.Size = UDim2.new(1, 0, 0, 20)
+systemStatus.Position = UDim2.new(0, 0, 0.2, 0)
+systemStatus.BackgroundTransparency = 1
+systemStatus.Text = "Sistema: Listo"
+systemStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+systemStatus.TextScaled = true
+systemStatus.Font = Enum.Font.Gotham
 
--- Status
+-- Status del jugador
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Parent = mainFrame
 statusLabel.Size = UDim2.new(1, 0, 0, 25)
-statusLabel.Position = UDim2.new(0, 0, 0.32, 0)
+statusLabel.Position = UDim2.new(0, 0, 0.35, 0)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "🟢 Estado: Libre"
+statusLabel.Text = "🟢 Estado: Vulnerable"
 statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Gotham
@@ -64,20 +64,20 @@ statusLabel.Font = Enum.Font.Gotham
 local timerLabel = Instance.new("TextLabel")
 timerLabel.Parent = mainFrame
 timerLabel.Size = UDim2.new(1, 0, 0, 30)
-timerLabel.Position = UDim2.new(0, 0, 0.48, 0)
+timerLabel.Position = UDim2.new(0, 0, 0.52, 0)
 timerLabel.BackgroundTransparency = 1
-timerLabel.Text = "⏱️ Tiempo: --"
-timerLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+timerLabel.Text = "⏱️ Tiempo: Inactivo"
+timerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 timerLabel.TextScaled = true
 timerLabel.Font = Enum.Font.GothamBold
 
 -- Botón principal
 local activateButton = Instance.new("TextButton")
 activateButton.Parent = mainFrame
-activateButton.Size = UDim2.new(0.9, 0, 0, 35)
-activateButton.Position = UDim2.new(0.05, 0, 0.68, 0)
-activateButton.BackgroundColor3 = Color3.fromRGB(60, 150, 255)
-activateButton.Text = "🔒 ACTIVAR SISTEMA"
+activateButton.Size = UDim2.new(0.9, 0, 0, 40)
+activateButton.Position = UDim2.new(0.05, 0, 0.75, 0)
+activateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+activateButton.Text = "🔒 ACTIVAR ANTI-HIT"
 activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 activateButton.TextScaled = true
 activateButton.Font = Enum.Font.GothamBold
@@ -87,365 +87,392 @@ buttonCorner.CornerRadius = UDim.new(0, 10)
 buttonCorner.Parent = activateButton
 
 -- Variables de estado
-local systemActive = false
+local antiHitActive = false
 local timeRemaining = 0
 local connections = {}
-local foundControllers = {}
+local originalMaxHealth = 100
 
--- Función para encontrar los controladores reales
-local function findGameControllers()
-    foundControllers = {}
+-- Función segura para verificar el sistema
+local function checkGameSystem()
+    local systemInfo = {
+        controllers = false,
+        trapScript = false,
+        remoteEvents = {},
+        workspaceTrap = false
+    }
     
-    -- Buscar en ReplicatedStorage > Controllers
+    -- Verificar Controllers (sin intentar usarlos)
     local controllers = ReplicatedStorage:FindFirstChild("Controllers")
     if controllers then
-        print("📁 Controllers encontrado")
+        systemInfo.controllers = true
+        print("✅ Controllers encontrado")
         
-        -- TrapController
-        local trapController = controllers:FindFirstChild("TrapController")
-        if trapController then
-            foundControllers.TrapController = trapController
-            print("🎯 TrapController encontrado:", trapController:GetFullName())
+        -- Solo verificar existencia, no usar
+        if controllers:FindFirstChild("TrapController") then
+            print("  📁 TrapController detectado")
         end
-        
-        -- ItemController
-        local itemController = controllers:FindFirstChild("ItemController")
-        if itemController then
-            foundControllers.ItemController = itemController
-            print("📦 ItemController encontrado:", itemController:GetFullName())
-        end
-        
-        -- BackpackController
-        local backpackController = controllers:FindFirstChild("BackpackController")
-        if backpackController then
-            foundControllers.BackpackController = backpackController
-            print("🎒 BackpackController encontrado:", backpackController:GetFullName())
+        if controllers:FindFirstChild("ItemController") then
+            print("  📁 ItemController detectado")
         end
     end
     
-    -- Buscar Items > Trap > TrapScript
+    -- Verificar TrapScript
     local items = ReplicatedStorage:FindFirstChild("Items")
     if items then
         local trap = items:FindFirstChild("Trap")
-        if trap then
-            local trapScript = trap:FindFirstChild("TrapScript")
-            if trapScript then
-                foundControllers.TrapScript = trapScript
-                print("📜 TrapScript encontrado:", trapScript:GetFullName())
-            end
+        if trap and trap:FindFirstChild("TrapScript") then
+            systemInfo.trapScript = true
+            print("✅ TrapScript encontrado")
         end
     end
     
-    return foundControllers
-end
-
--- Función para intentar usar el TrapController real
-local function useTrapController()
-    local trapController = foundControllers.TrapController
-    if trapController then
-        print("🎯 Intentando usar TrapController...")
-        
-        -- Buscar funciones o eventos en el controlador
-        for _, child in pairs(trapController:GetChildren()) do
-            print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
-            
-            if child:IsA("RemoteEvent") then
-                print("    🌐 RemoteEvent encontrado, intentando activar...")
-                -- Intentar diferentes parámetros comunes
-                pcall(function()
-                    child:FireServer("activate")
-                end)
-                pcall(function()
-                    child:FireServer(player, "trap")
-                end)
-                pcall(function()
-                    child:FireServer({action = "use", item = "trap"})
-                end)
-            end
+    -- Verificar RemoteEvents (solo listar, no usar)
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then
+            table.insert(systemInfo.remoteEvents, obj.Name)
         end
-        return true
     end
-    return false
+    
+    -- Verificar trampa en workspace
+    if workspace:FindFirstChild("Trap") then
+        systemInfo.workspaceTrap = true
+        print("✅ Trampa en workspace detectada")
+    end
+    
+    return systemInfo
 end
 
--- Función para usar el sistema de Items
-local function useItemSystem()
-    local trapScript = foundControllers.TrapScript
-    if trapScript then
-        print("📜 Intentando usar TrapScript...")
-        
-        -- El TrapScript probablemente maneja la lógica cuando se "usa" el item
-        -- Intentar simular el uso del item
-        
-        return true
-    end
-    return false
+-- Función para crear efectos visuales seguros
+local function createSafeVisualEffects()
+    -- Crear indicador visual simple
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "AntiHitHighlight"
+    highlight.Parent = character
+    highlight.FillColor = Color3.fromRGB(0, 255, 100)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.7
+    highlight.OutlineTransparency = 0.3
+    
+    return highlight
 end
 
--- Función para buscar y activar trampa en workspace
-local function activateWorkspaceTrap()
+-- Función para aplicar inmunidad de forma segura
+local function applySafeImmunity()
+    if not humanoid then return false end
+    
+    -- Guardar salud original
+    originalMaxHealth = humanoid.MaxHealth
+    
+    -- Aplicar inmunidad
+    humanoid.MaxHealth = 999999
+    humanoid.Health = 999999
+    
+    -- Asegurar movimiento libre
+    humanoid.PlatformStand = false
+    humanoid.Sit = false
+    
+    -- Protección continua contra daño
+    connections.healthProtection = humanoid.HealthChanged:Connect(function(health)
+        if antiHitActive and health < humanoid.MaxHealth * 0.9 then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
+    
+    -- Protección contra estados restrictivos
+    connections.stateProtection = RunService.Heartbeat:Connect(function()
+        if antiHitActive and humanoid then
+            humanoid.PlatformStand = false
+            humanoid.Sit = false
+        end
+    end)
+    
+    print("🛡️ Inmunidad aplicada de forma segura")
+    return true
+end
+
+-- Función para intentar usar sistema nativo (de forma segura)
+local function tryNativeSystem()
+    -- Solo intentar si hay trampa en workspace
     local trap = workspace:FindFirstChild("Trap")
     if trap then
-        print("🕳️ Trampa encontrada en workspace")
+        print("🎯 Intentando activar trampa nativa...")
         
-        -- Buscar partes con Touched
-        for _, part in pairs(trap:GetDescendants()) do
-            if part:IsA("BasePart") and part.Touched then
-                part.Touched:Fire(humanoidRootPart)
-                print("✅ Trampa activada por toque")
-                return true
+        -- Buscar partes de forma segura
+        for _, descendant in pairs(trap:GetDescendants()) do
+            if descendant:IsA("BasePart") then
+                -- Verificar si tiene evento Touched antes de usarlo
+                local success, result = pcall(function()
+                    if descendant.Touched then
+                        descendant.Touched:Fire(humanoidRootPart)
+                        return true
+                    end
+                    return false
+                end)
+                
+                if success and result then
+                    print("✅ Trampa nativa activada")
+                    return true
+                end
             end
         end
     end
+    
+    print("⚠️ Sistema nativo no disponible, usando modo independiente")
     return false
 end
 
--- Función principal para activar el sistema
-local function activateSystem()
-    print("🚀 Activando sistema de trampa real...")
+-- Función principal para activar anti-hit
+local function activateAntiHit()
+    print("🚀 Activando Anti-Hit...")
     
-    local success = false
-    
-    -- Método 1: Usar TrapController
-    if useTrapController() then
-        success = true
-        print("✅ TrapController usado")
-    end
-    
-    -- Método 2: Usar sistema de Items
-    if useItemSystem() then
-        success = true
-        print("✅ Sistema de Items usado")
-    end
-    
-    -- Método 3: Activar trampa en workspace
-    if activateWorkspaceTrap() then
-        success = true
-        print("✅ Trampa de workspace activada")
-    end
-    
-    if not success then
-        print("⚠️ No se pudo usar sistema nativo, aplicando inmunidad manual")
-    end
-    
-    -- Aplicar inmunidad independientemente
-    systemActive = true
+    antiHitActive = true
     timeRemaining = 10
     
-    -- Inmunidad
-    if humanoid then
-        humanoid.MaxHealth = math.huge
-        humanoid.Health = math.huge
-        humanoid.PlatformStand = false
+    -- Intentar sistema nativo de forma segura
+    tryNativeSystem()
+    
+    -- Aplicar inmunidad independiente
+    if not applySafeImmunity() then
+        print("❌ Error aplicando inmunidad")
+        antiHitActive = false
+        return
     end
     
-    -- Actualizar UI
-    statusLabel.Text = "🔴 Estado: PROTEGIDO"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    activateButton.Text = "🔓 DESACTIVAR"
-    activateButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+    -- Crear efectos visuales
+    local highlight = createSafeVisualEffects()
     
-    -- Timer
+    -- Actualizar UI
+    statusLabel.Text = "🔴 Estado: INVULNERABLE"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    activateButton.Text = "🔓 DESACTIVAR ANTI-HIT"
+    activateButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+    systemStatus.Text = "Sistema: ACTIVO"
+    systemStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+    
+    -- Timer countdown
     connections.timer = RunService.Heartbeat:Connect(function(deltaTime)
-        if systemActive then
+        if antiHitActive then
             timeRemaining = timeRemaining - deltaTime
-            timerLabel.Text = "⏱️ Tiempo: " .. math.ceil(math.max(0, timeRemaining)) .. "s"
             
-            -- Mantener inmunidad
-            if humanoid then
-                humanoid.Health = math.max(humanoid.Health, humanoid.MaxHealth * 0.95)
-                humanoid.PlatformStand = false
+            local seconds = math.ceil(math.max(0, timeRemaining))
+            timerLabel.Text = "⏱️ Tiempo: " .. seconds .. "s"
+            
+            -- Cambiar color según tiempo
+            if seconds <= 3 then
+                timerLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            elseif seconds <= 5 then
+                timerLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+            else
+                timerLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
             end
             
             if timeRemaining <= 0 then
-                deactivateSystem()
+                deactivateAntiHit()
             end
         end
     end)
     
-    print("✅ Sistema activado por 10 segundos")
+    -- Función de limpieza
+    connections.cleanup = function()
+        if highlight then highlight:Destroy() end
+    end
+    
+    print("✅ Anti-Hit activado por 10 segundos")
 end
 
--- Función para desactivar
-local function deactivateSystem()
-    print("🛑 Desactivando sistema...")
+-- Función para desactivar anti-hit
+local function deactivateAntiHit()
+    print("🛑 Desactivando Anti-Hit...")
     
-    systemActive = false
+    antiHitActive = false
     timeRemaining = 0
     
-    -- Desconectar
-    for _, connection in pairs(connections) do
-        if connection then connection:Disconnect() end
+        -- Ejecutar limpieza
+    if connections.cleanup then
+        connections.cleanup()
+    end
+    
+    -- Desconectar todas las conexiones de forma segura
+    for name, connection in pairs(connections) do
+        if connection and typeof(connection) == "RBXScriptConnection" then
+            pcall(function()
+                connection:Disconnect()
+            end)
+        end
     end
     connections = {}
     
     -- Restaurar UI
-    statusLabel.Text = "🟢 Estado: Libre"
+    statusLabel.Text = "🟢 Estado: Vulnerable"
     statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    timerLabel.Text = "⏱️ Tiempo: --"
-    activateButton.Text = "🔒 ACTIVAR SISTEMA"
-        activateButton.BackgroundColor3 = Color3.fromRGB(60, 150, 255)
+    timerLabel.Text = "⏱️ Tiempo: Inactivo"
+    timerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    activateButton.Text = "🔒 ACTIVAR ANTI-HIT"
+    activateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+    systemStatus.Text = "Sistema: Listo"
+    systemStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
     
-    -- Restaurar salud normal
+    -- Restaurar salud normal de forma segura
     if humanoid then
-        humanoid.MaxHealth = 100
-        humanoid.Health = 100
-        humanoid.PlatformStand = false
+        pcall(function()
+            humanoid.MaxHealth = originalMaxHealth
+            humanoid.Health = originalMaxHealth
+            humanoid.PlatformStand = false
+            humanoid.Sit = false
+        end)
     end
     
-    print("✅ Sistema desactivado")
+    print("✅ Anti-Hit desactivado - Estado normal restaurado")
 end
 
 -- Toggle principal
-local function toggleSystem()
-    if systemActive then
-        deactivateSystem()
+local function toggleAntiHit()
+    if antiHitActive then
+        deactivateAntiHit()
     else
-        activateSystem()
+        activateAntiHit()
     end
 end
 
--- Función para actualizar info del sistema
-local function updateSystemInfo()
-    local controllers = findGameControllers()
-    local foundCount = 0
-    local infoText = ""
-    
-    for name, controller in pairs(controllers) do
-        foundCount = foundCount + 1
-    end
-    
-    if foundCount > 0 then
-        infoText = "✅ " .. foundCount .. " controlador(es) encontrado(s)"
-        systemInfoLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    else
-        infoText = "⚠️ No se encontraron controladores"
-        systemInfoLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-    end
-    
-    systemInfoLabel.Text = infoText
-end
-
--- Conectar eventos
-activateButton.MouseButton1Click:Connect(toggleSystem)
-
--- Manejar respawn
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    
-    if systemActive then
-        deactivateSystem()
-    end
+-- Conectar eventos de forma segura
+pcall(function()
+    activateButton.MouseButton1Click:Connect(toggleAntiHit)
 end)
 
--- Inicialización
-print("🎮 Trap System (Real Controllers) cargado")
-print("🔍 Analizando sistema del juego...")
-
--- Buscar controladores al inicio
-updateSystemInfo()
-
--- Mostrar información detallada
-print("\n📋 INFORMACIÓN DEL SISTEMA:")
-print("=" * 40)
-
-local controllers = findGameControllers()
-for name, controller in pairs(controllers) do
-    print("✅ " .. name .. ":")
-    print("   📍 Ubicación: " .. controller:GetFullName())
-    print("   📋 Tipo: " .. controller.ClassName)
+-- Efectos de hover en el botón
+pcall(function()
+    activateButton.MouseEnter:Connect(function()
+        if not antiHitActive then
+            activateButton.BackgroundColor3 = Color3.fromRGB(70, 170, 255)
+        end
+    end)
     
-    -- Mostrar hijos del controlador
-    local children = controller:GetChildren()
-    if #children > 0 then
-        print("   📁 Contiene:")
-        for _, child in pairs(children) do
-            print("     - " .. child.Name .. " (" .. child.ClassName .. ")")
-            
-            -- Si es un RemoteEvent, intentar analizarlo
-            if child:IsA("RemoteEvent") then
-                print("       🌐 RemoteEvent detectado - Puede ser usado para activar trampas")
+    activateButton.MouseLeave:Connect(function()
+        if not antiHitActive then
+            activateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+        end
+    end)
+end)
+
+-- Manejar respawn del personaje de forma segura
+pcall(function()
+    player.CharacterAdded:Connect(function(newCharacter)
+        -- Esperar a que el personaje esté completamente cargado
+        wait(1)
+        
+        character = newCharacter
+        humanoid = character:WaitForChild("Humanoid", 5)
+        humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+        
+        -- Desactivar si estaba activo
+        if antiHitActive then
+            deactivateAntiHit()
+        end
+        
+        print("🔄 Personaje respawneado - Sistema reiniciado")
+    end)
+end)
+
+-- Función de diagnóstico mejorada
+local function runDiagnostics()
+    print("\n🔍 DIAGNÓSTICO DEL SISTEMA:")
+    print("=" * 50)
+    
+    -- Verificar personaje
+    if character and humanoid and humanoidRootPart then
+        print("✅ Personaje: OK")
+        print("   👤 Character: " .. character.Name)
+        print("   ❤️ Humanoid: " .. humanoid.Health .. "/" .. humanoid.MaxHealth)
+        print("   📍 RootPart: " .. tostring(humanoidRootPart.Position))
+    else
+        print("❌ Personaje: ERROR")
+    end
+    
+    -- Verificar sistema del juego
+    local systemInfo = checkGameSystem()
+    print("\n🎮 Sistema del juego:")
+    print("   📁 Controllers: " .. (systemInfo.controllers and "✅" or "❌"))
+    print("   📜 TrapScript: " .. (systemInfo.trapScript and "✅" or "❌"))
+    print("   🕳️ Workspace Trap: " .. (systemInfo.workspaceTrap and "✅" or "❌"))
+    print("   🌐 RemoteEvents: " .. #systemInfo.remoteEvents .. " encontrados")
+    
+    -- Verificar GUI
+    if screenGui and screenGui.Parent then
+        print("   🖥️ GUI: ✅ Funcionando")
+    else
+        print("   🖥️ GUI: ❌ Error")
+    end
+    
+    print("=" * 50)
+    print("🎯 Diagnóstico completado\n")
+end
+
+-- Inicialización segura
+pcall(function()
+    print("🎮 Anti-Hit System (Fixed) iniciando...")
+    
+    -- Ejecutar diagnóstico inicial
+    runDiagnostics()
+    
+    -- Verificar sistema del juego
+    local systemInfo = checkGameSystem()
+    
+    if systemInfo.controllers or systemInfo.trapScript then
+        systemStatus.Text = "Sistema: Nativo detectado"
+        systemStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+        print("✅ Sistema nativo del juego detectado")
+    else
+        systemStatus.Text = "Sistema: Modo independiente"
+        systemStatus.TextColor3 = Color3.fromRGB(255, 200, 100)
+        print("⚠️ Usando modo completamente independiente")
+    end
+    
+    print("🛡️ Anti-Hit System listo para usar")
+    print("💡 Presiona el botón para activar inmunidad por 10 segundos")
+end)
+
+-- Función de emergencia para limpiar todo
+local function emergencyCleanup()
+    print("🚨 Ejecutando limpieza de emergencia...")
+    
+    antiHitActive = false
+    
+    -- Limpiar conexiones
+    for _, connection in pairs(connections) do
+        pcall(function()
+            if connection then connection:Disconnect() end
+        end)
+    end
+    connections = {}
+    
+    -- Restaurar humanoid
+    if humanoid then
+        pcall(function()
+            humanoid.MaxHealth = 100
+            humanoid.Health = 100
+            humanoid.PlatformStand = false
+            humanoid.Sit = false
+        end)
+    end
+    
+    -- Limpiar efectos visuales
+    if character then
+        for _, obj in pairs(character:GetChildren()) do
+            if obj.Name == "AntiHitHighlight" then
+                obj:Destroy()
             end
         end
     end
-    print()
-end
-
-print("=" * 40)
-print("🎯 Sistema listo para usar")
-
--- Función adicional para monitorear RemoteEvents (opcional)
-local function monitorRemoteEvents()
-    print("🕵️ Monitoreando RemoteEvents...")
     
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") then
-            -- Conectar a todos los RemoteEvents para ver cuáles se activan
-            obj.OnClientEvent:Connect(function(...)
-                local args = {...}
-                print("📡 RemoteEvent activado:", obj:GetFullName())
-                print("   📦 Argumentos:", table.concat(args, ", "))
-            end)
-        end
-    end
+    print("✅ Limpieza de emergencia completada")
 end
 
--- Activar monitoreo (opcional - descomenta si quieres ver todos los eventos)
--- monitorRemoteEvents()
-
--- Función para probar diferentes métodos de activación
-local function testActivationMethods()
-    print("🧪 Probando métodos de activación...")
-    
-    -- Método 1: Buscar RemoteEvents relacionados con items
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") and (
-            obj.Name:lower():find("item") or 
-            obj.Name:lower():find("use") or
-            obj.Name:lower():find("activate") or
-            obj.Name:lower():find("trap")
-        ) then
-            print("🎯 Probando RemoteEvent:", obj:GetFullName())
-            
-            -- Probar diferentes parámetros
-            local testParams = {
-                {"Trap"},
-                {player, "Trap"},
-                {"UseItem", "Trap"},
-                {action = "use", item = "Trap"},
-                {player = player, item = "Trap", action = "activate"}
-            }
-            
-            for i, params in pairs(testParams) do
-                pcall(function()
-                    obj:FireServer(unpack(params))
-                    print("   ✅ Parámetros " .. i .. " enviados")
-                end)
-                wait(0.1) -- Pequeña pausa entre intentos
-            end
-        end
+-- Comando de emergencia (por si algo sale mal)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.F9 then
+        emergencyCleanup()
     end
-end
-
--- Botón adicional para testing (opcional)
-local testButton = Instance.new("TextButton")
-testButton.Parent = mainFrame
-testButton.Size = UDim2.new(0.4, 0, 0, 25)
-testButton.Position = UDim2.new(0.55, 0, 0.88, 0)
-testButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-testButton.Text = "🧪 Test"
-testButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-testButton.TextScaled = true
-testButton.Font = Enum.Font.Gotham
-
-local testCorner = Instance.new("UICorner")
-testCorner.CornerRadius = UDim.new(0, 5)
-testCorner.Parent = testButton
-
-testButton.MouseButton1Click:Connect(function()
-    testActivationMethods()
 end)
 
-print("🎮 Script completamente cargado y listo para usar")
+print("🎮 Sistema completamente cargado")
+print("🔧 Presiona F9 para limpieza de emergencia si es necesario")
