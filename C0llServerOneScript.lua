@@ -16,9 +16,11 @@ local GAME_ID = 109983668079237
 -- Variables de control
 local isSearching = false
 local searchConnection = nil
+local isPanelVisible = false
 
 -- Crear GUI
 local ScreenGui = Instance.new("ScreenGui")
+local ToggleButton = Instance.new("TextButton")
 local MainFrame = Instance.new("Frame")
 local TitleLabel = Instance.new("TextLabel")
 local SearchButton = Instance.new("TextButton")
@@ -31,6 +33,39 @@ ScreenGui.Name = "BrainrotServerFinder"
 ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 
+-- Crear botón flotante para abrir/cerrar
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Position = UDim2.new(0, 10, 0.5, -30)
+ToggleButton.Size = UDim2.new(0, 60, 0, 60)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "🧠"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextScaled = true
+ToggleButton.ZIndex = 100
+
+-- Esquinas redondeadas para botón flotante
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 30)
+ToggleCorner.Parent = ToggleButton
+
+-- Sombra para botón flotante
+local ToggleShadow = Instance.new("Frame")
+ToggleShadow.Name = "Shadow"
+ToggleShadow.Parent = ScreenGui
+ToggleShadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleShadow.BackgroundTransparency = 0.7
+ToggleShadow.BorderSizePixel = 0
+ToggleShadow.Position = UDim2.new(0, 12, 0.5, -28)
+ToggleShadow.Size = UDim2.new(0, 60, 0, 60)
+ToggleShadow.ZIndex = 99
+
+local ShadowCorner = Instance.new("UICorner")
+ShadowCorner.CornerRadius = UDim.new(0, 30)
+ShadowCorner.Parent = ToggleShadow
+
 -- Configurar Frame principal
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
@@ -40,6 +75,7 @@ MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
 MainFrame.Size = UDim2.new(0, 400, 0, 300)
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = false -- Inicia oculto
 
 -- Esquinas redondeadas
 local Corner = Instance.new("UICorner")
@@ -117,7 +153,52 @@ CloseCorner.Parent = CloseButton
 local serversScanned = 0
 local secretsFound = 0
 
--- Función para animar botón
+-- Función para mostrar/ocultar panel con animación
+local function togglePanel()
+    isPanelVisible = not isPanelVisible
+    
+    if isPanelVisible then
+        MainFrame.Visible = true
+        MainFrame.Size = UDim2.new(0, 0, 0, 0)
+        MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+        
+        local tween = TweenService:Create(MainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+            {
+                Size = UDim2.new(0, 400, 0, 300),
+                Position = UDim2.new(0.5, -200, 0.5, -150)
+            }
+        )
+        tween:Play()
+        
+        -- Animación del botón
+        local buttonTween = TweenService:Create(ToggleButton,
+            TweenInfo.new(0.2),
+            {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}
+        )
+        buttonTween:Play()
+    else
+        local tween = TweenService:Create(MainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
+            {
+                Size = UDim2.new(0, 0, 0, 0),
+                Position = UDim2.new(0.5, 0, 0.5, 0)
+            }
+        )
+        tween:Play()
+        
+        tween.Completed:Connect(function()
+            MainFrame.Visible = false
+        end)
+        
+        -- Restaurar color del botón
+        local buttonTween = TweenService:Create(ToggleButton,
+            TweenInfo.new(0.2),
+            {BackgroundColor3 = Color3.fromRGB(255, 50, 150)}
+        )
+        buttonTween:Play()
+    end
+end
 local function animateButton(button)
     local tween = TweenService:Create(button, TweenInfo.new(0.1), {Size = button.Size - UDim2.new(0, 5, 0, 5)})
     tween:Play()
@@ -223,6 +304,11 @@ local function teleportToServer(jobId)
 end
 
 -- Eventos
+ToggleButton.MouseButton1Click:Connect(function()
+    animateButton(ToggleButton)
+    togglePanel()
+end)
+
 SearchButton.MouseButton1Click:Connect(function()
     animateButton(SearchButton)
     searchForSecrets()
@@ -230,15 +316,13 @@ end)
 
 CloseButton.MouseButton1Click:Connect(function()
     animateButton(CloseButton)
-    isSearching = false
-    if searchConnection then
-        searchConnection:Disconnect()
+    if isPanelVisible then
+        togglePanel()
     end
-    ScreenGui:Destroy()
 end)
 
 -- Notificación de inicio
-showNotification("🧠 Brainrot Finder", "Panel cargado correctamente!\nBusca servidores con secrets activos.", 5)
+showNotification("🧠 Brainrot Finder", "Panel cargado!\nPresiona el botón 🧠 para abrir el panel", 5)
 
 print("🧠 Brainrot Secret Finder cargado exitosamente!")
 print("📋 Funciones disponibles:")
