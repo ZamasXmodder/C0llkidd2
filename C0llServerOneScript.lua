@@ -1,4 +1,4 @@
--- Advanced Brainrot Server Finder Script for Roblox
+-- Fixed Advanced Brainrot Server Finder Script for Roblox
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
@@ -31,14 +31,6 @@ floatingButton.Parent = screenGui
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0.5, 0)
 corner.Parent = floatingButton
-
-local gradient = Instance.new("UIGradient")
-gradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(75, 0, 130))
-}
-gradient.Rotation = 45
-gradient.Parent = floatingButton
 
 -- Main Panel
 local mainPanel = Instance.new("Frame")
@@ -110,39 +102,16 @@ local statusCorner = Instance.new("UICorner")
 statusCorner.CornerRadius = UDim.new(0, 8)
 statusCorner.Parent = statusLabel
 
--- Brainrot Options (CORREGIDO)
-local brainrotData = {
-    {
-        name = "La Grande Combinacion",
-        icon = "🏆",
-        color = Color3.fromRGB(255, 215, 0),
-        searchNames = {"La Grande Combinacion", "la grande combinacion", "LA GRANDE COMBINACION", "LaGrandeCombinacion"}
-    },
-    {
-        name = "Graipussi Medussi",
-        icon = "🍇",
-        color = Color3.fromRGB(128, 0, 128),
-        searchNames = {"Graipussi Medussi", "graipussi medussi", "GRAIPUSSI MEDUSSI", "GraipussiMedussi"}
-    },
-    {
-        name = "La Vaca Saturno Saturnita",
-        icon = "🐄",
-        color = Color3.fromRGB(255, 105, 180),
-        searchNames = {"La Vaca Saturno Saturnita", "la vaca saturno saturnita", "LA VACA SATURNO SATURNITA", "LaVacaSaturnoSaturnita"}
-    },
-    {
-        name = "Garama And Madundung",
-        icon = "⚡💎",
-        color = Color3.fromRGB(255, 69, 0),
-        searchNames = {"Garama And Madundung", "garama and madundung", "GARAMA AND MADUNDUNG", "GaramaAndMadundung", "Garama and Madundung"}
-    },
-    {
-        name = "Tung Tung Tung Sahur",
-        icon = "🔔",
-        color = Color3.fromRGB(50, 205, 50),
-        searchNames = {"Tung Tung Tung Sahur", "tung tung tung sahur", "TUNG TUNG TUNG SAHUR", "TungTungTungSahur"}
-    }
-}
+-- Debug Label
+local debugLabel = Instance.new("TextLabel")
+debugLabel.Size = UDim2.new(0.9, 0, 0, 20)
+debugLabel.Position = UDim2.new(0.05, 0, 0, 105)
+debugLabel.BackgroundTransparency = 1
+debugLabel.Text = "Debug: Ready"
+debugLabel.TextSize = 12
+debugLabel.Font = Enum.Font.SourceSans
+debugLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+debugLabel.Parent = mainPanel
 
 -- ESP System
 local espConnections = {}
@@ -180,11 +149,6 @@ local function createESP(part, text, color)
     textLabel.TextStrokeTransparency = 0
     textLabel.Parent = frame
     
-    -- Pulsing effect
-    local pulseInfo = TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-    local pulseTween = TweenService:Create(frame, pulseInfo, {BackgroundTransparency = 0.5})
-    pulseTween:Play()
-    
     -- Distance updater
     local connection = RunService.Heartbeat:Connect(function()
         if part.Parent and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -205,56 +169,59 @@ local function clearESP()
     espFolder:ClearAllChildren()
 end
 
--- Search Function
-local function searchBrainrot(brainrotInfo)
+-- Improved Search Function with better detection
+local function searchBrainrot(brainrotName, searchTerms)
     clearESP()
-    statusLabel.Text = "🔍 Searching for " .. brainrotInfo.name .. "..."
+    statusLabel.Text = "🔍 Searching for " .. brainrotName .. "..."
     statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+    debugLabel.Text = "Debug: Scanning workspace..."
     
     local found = false
+    local itemsFound = 0
     
-    -- Search in current server first
+    -- More comprehensive search
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("UnionOperation") then
-            for _, searchName in pairs(brainrotInfo.searchNames) do
-                if obj.Name == searchName then
+        if obj:IsA("BasePart") then
+            -- Check object name with multiple variations
+            for _, searchTerm in pairs(searchTerms) do
+                if obj.Name:lower():find(searchTerm:lower()) or obj.Name == searchTerm then
                     found = true
-                    statusLabel.Text = "✅ " .. brainrotInfo.name .. " FOUND!"
+                    itemsFound = itemsFound + 1
+                    
+                    statusLabel.Text = "✅ " .. brainrotName .. " FOUND! (" .. itemsFound .. ")"
                     statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                    debugLabel.Text = "Debug: Found at " .. obj:GetFullName()
                     
                     -- Create ESP
-                    createESP(obj, brainrotInfo.icon .. " " .. brainrotInfo.name .. " " .. brainrotInfo.icon, brainrotInfo.color)
+                    local espText = "🎯 " .. brainrotName .. " 🎯"
+                    if brainrotName == "Tung Tung Tung Sahur" then
+                        createESP(obj, "🔔 " .. brainrotName .. " 🔔", Color3.fromRGB(50, 205, 50))
+                    elseif brainrotName == "La Grande Combinacion" then
+                        createESP(obj, "🏆 " .. brainrotName .. " 🏆", Color3.fromRGB(255, 215, 0))
+                    else
+                        createESP(obj, espText, Color3.fromRGB(255, 100, 100))
+                    end
                     
-                    -- Teleport to item
-                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Teleport to first found item
+                    if itemsFound == 1 and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         player.Character.HumanoidRootPart.CFrame = obj.CFrame + Vector3.new(0, 10, 0)
                     end
                     
-                    -- Success sound
-                    local sound = Instance.new("Sound")
-                    sound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
-                    sound.Volume = 0.7
-                    sound.Parent = workspace
-                    sound:Play()
-                    
-                    return
+                    break
                 end
             end
             
-            -- Check StringValues
+            -- Check all children for StringValues or other value objects
             for _, child in pairs(obj:GetChildren()) do
-                if child:IsA("StringValue") then
-                    for _, searchName in pairs(brainrotInfo.searchNames) do
-                        if child.Value == searchName then
+                if child:IsA("StringValue") or child:IsA("ObjectValue") then
+                    for _, searchTerm in pairs(searchTerms) do
+                        if tostring(child.Value):lower():find(searchTerm:lower()) then
                             found = true
-                            statusLabel.Text = "✅ " .. brainrotInfo.name .. " FOUND!"
+                            itemsFound = itemsFound + 1
+                            statusLabel.Text = "✅ " .. brainrotName .. " FOUND in StringValue!"
                             statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-                            createESP(obj, brainrotInfo.icon .. " " .. brainrotInfo.name .. " " .. brainrotInfo.icon, brainrotInfo.color)
-                            
-                            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                                player.Character.HumanoidRootPart.CFrame = obj.CFrame + Vector3.new(0, 10, 0)
-                            end
-                            return
+                            createESP(obj, "🎯 " .. brainrotName .. " 🎯", Color3.fromRGB(255, 100, 100))
+                            break
                         end
                     end
                 end
@@ -262,52 +229,65 @@ local function searchBrainrot(brainrotInfo)
         end
     end
     
-    if not found then
-        statusLabel.Text = "🌐 Searching other servers..."
+    if found then
+        -- Play success sound
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+        sound.Volume = 0.7
+        sound.Parent = workspace
+        sound:Play()
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+    else
+        statusLabel.Text = "❌ " .. brainrotName .. " not found in current server"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        debugLabel.Text = "Debug: No matches found. Trying server hop..."
+        
+        -- Try server hopping
+        wait(2)
+        statusLabel.Text = "🌐 Attempting to find new server..."
         statusLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
-        searchOtherServers(brainrotInfo)
+        
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, player)
+        end)
     end
 end
 
-local function searchOtherServers(brainrotInfo)
-    local gameId = game.PlaceId
-    local attempts = 0
-    local maxAttempts = 20
-    
-    spawn(function()
-        while attempts < maxAttempts do
-            attempts = attempts + 1
-            statusLabel.Text = "🔄 Server " .. attempts .. "/" .. maxAttempts .. " - " .. brainrotInfo.name
-            
-            wait(2)
-            
-            -- Try teleporting to different server
-            pcall(function()
-                TeleportService:Teleport(gameId, player)
-            end)
-            
-            wait(5)
-            
-            -- Quick scan in new server
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Part") or obj:IsA("MeshPart") then
-                    for _, searchName in pairs(brainrotInfo.searchNames) do
-                        if obj.Name == searchName then
-                            statusLabel.Text = "✅ Found " .. brainrotInfo.name .. " in new server!"
-                            statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-                            wait(1)
-                            searchBrainrot(brainrotInfo)
-                            return
-                        end
-                    end
-                end
-            end
-        end
-        
-        statusLabel.Text = "❌ " .. brainrotInfo.name .. " not found. Try again later."
-        statusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-    end)
-end
+-- Brainrot data with comprehensive search terms
+local brainrotOptions = {
+    {
+        name = "La Grande Combinacion",
+        icon = "🏆",
+        color = Color3.fromRGB(255, 215, 0),
+                searchTerms = {"la grande combinacion", "grande combinacion", "combinacion", "lagrandecombinacion"}
+    },
+    {
+        name = "Graipussi Medussi",
+        icon = "🍇",
+        color = Color3.fromRGB(128, 0, 128),
+        searchTerms = {"graipussi medussi", "graipussi", "medussi", "graipussimedussi"}
+    },
+    {
+        name = "La Vaca Saturno Saturnita",
+        icon = "🐄",
+        color = Color3.fromRGB(255, 105, 180),
+        searchTerms = {"la vaca saturno saturnita", "vaca saturno", "saturnita", "lavacasaturnosaturnita"}
+    },
+    {
+        name = "Garama And Madundung",
+        icon = "⚡💎",
+        color = Color3.fromRGB(255, 69, 0),
+        searchTerms = {"garama and madundung", "garama", "madundung", "garamaandmadundung"}
+    },
+    {
+        name = "Tung Tung Tung Sahur",
+        icon = "🔔",
+        color = Color3.fromRGB(50, 205, 50),
+        searchTerms = {"tung tung tung sahur", "tung tung", "sahur", "tungtungtungsahur", "tung"}
+    }
+}
 
 -- Create Brainrot Buttons
 local function createBrainrotButton(brainrotInfo, position)
@@ -317,7 +297,7 @@ local function createBrainrotButton(brainrotInfo, position)
     button.BackgroundColor3 = brainrotInfo.color
     button.BorderSizePixel = 0
     button.Text = brainrotInfo.icon .. " " .. brainrotInfo.name
-        button.TextSize = 16
+    button.TextSize = 16
     button.Font = Enum.Font.SourceSansBold
     button.TextColor3 = Color3.new(1, 1, 1)
     button.TextStrokeTransparency = 0
@@ -326,19 +306,6 @@ local function createBrainrotButton(brainrotInfo, position)
     local buttonCorner = Instance.new("UICorner")
     buttonCorner.CornerRadius = UDim.new(0, 10)
     buttonCorner.Parent = button
-    
-    -- Button gradient
-    local buttonGradient = Instance.new("UIGradient")
-    buttonGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, brainrotInfo.color),
-        ColorSequenceKeypoint.new(1, Color3.new(
-            brainrotInfo.color.R * 0.7,
-            brainrotInfo.color.G * 0.7,
-            brainrotInfo.color.B * 0.7
-        ))
-    }
-    buttonGradient.Rotation = 45
-    buttonGradient.Parent = button
     
     -- Hover effect
     button.MouseEnter:Connect(function()
@@ -373,15 +340,16 @@ local function createBrainrotButton(brainrotInfo, position)
         end)
         
         -- Start search
-        searchBrainrot(brainrotInfo)
+        debugLabel.Text = "Debug: Starting search for " .. brainrotInfo.name
+        searchBrainrot(brainrotInfo.name, brainrotInfo.searchTerms)
     end)
     
     return button
 end
 
 -- Create all brainrot buttons
-for i, brainrotInfo in ipairs(brainrotData) do
-    createBrainrotButton(brainrotInfo, 110 + (i - 1) * 60)
+for i, brainrotInfo in ipairs(brainrotOptions) do
+    createBrainrotButton(brainrotInfo, 130 + (i - 1) * 60)
 end
 
 -- Panel Animation Functions
@@ -448,38 +416,49 @@ game:GetService("UserInputService").InputEnded:Connect(function(input)
     end
 end)
 
--- Auto-scan feature for testing
-local function autoScanOnJoin()
-    wait(3)
-    statusLabel.Text = "🎮 Ready! Click any brainrot to search servers"
+-- Auto-scan all items on load for debugging
+local function debugScanWorkspace()
+    wait(2)
+    debugLabel.Text = "Debug: Scanning all items..."
+    
+    local itemCount = 0
+    local foundItems = {}
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            itemCount = itemCount + 1
+            local name = obj.Name:lower()
+            
+            -- Check for any brainrot-related terms
+            if name:find("tung") or name:find("sahur") or name:find("grande") or name:find("combinacion") or 
+               name:find("graipussi") or name:find("medussi") or name:find("vaca") or name:find("saturno") or
+               name:find("garama") or name:find("madundung") then
+                table.insert(foundItems, obj.Name .. " at " .. obj:GetFullName())
+            end
+        end
+    end
+    
+    debugLabel.Text = "Debug: Scanned " .. itemCount .. " items. Found " .. #foundItems .. " potential matches"
+    
+    if #foundItems > 0 then
+        print("🔍 POTENTIAL BRAINROT ITEMS FOUND:")
+        for _, item in pairs(foundItems) do
+            print("  - " .. item)
+        end
+    end
+    
+    statusLabel.Text = "🎮 Ready! Found " .. #foundItems .. " potential items"
     statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 end
 
--- Floating button pulse animation
-spawn(function()
-    while true do
-        local pulseTween = TweenService:Create(floatingButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-            Size = UDim2.new(0, 75, 0, 75)
-        })
-        pulseTween:Play()
-        
-        pulseTween.Completed:Connect(function()
-            local returnTween = TweenService:Create(floatingButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                Size = UDim2.new(0, 70, 0, 70)
-            })
-            returnTween:Play()
-        end)
-        
-        wait(2)
-    end
-end)
-
 -- Initialize
-spawn(autoScanOnJoin)
+spawn(debugScanWorkspace)
 
-print("🧠 Advanced Brainrot Server Finder Loaded!")
+print("🧠 Fixed Brainrot Server Finder Loaded!")
+print("🔧 Debug mode enabled - check console for item detection")
 print("📋 Available Brainrots:")
-for _, brainrot in ipairs(brainrotData) do
+for _, brainrot in ipairs(brainrotOptions) do
     print("  " .. brainrot.icon .. " " .. brainrot.name)
+    print("    Search terms: " .. table.concat(brainrot.searchTerms, ", "))
 end
 print("🎯 Click the floating button to open the panel!")
