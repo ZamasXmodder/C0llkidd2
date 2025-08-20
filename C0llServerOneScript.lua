@@ -1,230 +1,272 @@
--- Anti-Hit GUI Script para Steal a Brainrot (Sistema Nativo del Gancho)
--- Crear ScreenGui
+-- Simulador de Trampa usando el sistema nativo del juego
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Crear GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AntiHitGUI"
-screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+screenGui.Name = "TrapSimulatorGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
 
--- Crear Frame principal
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Parent = screenGui
-mainFrame.Size = UDim2.new(0, 200, 0, 100)
+mainFrame.Size = UDim2.new(0, 280, 0, 180)
 mainFrame.Position = UDim2.new(0, 50, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 
--- Esquinas redondeadas
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
+corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = mainFrame
 
 -- Título
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Name = "Title"
 titleLabel.Parent = mainFrame
-titleLabel.Size = UDim2.new(1, 0, 0, 30)
-titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.Size = UDim2.new(1, 0, 0, 35)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Anti-Hit Panel"
+titleLabel.Text = "🕳️ Trap Simulator (Native)"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Font = Enum.Font.GothamBold
 
--- Botón Anti-Hit
-local antiHitButton = Instance.new("TextButton")
-antiHitButton.Name = "AntiHitButton"
-antiHitButton.Parent = mainFrame
-antiHitButton.Size = UDim2.new(0.8, 0, 0, 40)
-antiHitButton.Position = UDim2.new(0.1, 0, 0.4, 0)
-antiHitButton.BackgroundColor3 = Color3.fromRGB(70, 130, 200)
-antiHitButton.Text = "Anti-Hit: OFF"
-antiHitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-antiHitButton.TextScaled = true
-antiHitButton.Font = Enum.Font.SourceSansBold
+-- Status
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Parent = mainFrame
+statusLabel.Size = UDim2.new(1, 0, 0, 25)
+statusLabel.Position = UDim2.new(0, 0, 0.22, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Estado: Libre"
+statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
 
--- Esquinas redondeadas para el botón
+-- Timer
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Parent = mainFrame
+timerLabel.Size = UDim2.new(1, 0, 0, 30)
+timerLabel.Position = UDim2.new(0, 0, 0.4, 0)
+timerLabel.BackgroundTransparency = 1
+timerLabel.Text = "⏱️ Tiempo: --"
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+timerLabel.TextScaled = true
+timerLabel.Font = Enum.Font.GothamBold
+
+-- Botón principal
+local simulateButton = Instance.new("TextButton")
+simulateButton.Parent = mainFrame
+simulateButton.Size = UDim2.new(0.85, 0, 0, 40)
+simulateButton.Position = UDim2.new(0.075, 0, 0.65, 0)
+simulateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+simulateButton.Text = "🔒 Activar Simulación"
+simulateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+simulateButton.TextScaled = true
+simulateButton.Font = Enum.Font.GothamBold
+
 local buttonCorner = Instance.new("UICorner")
 buttonCorner.CornerRadius = UDim.new(0, 8)
-buttonCorner.Parent = antiHitButton
+buttonCorner.Parent = simulateButton
 
 -- Variables de estado
-local antiHitEnabled = false
-local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local hookConnection = nil
-local originalHookPart = nil
+local isSimulating = false
+local trapTimer = 0
+local connections = {}
 
--- Función para encontrar la trampa exacta en el workspace
-local function findTrapInWorkspace()
-    local trap = nil
-    
-    -- Buscar específicamente "Trap" en workspace (como vimos en Dex)
-    trap = workspace:FindFirstChild("Trap")
+-- Función para encontrar la trampa real en workspace
+local function findRealTrap()
+    -- Buscar trampa directamente en workspace
+    local trap = workspace:FindFirstChild("Trap")
     if trap then
-        print("Trampa encontrada en workspace: " .. trap.Name)
+        print("✅ Trampa encontrada en workspace:", trap:GetFullName())
         return trap
     end
     
-    -- Buscar en todos los descendientes por si está anidada
+    -- Buscar en todos los descendientes
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == "Trap" then
-            trap = obj
-            print("Trampa encontrada: " .. obj:GetFullName())
-            break
+            print("✅ Trampa encontrada:", obj:GetFullName())
+            return obj
         end
     end
     
-    -- Buscar por otras variaciones si no encuentra "Trap" exacto
-    if not trap then
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and (
-                obj.Name:lower() == "trap" or
-                obj.Name == "TrapModel" or
-                obj.Name == "TrapPart" or
-                (obj:FindFirstChild("TrapScript") and obj:IsA("BasePart"))
-            ) then
-                trap = obj
-                print("Trampa encontrada por script: " .. obj:GetFullName())
-                break
+    print("❌ No se encontró trampa en workspace")
+    return nil
+end
+
+-- Función para buscar el sistema de red del juego
+local function findNetworkSystem()
+    -- Buscar en ReplicatedStorage
+    local packages = ReplicatedStorage:FindFirstChild("Packages")
+    if packages then
+        print("📦 Packages encontrado")
+        
+        -- Buscar sistema de red
+        for _, obj in pairs(packages:GetDescendants()) do
+            if obj.Name:lower():find("net") or obj.Name:lower():find("remote") then
+                print("🌐 Sistema de red encontrado:", obj:GetFullName())
+                return obj
             end
         end
     end
     
+    return nil
+end
+
+-- Función para activar la trampa usando el sistema nativo
+local function activateNativeTrap()
+    local trap = findRealTrap()
     if not trap then
-        print("No se encontró trampa. Asegúrate de haber colocado una trampa primero.")
+        warn("⚠️ No se puede simular: trampa no encontrada")
+        return false
     end
     
-    return trap
-end
-
--- Función para simular pisar la trampa específica encontrada
-local function simulateTrapStep()
-    local trap = findTrapInWorkspace()
-    
-    if trap then
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            -- Verificar si la trampa tiene el evento Touched
-            if trap.Touched then
-                -- Disparar el evento Touched de la trampa real
-                trap.Touched:Fire(humanoidRootPart)
-                originalHookPart = trap
-                print("Simulando toque en trampa: " .. trap:GetFullName())
-                
-                -- También intentar activar cualquier script que tenga
-                local trapScript = trap:FindFirstChild("TrapScript")
-                if trapScript then
-                    print("TrapScript encontrado en la trampa")
-                end
-                
-                return true
-            else
-                print("La trampa no tiene evento Touched disponible")
-            end
-        end
+    -- Intentar activar la trampa tocándola
+    if trap.Touched then
+        trap.Touched:Fire(humanoidRootPart)
+        print("🎯 Trampa activada por toque")
     end
     
-    return false
+    -- Buscar y ejecutar TrapScript si existe
+    local trapScript = trap:FindFirstChild("TrapScript")
+    if trapScript then
+        print("📜 TrapScript encontrado")
+        -- El script se ejecutará automáticamente al tocar
+    end
+    
+    return true
 end
 
--- Función para mantener el efecto de la trampa activo
+-- Función para mantener el efecto de trampa
 local function maintainTrapEffect()
-    if originalHookPart and originalHookPart.Parent then
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            -- Reactivar el toque cada pocos frames para mantener el efecto
-            originalHookPart.Touched:Fire(humanoidRootPart)
-        end
+    local trap = findRealTrap()
+    if trap and trap.Touched then
+        -- Reactivar cada pocos frames para mantener el efecto
+        trap.Touched:Fire(humanoidRootPart)
     end
-end
-
--- Función para activar/desactivar Anti-Hit
-local function toggleAntiHit()
-    antiHitEnabled = not antiHitEnabled
     
-    if antiHitEnabled then
-        -- Activar Anti-Hit usando el sistema nativo del juego
-        antiHitButton.Text = "Anti-Hit: ON"
-        antiHitButton.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
-        
-        -- Intentar simular el gancho real
-        local success = simulateHookStep()
-        
-        if success then
-            -- Mantener el efecto activo
-            hookConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                if antiHitEnabled then
-                    maintainHookEffect()
-                    
-                    -- Asegurar que el jugador pueda moverse
-                    if humanoid then
-                        humanoid.PlatformStand = false
-                        humanoid.Sit = false
-                    end
-                end
-            end)
-            
-            print("Anti-Hit activado - Sistema nativo del gancho simulado")
-        else
-            -- Fallback: método manual si no encontramos el gancho
-            print("Gancho no encontrado, usando método alternativo...")
-            
-            if humanoid then
-                humanoid.MaxHealth = math.huge
-                humanoid.Health = math.huge
-                humanoid.PlatformStand = false
-            end
-            
-            -- Crear efecto de inmunidad manual
-            hookConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                if antiHitEnabled and humanoid then
-                    humanoid.Health = math.huge
-                    humanoid.PlatformStand = false
-                end
-            end)
-        end
-        
-    else
-        -- Desactivar Anti-Hit
-        antiHitButton.Text = "Anti-Hit: OFF"
-        antiHitButton.BackgroundColor3 = Color3.fromRGB(70, 130, 200)
-        
-        -- Desconectar el mantenimiento del efecto
-        if hookConnection then
-            hookConnection:Disconnect()
-            hookConnection = nil
-        end
-        
-        -- Restaurar valores normales
-        if humanoid then
-            humanoid.MaxHealth = 100
-            humanoid.Health = 100
-            humanoid.PlatformStand = false
-        end
-        
-        originalHookPart = nil
-        print("Anti-Hit desactivado - Vulnerable normalmente")
+    -- Mantener inmunidad
+    if humanoid then
+        humanoid.Health = math.max(humanoid.Health, humanoid.MaxHealth * 0.95)
+        humanoid.PlatformStand = false -- Permitir movimiento libre
+        humanoid.Sit = false
     end
 end
 
--- Conectar el botón
-antiHitButton.MouseButton1Click:Connect(toggleAntiHit)
+-- Función para iniciar la simulación
+local function startSimulation()
+    print("🚀 Iniciando simulación de trampa...")
+    
+    -- Activar trampa nativa
+    if not activateNativeTrap() then
+        return false
+    end
+    
+    -- Configurar timer de 10 segundos
+    trapTimer = 10
+    isSimulating = true
+    
+    -- Actualizar UI
+    statusLabel.Text = "Estado: Atrapado (Simulado)"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    simulateButton.Text = "🔓 Detener Simulación"
+    simulateButton.BackgroundColor3 = Color3.fromRGB(250, 100, 100)
+    
+    -- Conexión para mantener efecto
+    connections.maintain = RunService.Heartbeat:Connect(function()
+        if isSimulating then
+            maintainTrapEffect()
+        end
+    end)
+    
+    -- Conexión para countdown
+    connections.timer = RunService.Heartbeat:Connect(function(deltaTime)
+        if isSimulating then
+            trapTimer = trapTimer - deltaTime
+            timerLabel.Text = "⏱️ Tiempo: " .. math.ceil(math.max(0, trapTimer)) .. "s"
+            
+            if trapTimer <= 0 then
+                stopSimulation()
+            end
+        end
+    end)
+    
+    print("✅ Simulación iniciada - Duración: 10 segundos")
+    return true
+end
 
--- Reconectar cuando el personaje respawnee
+-- Función para detener la simulación
+local function stopSimulation()
+    print("🛑 Deteniendo simulación...")
+    
+    isSimulating = false
+    trapTimer = 0
+    
+    -- Desconectar todas las conexiones
+    for _, connection in pairs(connections) do
+        if connection then
+            connection:Disconnect()
+        end
+    end
+    connections = {}
+    
+    -- Restaurar UI
+    statusLabel.Text = "Estado: Libre"
+    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    timerLabel.Text = "⏱️ Tiempo: --"
+    simulateButton.Text = "🔒 Activar Simulación"
+    simulateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+    
+    -- Restaurar stats normales
+    if humanoid then
+        humanoid.MaxHealth = 100
+        humanoid.Health = 100
+        humanoid.PlatformStand = false
+    end
+    
+    print("✅ Simulación detenida")
+end
+
+-- Función principal de toggle
+local function toggleSimulation()
+    if isSimulating then
+        stopSimulation()
+    else
+        startSimulation()
+    end
+end
+
+-- Conectar botón
+simulateButton.MouseButton1Click:Connect(toggleSimulation)
+
+-- Manejar respawn del personaje
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = character:WaitForChild("Humanoid")
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     
-    -- Si Anti-Hit estaba activado, reactivarlo
-    if antiHitEnabled then
-        antiHitEnabled = false -- Resetear para que toggleAntiHit lo active correctamente
-        wait(1) -- Esperar a que el personaje cargue completamente
-        toggleAntiHit()
+    -- Detener simulación si estaba activa
+    if isSimulating then
+        stopSimulation()
     end
 end)
 
-print("Anti-Hit GUI cargado - Buscando sistema nativo de trampas...")
+-- Inicialización
+print("🎮 Trap Simulator (Native) cargado")
+print("📍 Buscando sistema nativo del juego...")
+
+-- Buscar componentes del juego
+findNetworkSystem()
+local trap = findRealTrap()
+if trap then
+    print("🎯 Listo para simular trampa:", trap.Name)
+else
+    print("⚠️ Coloca una trampa primero para usar la simulación")
+end
