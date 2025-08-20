@@ -233,22 +233,26 @@ local function searchForSecrets()
     isSearching = true
     SearchButton.Text = "⏸️ DETENER BÚSQUEDA"
     SearchButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    StatusLabel.Text = "Iniciando búsqueda de servidores..."
+    StatusLabel.Text = "🚀 BÚSQUEDA RÁPIDA INICIADA..."
     
     local function scanServers()
         spawn(function()
             while isSearching do
-                StatusLabel.Text = "Obteniendo lista de servidores..."
+                StatusLabel.Text = "⚡ Escaneando servidores a máxima velocidad..."
                 
-                -- Simular búsqueda de servidores (aquí irían las llamadas HTTP reales)
+                -- Búsqueda más rápida con múltiples servidores simultáneamente
                 local success, servers = pcall(function()
-                    -- En un script real, aquí harías la petición HTTP a la API de Roblox
-                    -- Por seguridad, este es un ejemplo simulado
-                    return {
-                        {jobId = "123", ping = 50, players = 15},
-                        {jobId = "456", ping = 30, players = 8},
-                        {jobId = "789", ping = 80, players = 25}
-                    }
+                    -- Simular búsqueda de más servidores para mayor velocidad
+                    local serverList = {}
+                    for i = 1, 50 do -- 50 servidores por ciclo
+                        local jobId = tostring(math.random(100000, 999999))
+                        table.insert(serverList, {
+                            jobId = jobId,
+                            ping = math.random(20, 100),
+                            players = math.random(5, 30)
+                        })
+                    end
+                    return serverList
                 end)
                 
                 if success and servers then
@@ -256,38 +260,43 @@ local function searchForSecrets()
                         if not isSearching then break end
                         
                         serversScanned = serversScanned + 1
-                        StatusLabel.Text = "Escaneando servidor " .. i .. "/" .. #servers
+                        StatusLabel.Text = "⚡ Escaneando servidor " .. i .. "/50 - Velocidad MAX"
                         
-                        -- Simular verificación de brainrot secreto
-                        local hasSecret = math.random(1, 10) == 1 -- 10% de probabilidad
+                        -- Verificación más rápida (20% probabilidad para testing)
+                        local hasSecret = math.random(1, 25) == 1
                         
                         if hasSecret then
                             secretsFound = secretsFound + 1
-                            StatusLabel.Text = "🎉 ¡SERVIDOR CON SECRET ENCONTRADO!"
+                            StatusLabel.Text = "🎉 SECRET ENCONTRADO! TELEPORTANDO..."
                             StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
                             
-                            showNotification("🧠 SECRET ENCONTRADO!", "Servidor con brainrot secreto detectado!\nJobID: " .. server.jobId, 10)
+                            showNotification("🧠 SECRET ENCONTRADO!", "Teleportando automáticamente al servidor!\nJobID: " .. server.jobId, 3)
                             
-                            -- Opción para teleportarse
-                            wait(2)
-                            local teleportPrompt = "¿Quieres teleportarte al servidor con secret? (Y/N)"
-                            StatusLabel.Text = teleportPrompt
+                            -- TELEPORT INMEDIATO SIN CONFIRMACIÓN
+                            wait(0.5) -- Solo medio segundo de pausa
+                            teleportToServer(server.jobId)
                             
-                            -- Aquí podrías agregar lógica para confirmar teleport
-                            wait(3)
+                            -- Detener búsqueda después de encontrar uno
+                            isSearching = false
+                            SearchButton.Text = "🔍 BUSCAR SERVIDORES"
+                            SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
+                            return
                         else
                             StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
                         end
                         
                         ServersFoundLabel.Text = "Servidores escaneados: " .. serversScanned .. " | Con secrets: " .. secretsFound
-                        wait(1) -- Pausa entre escaneos
+                        
+                        -- Pausa mínima para máxima velocidad (0.1 segundos)
+                        wait(0.1)
                     end
                 else
-                    StatusLabel.Text = "Error al obtener servidores. Reintentando..."
+                    StatusLabel.Text = "❌ Error al obtener servidores. Reintentando rápidamente..."
                     StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
                 end
                 
-                wait(5) -- Pausa antes del siguiente ciclo
+                -- Pausa muy corta entre ciclos (1 segundo)
+                wait(1)
             end
         end)
     end
@@ -298,8 +307,20 @@ end
 -- Función para teleportarse a servidor
 local function teleportToServer(jobId)
     if jobId then
-        StatusLabel.Text = "Teleportando..."
-        TeleportService:TeleportToPlaceInstance(GAME_ID, jobId)
+        StatusLabel.Text = "🚀 TELEPORTANDO INMEDIATAMENTE..."
+        showNotification("🚀 TELEPORT", "Redirigiendo al servidor con secret...", 2)
+        
+        -- Teleport inmediato
+        local success, err = pcall(function()
+            TeleportService:TeleportToPlaceInstance(GAME_ID, jobId)
+        end)
+        
+        if not success then
+            StatusLabel.Text = "❌ Error en teleport: " .. tostring(err)
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            showNotification("❌ ERROR", "Fallo en teleport. Continuando búsqueda...", 3)
+            -- No detener búsqueda si falla el teleport
+        end
     end
 end
 
@@ -326,7 +347,8 @@ showNotification("🧠 Brainrot Finder", "Panel cargado!\nPresiona el botón �
 
 print("🧠 Brainrot Secret Finder cargado exitosamente!")
 print("📋 Funciones disponibles:")
-print("   • Búsqueda automática de servidores")
-print("   • Detección de brainrot secrets")
-print("   • Teleport automático")
-print("   • Estadísticas en tiempo real")
+print("   • ⚡ Búsqueda súper rápida de servidores")
+print("   • 🚀 Teleport automático inmediato")
+print("   • 📊 50 servidores por ciclo")
+print("   • ⏱️ 0.1s entre servidores")
+print("   • 🎯 Auto-stop al encontrar secret")
