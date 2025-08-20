@@ -1,4 +1,4 @@
--- GUI Panel para Bypass de Knockback Walls
+-- Bypass GUI para Knockback Walls - Método Avanzado
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -6,11 +6,15 @@ local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Variables de estado
 local bypassEnabled = false
-local originalCollisions = {}
+local originalVelocity = Vector3.new(0, 0, 0)
 local connections = {}
+local hookedFunctions = {}
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -18,163 +22,149 @@ screenGui.Name = "WallBypassPanel"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Frame principal
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 200, 0, 80)
+mainFrame.Size = UDim2.new(0, 220, 0, 90)
 mainFrame.Position = UDim2.new(0, 10, 0, 10)
-mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 
--- Esquinas redondeadas
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
+corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = mainFrame
 
--- Botón principal
 local bypassButton = Instance.new("TextButton")
-bypassButton.Name = "BypassButton"
-bypassButton.Size = UDim2.new(0, 180, 0, 40)
+bypassButton.Size = UDim2.new(0, 200, 0, 50)
 bypassButton.Position = UDim2.new(0, 10, 0, 20)
-bypassButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+bypassButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
 bypassButton.Text = "BypassWall: OFF"
 bypassButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 bypassButton.TextScaled = true
 bypassButton.Font = Enum.Font.GothamBold
 bypassButton.Parent = mainFrame
 
--- Esquinas del botón
 local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0, 6)
+buttonCorner.CornerRadius = UDim.new(0, 8)
 buttonCorner.Parent = bypassButton
 
--- Función para identificar knockback walls
-local function isKnockbackWall(part)
+-- Función para interceptar y anular knockback
+local function interceptKnockback()
+    -- Método 1: Anular cambios de velocidad del RootPart
+    local originalAssemblyLinearVelocity = rootPart.AssemblyLinearVelocity
+    
+    connections.velocityMonitor = RunService.Heartbeat:Connect(function()
+        if bypassEnabled then
+            local currentVelocity = rootPart.AssemblyLinearVelocity
+            
+            -- Detectar knockback (cambio súbito de velocidad)
+            local velocityChange = (currentVelocity - originalVelocity).Magnitude
+            
+            if velocityChange > 50 then -- Umbral de knockback detectado
+                -- Restaurar velocidad anterior inmediatamente
+                rootPart.AssemblyLinearVelocity = originalVelocity
+                rootPart.Velocity = Vector3.new(0, 0, 0)
+            else
+                originalVelocity = currentVelocity
+            end
+        end
+    end)
+    
+    -- Método 2: Hook de BodyVelocity y BodyPosition
+    connections.bodyObjectMonitor = RunService.Heartbeat:Connect(function()
+        if bypassEnabled then
+            for _, obj in pairs(rootPart:GetChildren()) do
+                if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") or 
+                   obj:IsA("BodyThrust") or obj:IsA("BodyAngularVelocity") then
+                    obj:Destroy()
+                end
+            end
+        end
+    end)
+end
+
+-- Función para anular scripts de knockback mediante hooking
+local function hookKnockbackFunctions()
+    -- Hook de funciones comunes de knockback
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        if bypassEnabled then
+            -- Interceptar llamadas que aplican knockback
+            if method == "ApplyImpulse" or method == "ApplyAngularImpulse" then
+                if self == rootPart or self.Parent == character then
+                    return -- Anular impulso
+                end
+            end
+            
+            -- Interceptar cambios de velocidad
+            if method == "SetPrimaryPartCFrame" and self == character then
+                return -- Anular teletransporte forzado
+            end
+        end
+        
+        return oldNamecall(self, ...)
+    end)
+    
+    hookedFunctions.namecall = oldNamecall
+end
+
+-- Función para anular colisiones específicas
+local function bypassCollisions()
+    connections.collisionBypass = RunService.Stepped:Connect(function()
+        if bypassEnabled then
+            -- Detectar y anular colisiones con knockback walls
+            local raycast = workspace:Raycast(rootPart.Position, humanoid.MoveDirection * 5)
+            
+            if raycast and raycast.Instance then
+                local hitPart = raycast.Instance
+                
+                -- Verificar si es una knockback wall
+                if isKnockbackWall(hitPart) then
+                    -- Temporalmente desactivar colisión
+                    hitPart.CanCollide = false
+                    
+                    -- Reactivar después de pasar
+                    task.wait(0.1)
+                    if hitPart and hitPart.Parent then
+                        hitPart.CanCollide = true
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- Función mejorada para identificar knockback walls
+function isKnockbackWall(part)
     if not part or not part:IsA("BasePart") then
         return false
     end
     
-    -- Métodos de identificación de knockback walls:
-    -- 1. Por nombre común
     local name = part.Name:lower()
-    if name:find("knockback") or name:find("wall") or name:find("barrier") or name:find("invisible") then
-        return true
-    end
+    local parent = part.Parent and part.Parent.Name:lower() or ""
     
-    -- 2. Por material específico (común en estos juegos)
-    if part.Material == Enum.Material.ForceField or part.Material == Enum.Material.Neon then
-        return true
-    end
+    -- Patrones específicos de Steal a Brainrot
+    local knockbackPatterns = {
+        "knockback", "wall", "barrier", "invisible", "push", "bounce",
+        "teleport", "kill", "damage", "hurt", "death"
+    }
     
-    -- 3. Por transparencia (walls invisibles)
-    if part.Transparency > 0.8 and part.CanCollide then
-        return true
-    end
-    
-    -- 4. Por scripts específicos (buscar scripts de knockback)
-    for _, child in pairs(part:GetChildren()) do
-        if child:IsA("Script") or child:IsA("LocalScript") then
-            local source = child.Source or ""
-            if source:lower():find("knockback") or source:lower():find("push") then
-                return true
-            end
+    for _, pattern in pairs(knockbackPatterns) do
+        if name:find(pattern) or parent:find(pattern) then
+            return true
         end
+    end
+    
+    -- Verificar por propiedades físicas
+    if part.Material == Enum.Material.ForceField or 
+       part.Material == Enum.Material.Neon or
+       (part.Transparency > 0.5 and part.CanCollide) then
+        return true
     end
     
     return false
-end
-
--- Función para encontrar todas las knockback walls
-local function findKnockbackWalls()
-    local walls = {}
-    
-    -- Buscar en workspace
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if isKnockbackWall(obj) then
-            table.insert(walls, obj)
-        end
-    end
-    
-    return walls
-end
-
--- Función para desactivar colisiones
-local function disableWallCollisions()
-    local walls = findKnockbackWalls()
-    
-    for _, wall in pairs(walls) do
-        if wall and wall.Parent then
-            -- Guardar estado original
-            if not originalCollisions[wall] then
-                originalCollisions[wall] = {
-                    canCollide = wall.CanCollide,
-                    transparency = wall.Transparency
-                }
-            end
-            
-            -- Desactivar colisión
-            wall.CanCollide = false
-            
-            -- Opcional: hacer más transparente para indicar bypass
-            if wall.Transparency < 0.9 then
-                wall.Transparency = 0.9
-            end
-        end
-    end
-end
-
--- Función para restaurar colisiones
-local function restoreWallCollisions()
-    for wall, originalState in pairs(originalCollisions) do
-        if wall and wall.Parent then
-            wall.CanCollide = originalState.canCollide
-            wall.Transparency = originalState.transparency
-        end
-    end
-    originalCollisions = {}
-end
-
--- Función para desactivar scripts de knockback
-local function disableKnockbackScripts()
-    local walls = findKnockbackWalls()
-    
-    for _, wall in pairs(walls) do
-        if wall and wall.Parent then
-            -- Desactivar scripts de knockback
-            for _, script in pairs(wall:GetDescendants()) do
-                if script:IsA("Script") or script:IsA("LocalScript") then
-                    script.Disabled = true
-                end
-            end
-            
-            -- Desconectar eventos de Touched
-            for _, connection in pairs(getconnections(wall.Touched)) do
-                connection:Disable()
-            end
-        end
-    end
-end
-
--- Función para reactivar scripts de knockback
-local function enableKnockbackScripts()
-    local walls = findKnockbackWalls()
-    
-    for _, wall in pairs(walls) do
-        if wall and wall.Parent then
-            -- Reactivar scripts
-            for _, script in pairs(wall:GetDescendants()) do
-                if script:IsA("Script") or script:IsA("LocalScript") then
-                    script.Disabled = false
-                end
-            end
-            
-            -- Reconectar eventos de Touched
-            for _, connection in pairs(getconnections(wall.Touched)) do
-                connection:Enable()
-            end
-        end
-    end
 end
 
 -- Función principal de toggle
@@ -182,33 +172,40 @@ local function toggleBypass()
     bypassEnabled = not bypassEnabled
     
     if bypassEnabled then
-        -- Activar bypass
         bypassButton.Text = "BypassWall: ON"
-        bypassButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+        bypassButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
         
-        -- Desactivar colisiones y scripts
-        disableWallCollisions()
-        disableKnockbackScripts()
+        -- Activar todos los métodos de bypass
+        interceptKnockback()
+        hookKnockbackFunctions()
+        bypassCollisions()
         
-        -- Monitoreo continuo para nuevas walls
-        connections.monitor = RunService.Heartbeat:Connect(function()
-            disableWallCollisions()
+        -- Protección adicional contra lag
+        connections.antiLag = RunService.Heartbeat:Connect(function()
+            if rootPart.Velocity.Magnitude > 100 then
+                rootPart.Velocity = Vector3.new(0, 0, 0)
+            end
         end)
         
     else
-        -- Desactivar bypass
         bypassButton.Text = "BypassWall: OFF"
-        bypassButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+        bypassButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
         
-        -- Restaurar estado original
-        restoreWallCollisions()
-        enableKnockbackScripts()
-        
-        -- Desconectar monitoreo
-        if connections.monitor then
-            connections.monitor:Disconnect()
-            connections.monitor = nil
+        -- Desconectar todas las conexiones
+        for _, connection in pairs(connections) do
+            if connection then
+                connection:Disconnect()
+            end
         end
+        connections = {}
+        
+        -- Restaurar hooks
+        for name, originalFunc in pairs(hookedFunctions) do
+            if originalFunc then
+                hookmetamethod(game, "__" .. name, originalFunc)
+            end
+        end
+        hookedFunctions = {}
     end
 end
 
@@ -216,18 +213,17 @@ end
 local function animateButton()
     local tween = TweenService:Create(
         bypassButton,
-        TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
-        {Size = UDim2.new(0, 175, 0, 38)}
+        TweenInfo.new(0.05, Enum.EasingStyle.Quad),
+        {Size = UDim2.new(0, 195, 0, 48)}
     )
     tween:Play()
     
     tween.Completed:Connect(function()
-        local tween2 = TweenService:Create(
+        TweenService:Create(
             bypassButton,
-            TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
-            {Size = UDim2.new(0, 180, 0, 40)}
-        )
-        tween2:Play()
+            TweenInfo.new(0.05, Enum.EasingStyle.Quad),
+            {Size = UDim2.new(0, 200, 0, 50)}
+        ):Play()
     end)
 end
 
@@ -237,22 +233,33 @@ bypassButton.MouseButton1Click:Connect(function()
     toggleBypass()
 end)
 
--- Tecla de acceso rápido (F para toggle)
+-- Tecla rápida (X para toggle)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    if input.KeyCode == Enum.KeyCode.F then
+    if input.KeyCode == Enum.KeyCode.X then
         toggleBypass()
     end
 end)
 
--- Limpiar al salir
-game.Players.PlayerRemoving:Connect(function(leavingPlayer)
-    if leavingPlayer == player then
-        for _, connection in pairs(connections) do
-            if connection then
-                connection:Disconnect()
-            end
+-- Actualizar referencias del personaje
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Reactivar bypass si estaba activo
+    if bypassEnabled then
+        bypassEnabled = false
+        toggleBypass()
+    end
+end)
+
+-- Limpieza al salir
+game:BindToClose(function()
+    for _, connection in pairs(connections) do
+        if connection then
+            connection:Disconnect()
         end
     end
 end)
