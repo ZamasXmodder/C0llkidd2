@@ -58,92 +58,74 @@ local humanoid = character:WaitForChild("Humanoid")
 local hookConnection = nil
 local originalHookPart = nil
 
--- Función para encontrar una trampa real en el workspace
+-- Función para encontrar la trampa exacta en el workspace
 local function findTrapInWorkspace()
     local trap = nil
     
-    -- Buscar específicamente por "Trampa" y variaciones
+    -- Buscar específicamente "Trap" en workspace (como vimos en Dex)
+    trap = workspace:FindFirstChild("Trap")
+    if trap then
+        print("Trampa encontrada en workspace: " .. trap.Name)
+        return trap
+    end
+    
+    -- Buscar en todos los descendientes por si está anidada
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (
-            string.lower(obj.Name):find("trampa") or 
-            string.lower(obj.Name):find("trap") or
-            string.lower(obj.Name):find("freeze") or
-            string.lower(obj.Name):find("hook") or
-            string.lower(obj.Name):find("gancho") or
-            obj.Name == "Trampa" or
-            obj.Name == "TrampaModel" or
-            obj.Name == "TrapPart"
-        ) then
+        if obj:IsA("BasePart") and obj.Name == "Trap" then
             trap = obj
-            print("Trampa encontrada: " .. obj.Name)
+            print("Trampa encontrada: " .. obj:GetFullName())
             break
         end
     end
     
-    -- Buscar en modelos que contengan trampas
+    -- Buscar por otras variaciones si no encuentra "Trap" exacto
     if not trap then
         for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") and (
-                string.lower(obj.Name):find("trampa") or 
-                string.lower(obj.Name):find("trap")
+            if obj:IsA("BasePart") and (
+                obj.Name:lower() == "trap" or
+                obj.Name == "TrapModel" or
+                obj.Name == "TrapPart" or
+                (obj:FindFirstChild("TrapScript") and obj:IsA("BasePart"))
             ) then
-                -- Buscar la parte principal dentro del modelo
-                for _, part in pairs(obj:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        trap = part
-                        print("Trampa encontrada en modelo: " .. obj.Name .. " -> " .. part.Name)
-                        break
-                    end
-                end
-                if trap then break end
+                trap = obj
+                print("Trampa encontrada por script: " .. obj:GetFullName())
+                break
             end
         end
     end
     
-    -- Buscar por características físicas (partes con eventos de toque y scripts)
     if not trap then
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Touched then
-                -- Verificar si tiene RemoteEvents o scripts relacionados con congelamiento
-                local hasRelevantScript = false
-                for _, child in pairs(obj:GetDescendants()) do
-                    if (child:IsA("RemoteEvent") or child:IsA("Script") or child:IsA("LocalScript")) and
-                       (string.lower(child.Name):find("freeze") or 
-                        string.lower(child.Name):find("trap") or
-                        string.lower(child.Name):find("hook") or
-                        string.lower(child.Name):find("immun")) then
-                        hasRelevantScript = true
-                        break
-                    end
-                end
-                if hasRelevantScript then
-                    trap = obj
-                    print("Trampa encontrada por script: " .. obj.Name)
-                    break
-                end
-            end
-        end
+        print("No se encontró trampa. Asegúrate de haber colocado una trampa primero.")
     end
     
     return trap
 end
 
--- Función para simular pisar la trampa (activar sistema nativo)
+-- Función para simular pisar la trampa específica encontrada
 local function simulateTrapStep()
     local trap = findTrapInWorkspace()
     
-    if trap and trap.Touched then
-        -- Simular que el HumanoidRootPart toca la trampa
+    if trap then
         local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
         if humanoidRootPart then
-            -- Disparar el evento Touched de la trampa
-            trap.Touched:Fire(humanoidRootPart)
-            originalHookPart = trap
-            print("Simulando toque en trampa: " .. trap.Name)
-            return true
+            -- Verificar si la trampa tiene el evento Touched
+            if trap.Touched then
+                -- Disparar el evento Touched de la trampa real
+                trap.Touched:Fire(humanoidRootPart)
+                originalHookPart = trap
+                print("Simulando toque en trampa: " .. trap:GetFullName())
+                
+                -- También intentar activar cualquier script que tenga
+                local trapScript = trap:FindFirstChild("TrapScript")
+                if trapScript then
+                    print("TrapScript encontrado en la trampa")
+                end
+                
+                return true
+            else
+                print("La trampa no tiene evento Touched disponible")
+            end
         end
-    else
-        print("No se encontró ninguna trampa en el workspace")
     end
     
     return false
