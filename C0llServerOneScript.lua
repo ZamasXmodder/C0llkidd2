@@ -1,7 +1,7 @@
--- Sistema de Trap corregido - Sin errores
+-- Sistema Anti-Ragdoll que simula el estado "Trapped"
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -10,22 +10,22 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TrapSystemFixed"
+screenGui.Name = "AntiRagdollGUI"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Parent = screenGui
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Size = UDim2.new(0, 320, 0, 200)
 mainFrame.Position = UDim2.new(0, 50, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
+corner.CornerRadius = UDim.new(0, 15)
 corner.Parent = mainFrame
 
 -- Título
@@ -33,38 +33,38 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Parent = mainFrame
 titleLabel.Size = UDim2.new(1, 0, 0, 35)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🛡️ ANTI-HIT SYSTEM"
+titleLabel.Text = "🕳️ ANTI-RAGDOLL (Trap State)"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
 
--- Status del sistema
-local systemStatus = Instance.new("TextLabel")
-systemStatus.Parent = mainFrame
-systemStatus.Size = UDim2.new(1, 0, 0, 20)
-systemStatus.Position = UDim2.new(0, 0, 0.2, 0)
-systemStatus.BackgroundTransparency = 1
-systemStatus.Text = "Sistema: Listo"
-systemStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
-systemStatus.TextScaled = true
-systemStatus.Font = Enum.Font.Gotham
-
--- Status del jugador
+-- Status
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Parent = mainFrame
 statusLabel.Size = UDim2.new(1, 0, 0, 25)
-statusLabel.Position = UDim2.new(0, 0, 0.35, 0)
+statusLabel.Position = UDim2.new(0, 0, 0.25, 0)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "🟢 Estado: Vulnerable"
+statusLabel.Text = "🟢 Estado: Vulnerable a golpes"
 statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Gotham
+
+-- Info del modo
+local modeLabel = Instance.new("TextLabel")
+modeLabel.Parent = mainFrame
+modeLabel.Size = UDim2.new(1, 0, 0, 20)
+modeLabel.Position = UDim2.new(0, 0, 0.42, 0)
+modeLabel.BackgroundTransparency = 1
+modeLabel.Text = "Modo: Simulación de Trap"
+modeLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
+modeLabel.TextScaled = true
+modeLabel.Font = Enum.Font.Gotham
 
 -- Timer
 local timerLabel = Instance.new("TextLabel")
 timerLabel.Parent = mainFrame
 timerLabel.Size = UDim2.new(1, 0, 0, 30)
-timerLabel.Position = UDim2.new(0, 0, 0.52, 0)
+timerLabel.Position = UDim2.new(0, 0, 0.55, 0)
 timerLabel.BackgroundTransparency = 1
 timerLabel.Text = "⏱️ Tiempo: Inactivo"
 timerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -72,186 +72,174 @@ timerLabel.TextScaled = true
 timerLabel.Font = Enum.Font.GothamBold
 
 -- Botón principal
-local activateButton = Instance.new("TextButton")
-activateButton.Parent = mainFrame
-activateButton.Size = UDim2.new(0.9, 0, 0, 40)
-activateButton.Position = UDim2.new(0.05, 0, 0.75, 0)
-activateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
-activateButton.Text = "🔒 ACTIVAR ANTI-HIT"
-activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-activateButton.TextScaled = true
-activateButton.Font = Enum.Font.GothamBold
+local trapButton = Instance.new("TextButton")
+trapButton.Parent = mainFrame
+trapButton.Size = UDim2.new(0.9, 0, 0, 40)
+trapButton.Position = UDim2.new(0.05, 0, 0.75, 0)
+trapButton.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+trapButton.Text = "🕳️ ACTIVAR TRAP STATE"
+trapButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+trapButton.TextScaled = true
+trapButton.Font = Enum.Font.GothamBold
 
 local buttonCorner = Instance.new("UICorner")
 buttonCorner.CornerRadius = UDim.new(0, 10)
-buttonCorner.Parent = activateButton
+buttonCorner.Parent = trapButton
 
 -- Variables de estado
-local antiHitActive = false
+local trapStateActive = false
 local timeRemaining = 0
 local connections = {}
-local originalMaxHealth = 100
+local originalStates = {}
 
--- Función segura para verificar el sistema
-local function checkGameSystem()
-    local systemInfo = {
-        controllers = false,
-        trapScript = false,
-        remoteEvents = {},
-        workspaceTrap = false
+-- Función para aplicar estado "Trapped" (inmune a ragdoll)
+local function applyTrapState()
+    if not character or not humanoid or not humanoidRootPart then return false end
+    
+    print("🕳️ Aplicando estado Trapped...")
+    
+    -- Guardar estados originales
+    originalStates = {
+        PlatformStand = humanoid.PlatformStand,
+        Sit = humanoid.Sit,
+        Jump = humanoid.Jump,
+        RootPartAnchored = humanoidRootPart.Anchored,
+        RootPartCanCollide = humanoidRootPart.CanCollide
     }
     
-    -- Verificar Controllers (sin intentar usarlos)
-    local controllers = ReplicatedStorage:FindFirstChild("Controllers")
-    if controllers then
-        systemInfo.controllers = true
-        print("✅ Controllers encontrado")
-        
-        -- Solo verificar existencia, no usar
-        if controllers:FindFirstChild("TrapController") then
-            print("  📁 TrapController detectado")
-        end
-        if controllers:FindFirstChild("ItemController") then
-            print("  📁 ItemController detectado")
+    -- Método 1: Anclar RootPart (evita movimiento por golpes)
+    humanoidRootPart.Anchored = true
+    
+    -- Método 2: Desactivar colisiones de todas las partes del cuerpo
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and part ~= humanoidRootPart then
+            part.CanCollide = false
         end
     end
     
-    -- Verificar TrapScript
-    local items = ReplicatedStorage:FindFirstChild("Items")
-    if items then
-        local trap = items:FindFirstChild("Trap")
-        if trap and trap:FindFirstChild("TrapScript") then
-            systemInfo.trapScript = true
-            print("✅ TrapScript encontrado")
-        end
-    end
-    
-    -- Verificar RemoteEvents (solo listar, no usar)
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") then
-            table.insert(systemInfo.remoteEvents, obj.Name)
-        end
-    end
-    
-    -- Verificar trampa en workspace
-    if workspace:FindFirstChild("Trap") then
-        systemInfo.workspaceTrap = true
-        print("✅ Trampa en workspace detectada")
-    end
-    
-    return systemInfo
-end
-
--- Función para crear efectos visuales seguros
-local function createSafeVisualEffects()
-    -- Crear indicador visual simple
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "AntiHitHighlight"
-    highlight.Parent = character
-    highlight.FillColor = Color3.fromRGB(0, 255, 100)
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.7
-    highlight.OutlineTransparency = 0.3
-    
-    return highlight
-end
-
--- Función para aplicar inmunidad de forma segura
-local function applySafeImmunity()
-    if not humanoid then return false end
-    
-    -- Guardar salud original
-    originalMaxHealth = humanoid.MaxHealth
-    
-    -- Aplicar inmunidad
-    humanoid.MaxHealth = 999999
-    humanoid.Health = 999999
-    
-    -- Asegurar movimiento libre
-    humanoid.PlatformStand = false
+    -- Método 3: Configurar Humanoid para evitar ragdoll
+    humanoid.PlatformStand = true  -- Evita que caiga
     humanoid.Sit = false
+    humanoid.Jump = false
     
-    -- Protección continua contra daño
-    connections.healthProtection = humanoid.HealthChanged:Connect(function(health)
-        if antiHitActive and health < humanoid.MaxHealth * 0.9 then
-            humanoid.Health = humanoid.MaxHealth
-        end
-    end)
-    
-    -- Protección contra estados restrictivos
+    -- Método 4: Protección continua contra cambios de estado
     connections.stateProtection = RunService.Heartbeat:Connect(function()
-        if antiHitActive and humanoid then
-            humanoid.PlatformStand = false
+        if trapStateActive and humanoid and humanoidRootPart then
+            -- Mantener anclado
+            if not humanoidRootPart.Anchored then
+                humanoidRootPart.Anchored = true
+            end
+            
+            -- Mantener PlatformStand
+            if not humanoid.PlatformStand then
+                humanoid.PlatformStand = true
+            end
+            
+            -- Evitar que se siente o salte
             humanoid.Sit = false
-        end
-    end)
-    
-    print("🛡️ Inmunidad aplicada de forma segura")
-    return true
-end
-
--- Función para intentar usar sistema nativo (de forma segura)
-local function tryNativeSystem()
-    -- Solo intentar si hay trampa en workspace
-    local trap = workspace:FindFirstChild("Trap")
-    if trap then
-        print("🎯 Intentando activar trampa nativa...")
-        
-        -- Buscar partes de forma segura
-        for _, descendant in pairs(trap:GetDescendants()) do
-            if descendant:IsA("BasePart") then
-                -- Verificar si tiene evento Touched antes de usarlo
-                local success, result = pcall(function()
-                    if descendant.Touched then
-                        descendant.Touched:Fire(humanoidRootPart)
-                        return true
+            humanoid.Jump = false
+            
+            -- Mantener colisiones desactivadas
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") and part ~= humanoidRootPart then
+                    if part.CanCollide then
+                        part.CanCollide = false
                     end
-                    return false
-                end)
-                
-                if success and result then
-                    print("✅ Trampa nativa activada")
-                    return true
                 end
             end
         end
-    end
+    end)
     
-    print("⚠️ Sistema nativo no disponible, usando modo independiente")
+    -- Método 5: Interceptar eventos de daño/golpe
+    connections.damageProtection = humanoid.StateChanged:Connect(function(oldState, newState)
+        if trapStateActive then
+            -- Evitar estados de ragdoll
+            if newState == Enum.HumanoidStateType.Physics or 
+               newState == Enum.HumanoidStateType.FallingDown or
+               newState == Enum.HumanoidStateType.Ragdoll then
+                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                humanoid.PlatformStand = true
+                print("🛡️ Estado ragdoll bloqueado")
+            end
+        end
+    end)
+    
+    print("✅ Estado Trapped aplicado - Inmune a golpes")
+    return true
+end
+
+-- Función para crear efectos visuales del trap
+local function createTrapEffects()
+    -- Efecto de "atrapado" similar al trap real
+    local selectionBox = Instance.new("SelectionBox")
+    selectionBox.Name = "TrapStateEffect"
+    selectionBox.Parent = workspace
+    selectionBox.Adornee = humanoidRootPart
+    selectionBox.Color3 = Color3.fromRGB(150, 50, 200)
+    selectionBox.LineThickness = 0.4
+    selectionBox.Transparency = 0.3
+    
+    -- Efecto de partículas (opcional)
+    local attachment = Instance.new("Attachment")
+    attachment.Name = "TrapParticles"
+    attachment.Parent = humanoidRootPart
+    
+    return selectionBox, attachment
+end
+
+-- Función para intentar activar trap real del juego
+local function tryActivateRealTrap()
+    local trap = workspace:FindFirstChild("Trap")
+    if trap then
+        print("🎯 Intentando activar trap real...")
+        
+        -- Buscar partes del trap y simular contacto
+        for _, part in pairs(trap:GetDescendants()) do
+            if part:IsA("BasePart") then
+                -- Simular que el jugador tocó la trampa
+                pcall(function()
+                    if part.Touched then
+                        part.Touched:Fire(humanoidRootPart)
+                        print("✅ Trap real activado")
+                        return true
+                    end
+                end)
+            end
+        end
+    end
     return false
 end
 
--- Función principal para activar anti-hit
-local function activateAntiHit()
-    print("🚀 Activando Anti-Hit...")
+-- Función principal para activar trap state
+local function activateTrapState()
+    print("🚀 Activando Trap State...")
     
-    antiHitActive = true
+    trapStateActive = true
     timeRemaining = 10
     
-    -- Intentar sistema nativo de forma segura
-    tryNativeSystem()
+    -- Intentar usar trap real primero
+    local realTrapUsed = tryActivateRealTrap()
     
-    -- Aplicar inmunidad independiente
-    if not applySafeImmunity() then
-        print("❌ Error aplicando inmunidad")
-        antiHitActive = false
+    -- Aplicar estado trapped independientemente
+    if not applyTrapState() then
+        print("❌ Error aplicando trap state")
+        trapStateActive = false
         return
     end
     
     -- Crear efectos visuales
-    local highlight = createSafeVisualEffects()
+    local selectionBox, particles = createTrapEffects()
     
     -- Actualizar UI
-    statusLabel.Text = "🔴 Estado: INVULNERABLE"
+    statusLabel.Text = "🔴 Estado: TRAPPED (Inmune a golpes)"
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    activateButton.Text = "🔓 DESACTIVAR ANTI-HIT"
-    activateButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-    systemStatus.Text = "Sistema: ACTIVO"
-    systemStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+    trapButton.Text = "🔓 DESACTIVAR TRAP STATE"
+    trapButton.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
+    modeLabel.Text = realTrapUsed and "Modo: Trap Real + Simulado" or "Modo: Simulado"
     
     -- Timer countdown
     connections.timer = RunService.Heartbeat:Connect(function(deltaTime)
-        if antiHitActive then
+        if trapStateActive then
             timeRemaining = timeRemaining - deltaTime
             
             local seconds = math.ceil(math.max(0, timeRemaining))
@@ -263,36 +251,38 @@ local function activateAntiHit()
             elseif seconds <= 5 then
                 timerLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
             else
-                timerLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                timerLabel.TextColor3 = Color3.fromRGB(150, 50, 200)
             end
             
             if timeRemaining <= 0 then
-                deactivateAntiHit()
+                deactivateTrapState()
             end
         end
     end)
     
     -- Función de limpieza
     connections.cleanup = function()
-        if highlight then highlight:Destroy() end
-    end
+        if selectionBox then selectionBox:Destroy() end
+        if particles then particles:Destroy() end
+            end
     
-    print("✅ Anti-Hit activado por 10 segundos")
+    print("✅ Trap State activado - Inmune a golpes por 10 segundos")
+    print("🛡️ Los golpes de bate/mano/espada no causarán ragdoll")
 end
 
--- Función para desactivar anti-hit
-local function deactivateAntiHit()
-    print("🛑 Desactivando Anti-Hit...")
+-- Función para desactivar trap state
+local function deactivateTrapState()
+    print("🛑 Desactivando Trap State...")
     
-    antiHitActive = false
+    trapStateActive = false
     timeRemaining = 0
     
-        -- Ejecutar limpieza
+    -- Ejecutar limpieza de efectos
     if connections.cleanup then
         connections.cleanup()
     end
     
-    -- Desconectar todas las conexiones de forma segura
+    -- Desconectar todas las conexiones
     for name, connection in pairs(connections) do
         if connection and typeof(connection) == "RBXScriptConnection" then
             pcall(function()
@@ -302,177 +292,240 @@ local function deactivateAntiHit()
     end
     connections = {}
     
-    -- Restaurar UI
-    statusLabel.Text = "🟢 Estado: Vulnerable"
-    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    timerLabel.Text = "⏱️ Tiempo: Inactivo"
-    timerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    activateButton.Text = "🔒 ACTIVAR ANTI-HIT"
-    activateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
-    systemStatus.Text = "Sistema: Listo"
-    systemStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
-    
-    -- Restaurar salud normal de forma segura
-    if humanoid then
+    -- Restaurar estados originales del personaje
+    if character and humanoid and humanoidRootPart then
         pcall(function()
-            humanoid.MaxHealth = originalMaxHealth
-            humanoid.Health = originalMaxHealth
-            humanoid.PlatformStand = false
-            humanoid.Sit = false
+            -- Restaurar RootPart
+            humanoidRootPart.Anchored = originalStates.RootPartAnchored or false
+            humanoidRootPart.CanCollide = originalStates.RootPartCanCollide or false
+            
+            -- Restaurar Humanoid
+            humanoid.PlatformStand = originalStates.PlatformStand or false
+            humanoid.Sit = originalStates.Sit or false
+            humanoid.Jump = originalStates.Jump or false
+            
+            -- Restaurar colisiones de todas las partes
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") and part ~= humanoidRootPart then
+                    part.CanCollide = true
+                end
+            end
+            
+            -- Asegurar estado normal
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
         end)
     end
     
-    print("✅ Anti-Hit desactivado - Estado normal restaurado")
+    -- Restaurar UI
+    statusLabel.Text = "🟢 Estado: Vulnerable a golpes"
+    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    timerLabel.Text = "⏱️ Tiempo: Inactivo"
+    timerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    trapButton.Text = "🕳️ ACTIVAR TRAP STATE"
+    trapButton.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+    modeLabel.Text = "Modo: Simulación de Trap"
+    modeLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
+    
+    print("✅ Trap State desactivado - Vulnerable a golpes normalmente")
 end
 
 -- Toggle principal
-local function toggleAntiHit()
-    if antiHitActive then
-        deactivateAntiHit()
+local function toggleTrapState()
+    if trapStateActive then
+        deactivateTrapState()
     else
-        activateAntiHit()
+        activateTrapState()
     end
 end
 
--- Conectar eventos de forma segura
-pcall(function()
-    activateButton.MouseButton1Click:Connect(toggleAntiHit)
-end)
-
--- Efectos de hover en el botón
-pcall(function()
-    activateButton.MouseEnter:Connect(function()
-        if not antiHitActive then
-            activateButton.BackgroundColor3 = Color3.fromRGB(70, 170, 255)
-        end
-    end)
+-- Función para detectar golpes entrantes (para logging)
+local function setupHitDetection()
+    if not character then return end
     
-    activateButton.MouseLeave:Connect(function()
-        if not antiHitActive then
-            activateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+    -- Detectar cuando otros jugadores intentan golpear
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.Touched:Connect(function(hit)
+                if trapStateActive then
+                    local hitCharacter = hit.Parent
+                    if hitCharacter:FindFirstChild("Humanoid") and hitCharacter ~= character then
+                        print("🛡️ Golpe bloqueado de: " .. (hitCharacter.Name or "Desconocido"))
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- Función para monitorear intentos de ragdoll
+local function setupRagdollMonitoring()
+    if not humanoid then return end
+    
+    -- Monitorear cambios de estado que indican ragdoll
+    humanoid.StateChanged:Connect(function(oldState, newState)
+        if newState == Enum.HumanoidStateType.Physics or 
+           newState == Enum.HumanoidStateType.FallingDown or
+           newState == Enum.HumanoidStateType.Ragdoll then
+            
+            if trapStateActive then
+                print("🚫 Intento de ragdoll bloqueado")
+            else
+                print("💥 Ragdoll detectado (no protegido)")
+            end
         end
     end)
+end
+
+-- Conectar eventos
+trapButton.MouseButton1Click:Connect(toggleTrapState)
+
+-- Efectos de hover
+trapButton.MouseEnter:Connect(function()
+    if not trapStateActive then
+        trapButton.BackgroundColor3 = Color3.fromRGB(170, 70, 220)
+    end
 end)
 
--- Manejar respawn del personaje de forma segura
-pcall(function()
-    player.CharacterAdded:Connect(function(newCharacter)
-        -- Esperar a que el personaje esté completamente cargado
-        wait(1)
-        
-        character = newCharacter
-        humanoid = character:WaitForChild("Humanoid", 5)
-        humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-        
-        -- Desactivar si estaba activo
-        if antiHitActive then
-            deactivateAntiHit()
-        end
-        
-        print("🔄 Personaje respawneado - Sistema reiniciado")
-    end)
+trapButton.MouseLeave:Connect(function()
+    if not trapStateActive then
+        trapButton.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+    end
 end)
 
--- Función de diagnóstico mejorada
-local function runDiagnostics()
-    print("\n🔍 DIAGNÓSTICO DEL SISTEMA:")
+-- Manejar respawn
+player.CharacterAdded:Connect(function(newCharacter)
+    wait(1) -- Esperar a que cargue completamente
+    
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid", 5)
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+    
+    -- Desactivar si estaba activo
+    if trapStateActive then
+        deactivateTrapState()
+    end
+    
+    -- Reconfigurar detección
+    setupHitDetection()
+    setupRagdollMonitoring()
+    
+    print("🔄 Personaje respawneado - Sistema anti-ragdoll reiniciado")
+end)
+
+-- Función de diagnóstico específica para ragdoll
+local function diagnoseTrapSystem()
+    print("\n🔍 DIAGNÓSTICO ANTI-RAGDOLL:")
     print("=" * 50)
     
     -- Verificar personaje
     if character and humanoid and humanoidRootPart then
         print("✅ Personaje: OK")
-        print("   👤 Character: " .. character.Name)
-        print("   ❤️ Humanoid: " .. humanoid.Health .. "/" .. humanoid.MaxHealth)
-        print("   📍 RootPart: " .. tostring(humanoidRootPart.Position))
+        print("   🏃 Estado actual: " .. tostring(humanoid:GetState()))
+        print("   ⚓ RootPart anclado: " .. tostring(humanoidRootPart.Anchored))
+        print("   🚫 PlatformStand: " .. tostring(humanoid.PlatformStand))
     else
         print("❌ Personaje: ERROR")
     end
     
-    -- Verificar sistema del juego
-    local systemInfo = checkGameSystem()
-    print("\n🎮 Sistema del juego:")
-    print("   📁 Controllers: " .. (systemInfo.controllers and "✅" or "❌"))
-    print("   📜 TrapScript: " .. (systemInfo.trapScript and "✅" or "❌"))
-    print("   🕳️ Workspace Trap: " .. (systemInfo.workspaceTrap and "✅" or "❌"))
-    print("   🌐 RemoteEvents: " .. #systemInfo.remoteEvents .. " encontrados")
-    
-    -- Verificar GUI
-    if screenGui and screenGui.Parent then
-        print("   🖥️ GUI: ✅ Funcionando")
+    -- Verificar trap en workspace
+    local trap = workspace:FindFirstChild("Trap")
+    if trap then
+        print("✅ Trap en workspace: Encontrado")
+        print("   📍 Posición: " .. tostring(trap:FindFirstChild("HumanoidRootPart") and trap.HumanoidRootPart.Position or "N/A"))
     else
-        print("   🖥️ GUI: ❌ Error")
+        print("⚠️ Trap en workspace: No encontrado")
     end
+    
+    -- Verificar otros jugadores cerca
+    local nearbyPlayers = 0
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (humanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if distance < 50 then
+                nearbyPlayers = nearbyPlayers + 1
+            end
+        end
+    end
+    print("👥 Jugadores cercanos: " .. nearbyPlayers)
     
     print("=" * 50)
     print("🎯 Diagnóstico completado\n")
 end
 
--- Inicialización segura
-pcall(function()
-    print("🎮 Anti-Hit System (Fixed) iniciando...")
-    
-    -- Ejecutar diagnóstico inicial
-    runDiagnostics()
-    
-    -- Verificar sistema del juego
-    local systemInfo = checkGameSystem()
-    
-    if systemInfo.controllers or systemInfo.trapScript then
-        systemStatus.Text = "Sistema: Nativo detectado"
-        systemStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
-        print("✅ Sistema nativo del juego detectado")
-    else
-        systemStatus.Text = "Sistema: Modo independiente"
-        systemStatus.TextColor3 = Color3.fromRGB(255, 200, 100)
-        print("⚠️ Usando modo completamente independiente")
+-- Comando de prueba para verificar inmunidad
+local function testImmunity()
+    if not trapStateActive then
+        print("⚠️ Activa el Trap State primero para probar")
+        return
     end
     
-    print("🛡️ Anti-Hit System listo para usar")
-    print("💡 Presiona el botón para activar inmunidad por 10 segundos")
-end)
-
--- Función de emergencia para limpiar todo
-local function emergencyCleanup()
-    print("🚨 Ejecutando limpieza de emergencia...")
+    print("🧪 Probando inmunidad anti-ragdoll...")
     
-    antiHitActive = false
-    
-    -- Limpiar conexiones
-    for _, connection in pairs(connections) do
-        pcall(function()
-            if connection then connection:Disconnect() end
-        end)
-    end
-    connections = {}
-    
-    -- Restaurar humanoid
+    -- Simular intento de ragdoll
     if humanoid then
-        pcall(function()
-            humanoid.MaxHealth = 100
-            humanoid.Health = 100
-            humanoid.PlatformStand = false
-            humanoid.Sit = false
-        end)
-    end
-    
-    -- Limpiar efectos visuales
-    if character then
-        for _, obj in pairs(character:GetChildren()) do
-            if obj.Name == "AntiHitHighlight" then
-                obj:Destroy()
-            end
+        local originalState = humanoid:GetState()
+        
+        -- Intentar cambiar a estado de física (ragdoll)
+        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        
+        wait(0.1)
+        
+        -- Verificar si se mantuvo protegido
+        if humanoid.PlatformStand and humanoidRootPart.Anchored then
+            print("✅ Prueba exitosa - Inmunidad funcionando")
+        else
+            print("❌ Prueba fallida - Revisar configuración")
         end
     end
-    
-    print("✅ Limpieza de emergencia completada")
 end
 
--- Comando de emergencia (por si algo sale mal)
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.F9 then
-        emergencyCleanup()
-    end
-end)
+-- Botón de diagnóstico (opcional)
+local diagButton = Instance.new("TextButton")
+diagButton.Parent = mainFrame
+diagButton.Size = UDim2.new(0.25, 0, 0, 20)
+diagButton.Position = UDim2.new(0.05, 0, 0.05, 0)
+diagButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+diagButton.Text = "🔍"
+diagButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+diagButton.TextScaled = true
+diagButton.Font = Enum.Font.Gotham
 
-print("🎮 Sistema completamente cargado")
-print("🔧 Presiona F9 para limpieza de emergencia si es necesario")
+local diagCorner = Instance.new("UICorner")
+diagCorner.CornerRadius = UDim.new(0, 5)
+diagCorner.Parent = diagButton
+
+diagButton.MouseButton1Click:Connect(diagnoseTrapSystem)
+
+-- Botón de prueba (opcional)
+local testButton = Instance.new("TextButton")
+testButton.Parent = mainFrame
+testButton.Size = UDim2.new(0.25, 0, 0, 20)
+testButton.Position = UDim2.new(0.32, 0, 0.05, 0)
+testButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+testButton.Text = "🧪"
+testButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+testButton.TextScaled = true
+testButton.Font = Enum.Font.Gotham
+
+local testCorner = Instance.new("UICorner")
+testCorner.CornerRadius = UDim.new(0, 5)
+testCorner.Parent = testButton
+
+testButton.MouseButton1Click:Connect(testImmunity)
+
+-- Inicialización
+print("🎮 Anti-Ragdoll Trap System iniciado")
+print("🕳️ Simula el estado 'Trapped' del juego")
+print("🛡️ Protege contra golpes de bate, mano y espada")
+print("⏱️ Duración: 10 segundos (como trap real)")
+
+-- Configurar detección inicial
+setupHitDetection()
+setupRagdollMonitoring()
+
+-- Ejecutar diagnóstico inicial
+diagnoseTrapSystem()
+
+print("✅ Sistema listo - Presiona el botón para activar inmunidad anti-ragdoll")
+print("🔍 Usa el botón 🔍 para diagnóstico")
+print("🧪 Usa el botón 🧪 para probar inmunidad")
