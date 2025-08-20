@@ -1,7 +1,6 @@
--- Simulador de Trampa usando el sistema nativo del juego
+-- Simulador de Trampa corregido para Models
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -17,7 +16,7 @@ screenGui.ResetOnSpawn = false
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Parent = screenGui
-mainFrame.Size = UDim2.new(0, 280, 0, 180)
+mainFrame.Size = UDim2.new(0, 280, 0, 200)
 mainFrame.Position = UDim2.new(0, 50, 0, 50)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
@@ -33,16 +32,27 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Parent = mainFrame
 titleLabel.Size = UDim2.new(1, 0, 0, 35)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🕳️ Trap Simulator (Native)"
+titleLabel.Text = "🕳️ Trap Simulator (Fixed)"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
+
+-- Info de trampa
+local trapInfoLabel = Instance.new("TextLabel")
+trapInfoLabel.Parent = mainFrame
+trapInfoLabel.Size = UDim2.new(1, 0, 0, 20)
+trapInfoLabel.Position = UDim2.new(0, 0, 0.2, 0)
+trapInfoLabel.BackgroundTransparency = 1
+trapInfoLabel.Text = "Buscando trampa..."
+trapInfoLabel.TextColor3 = Color3.fromRGB(150, 150, 255)
+trapInfoLabel.TextScaled = true
+trapInfoLabel.Font = Enum.Font.Gotham
 
 -- Status
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Parent = mainFrame
 statusLabel.Size = UDim2.new(1, 0, 0, 25)
-statusLabel.Position = UDim2.new(0, 0, 0.22, 0)
+statusLabel.Position = UDim2.new(0, 0, 0.35, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Estado: Libre"
 statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -53,7 +63,7 @@ statusLabel.Font = Enum.Font.Gotham
 local timerLabel = Instance.new("TextLabel")
 timerLabel.Parent = mainFrame
 timerLabel.Size = UDim2.new(1, 0, 0, 30)
-timerLabel.Position = UDim2.new(0, 0, 0.4, 0)
+timerLabel.Position = UDim2.new(0, 0, 0.52, 0)
 timerLabel.BackgroundTransparency = 1
 timerLabel.Text = "⏱️ Tiempo: --"
 timerLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
@@ -63,10 +73,10 @@ timerLabel.Font = Enum.Font.GothamBold
 -- Botón principal
 local simulateButton = Instance.new("TextButton")
 simulateButton.Parent = mainFrame
-simulateButton.Size = UDim2.new(0.85, 0, 0, 40)
-simulateButton.Position = UDim2.new(0.075, 0, 0.65, 0)
+simulateButton.Size = UDim2.new(0.85, 0, 0, 35)
+simulateButton.Position = UDim2.new(0.075, 0, 0.75, 0)
 simulateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
-simulateButton.Text = "🔒 Activar Simulación"
+simulateButton.Text = "🔒 Activar Anti-Hit"
 simulateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 simulateButton.TextScaled = true
 simulateButton.Font = Enum.Font.GothamBold
@@ -79,114 +89,145 @@ buttonCorner.Parent = simulateButton
 local isSimulating = false
 local trapTimer = 0
 local connections = {}
+local foundTrapParts = {}
 
--- Función para encontrar la trampa real en workspace
-local function findRealTrap()
-    -- Buscar trampa directamente en workspace
-    local trap = workspace:FindFirstChild("Trap")
-    if trap then
-        print("✅ Trampa encontrada en workspace:", trap:GetFullName())
-        return trap
+-- Función mejorada para encontrar partes de la trampa
+local function findTrapParts()
+    foundTrapParts = {}
+    
+    -- Buscar el modelo Trap
+    local trapModel = workspace:FindFirstChild("Trap")
+    if not trapModel then
+        print("❌ No se encontró modelo 'Trap' en workspace")
+        trapInfoLabel.Text = "❌ No hay trampa"
+        trapInfoLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        return {}
     end
     
-    -- Buscar en todos los descendientes
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name == "Trap" then
-            print("✅ Trampa encontrada:", obj:GetFullName())
-            return obj
-        end
-    end
+    print("✅ Modelo Trap encontrado:", trapModel:GetFullName())
+    print("📋 Tipo:", trapModel.ClassName)
     
-    print("❌ No se encontró trampa en workspace")
-    return nil
-end
-
--- Función para buscar el sistema de red del juego
-local function findNetworkSystem()
-    -- Buscar en ReplicatedStorage
-    local packages = ReplicatedStorage:FindFirstChild("Packages")
-    if packages then
-        print("📦 Packages encontrado")
-        
-        -- Buscar sistema de red
-        for _, obj in pairs(packages:GetDescendants()) do
-            if obj.Name:lower():find("net") or obj.Name:lower():find("remote") then
-                print("🌐 Sistema de red encontrado:", obj:GetFullName())
-                return obj
+    -- Si es un Model, buscar todas las partes dentro
+    if trapModel:IsA("Model") then
+        for _, child in pairs(trapModel:GetDescendants()) do
+            if child:IsA("BasePart") and child.Touched then
+                table.insert(foundTrapParts, child)
+                print("🎯 Parte con Touched encontrada:", child.Name, "(" .. child.ClassName .. ")")
             end
         end
+    elseif trapModel:IsA("BasePart") and trapModel.Touched then
+        -- Si es una parte directamente
+        table.insert(foundTrapParts, trapModel)
+        print("🎯 Parte directa encontrada:", trapModel.Name)
     end
     
-    return nil
+    -- Actualizar UI con info
+    if #foundTrapParts > 0 then
+        trapInfoLabel.Text = "✅ " .. #foundTrapParts .. " parte(s) encontrada(s)"
+        trapInfoLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        trapInfoLabel.Text = "⚠️ Trampa sin partes válidas"
+        trapInfoLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+    end
+    
+    return foundTrapParts
 end
 
--- Función para activar la trampa usando el sistema nativo
-local function activateNativeTrap()
-    local trap = findRealTrap()
-    if not trap then
-        warn("⚠️ No se puede simular: trampa no encontrada")
-        return false
+-- Función para activar todas las partes de la trampa
+local function activateAllTrapParts()
+    local parts = findTrapParts()
+    local activated = 0
+    
+    for _, part in pairs(parts) do
+        if part and part.Parent and part.Touched then
+            -- Activar el evento Touched
+            part.Touched:Fire(humanoidRootPart)
+            activated = activated + 1
+            print("🔥 Activada parte:", part.Name)
+        end
     end
     
-    -- Intentar activar la trampa tocándola
-    if trap.Touched then
-        trap.Touched:Fire(humanoidRootPart)
-        print("🎯 Trampa activada por toque")
-    end
-    
-    -- Buscar y ejecutar TrapScript si existe
-    local trapScript = trap:FindFirstChild("TrapScript")
-    if trapScript then
-        print("📜 TrapScript encontrado")
-        -- El script se ejecutará automáticamente al tocar
-    end
-    
-    return true
+    print("✅ Total partes activadas:", activated)
+    return activated > 0
 end
 
--- Función para mantener el efecto de trampa
-local function maintainTrapEffect()
-    local trap = findRealTrap()
-    if trap and trap.Touched then
-        -- Reactivar cada pocos frames para mantener el efecto
-        trap.Touched:Fire(humanoidRootPart)
+-- Función para crear efecto visual
+local function createTrapEffect()
+    local selectionBox = Instance.new("SelectionBox")
+    selectionBox.Name = "TrapSimulatorEffect"
+    selectionBox.Parent = workspace
+    selectionBox.Adornee = humanoidRootPart
+    selectionBox.Color3 = Color3.fromRGB(255, 50, 50)
+    selectionBox.LineThickness = 0.3
+    selectionBox.Transparency = 0.3
+    
+    return selectionBox
+end
+
+-- Función para aplicar inmunidad
+local function applyImmunity()
+    if humanoid then
+        -- Salud infinita
+        humanoid.MaxHealth = math.huge
+        humanoid.Health = math.huge
+        
+        -- Movimiento libre
+        humanoid.PlatformStand = false
+        humanoid.Sit = false
+        
+        print("🛡️ Inmunidad aplicada")
+    end
+end
+
+-- Función para mantener efectos
+local function maintainEffects()
+    -- Reactivar partes de trampa
+    for _, part in pairs(foundTrapParts) do
+        if part and part.Parent and part.Touched then
+            part.Touched:Fire(humanoidRootPart)
+        end
     end
     
     -- Mantener inmunidad
     if humanoid then
         humanoid.Health = math.max(humanoid.Health, humanoid.MaxHealth * 0.95)
-        humanoid.PlatformStand = false -- Permitir movimiento libre
+        humanoid.PlatformStand = false
         humanoid.Sit = false
     end
 end
 
--- Función para iniciar la simulación
+-- Función para iniciar simulación
 local function startSimulation()
-    print("🚀 Iniciando simulación de trampa...")
+    print("🚀 Iniciando simulación...")
     
-    -- Activar trampa nativa
-    if not activateNativeTrap() then
-        return false
+    -- Buscar y activar trampa
+    local success = activateAllTrapParts()
+    if not success then
+        warn("⚠️ No se pudieron activar partes de trampa, usando modo independiente")
     end
     
-    -- Configurar timer de 10 segundos
+    -- Configurar estado
     trapTimer = 10
     isSimulating = true
     
+    -- Crear efectos
+    local selectionBox = createTrapEffect()
+    applyImmunity()
+    
     -- Actualizar UI
-    statusLabel.Text = "Estado: Atrapado (Simulado)"
+    statusLabel.Text = "Estado: Protegido (Anti-Hit)"
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    simulateButton.Text = "🔓 Detener Simulación"
+    simulateButton.Text = "🔓 Desactivar Anti-Hit"
     simulateButton.BackgroundColor3 = Color3.fromRGB(250, 100, 100)
     
-    -- Conexión para mantener efecto
+    -- Mantener efectos
     connections.maintain = RunService.Heartbeat:Connect(function()
         if isSimulating then
-            maintainTrapEffect()
+            maintainEffects()
         end
     end)
     
-    -- Conexión para countdown
+    -- Timer
     connections.timer = RunService.Heartbeat:Connect(function(deltaTime)
         if isSimulating then
             trapTimer = trapTimer - deltaTime
@@ -198,20 +239,29 @@ local function startSimulation()
         end
     end)
     
-    print("✅ Simulación iniciada - Duración: 10 segundos")
-    return true
+    -- Cleanup function
+    connections.cleanup = function()
+        if selectionBox then selectionBox:Destroy() end
+    end
+    
+    print("✅ Simulación iniciada por 10 segundos")
 end
 
--- Función para detener la simulación
+-- Función para detener simulación
 local function stopSimulation()
     print("🛑 Deteniendo simulación...")
     
     isSimulating = false
     trapTimer = 0
     
-    -- Desconectar todas las conexiones
+    -- Cleanup
+    if connections.cleanup then
+        connections.cleanup()
+    end
+    
+    -- Desconectar
     for _, connection in pairs(connections) do
-        if connection then
+        if connection and typeof(connection) == "RBXScriptConnection" then
             connection:Disconnect()
         end
     end
@@ -221,10 +271,10 @@ local function stopSimulation()
     statusLabel.Text = "Estado: Libre"
     statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     timerLabel.Text = "⏱️ Tiempo: --"
-    simulateButton.Text = "🔒 Activar Simulación"
+    simulateButton.Text = "🔒 Activar Anti-Hit"
     simulateButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
     
-    -- Restaurar stats normales
+    -- Restaurar salud
     if humanoid then
         humanoid.MaxHealth = 100
         humanoid.Health = 100
@@ -234,7 +284,7 @@ local function stopSimulation()
     print("✅ Simulación detenida")
 end
 
--- Función principal de toggle
+-- Toggle principal
 local function toggleSimulation()
     if isSimulating then
         stopSimulation()
@@ -243,30 +293,20 @@ local function toggleSimulation()
     end
 end
 
--- Conectar botón
+-- Conectar eventos
 simulateButton.MouseButton1Click:Connect(toggleSimulation)
 
--- Manejar respawn del personaje
+-- Manejar respawn
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = character:WaitForChild("Humanoid")
     humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     
-    -- Detener simulación si estaba activa
     if isSimulating then
         stopSimulation()
     end
 end)
 
 -- Inicialización
-print("🎮 Trap Simulator (Native) cargado")
-print("📍 Buscando sistema nativo del juego...")
-
--- Buscar componentes del juego
-findNetworkSystem()
-local trap = findRealTrap()
-if trap then
-    print("🎯 Listo para simular trampa:", trap.Name)
-else
-    print("⚠️ Coloca una trampa primero para usar la simulación")
-end
+print("🎮 Trap Simulator (Fixed) cargado")
+findTrapParts() -- Buscar partes al inicio
