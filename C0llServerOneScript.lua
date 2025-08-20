@@ -1,68 +1,162 @@
--- Script unificado Anti-Hit para Steal a Brainrot
-local RS = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local plr = Players.LocalPlayer
+-- Anti-Hit GUI Script para Steal a Brainrot
+-- Crear ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AntiHitGUI"
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
 
--- Buscar el RemoteEvent existente del juego
-local function findAntiHitRemote()
-    for _, obj in pairs(RS:GetDescendants()) do
-        if obj:IsA("RemoteEvent") and (
-            obj.Name:lower():find("antihit") or 
-            obj.Name:lower():find("invulner") or
-            obj.Name:lower():find("protect")
-        ) then
-            return obj
-        end
-    end
-    return nil
-end
+-- Crear Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Parent = screenGui
+mainFrame.Size = UDim2.new(0, 200, 0, 100)
+mainFrame.Position = UDim2.new(0, 50, 0, 50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
 
-local Remote = findAntiHitRemote()
-
-if not Remote then
-    warn("No se encontró RemoteEvent de Anti-Hit en el juego")
-    return
-end
-
--- GUI
-local sg = Instance.new("ScreenGui")
-sg.Name = "AntiHitExploit"
-sg.ResetOnSpawn = false
-sg.Parent = plr:WaitForChild("PlayerGui")
-
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0, 200, 0, 48)
-btn.Position = UDim2.new(0.5, -100, 0.85, 0)
-btn.Text = "Anti-Hit Exploit"
-btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-btn.TextColor3 = Color3.new(1,1,1)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 16
-btn.Parent = sg
-
+-- Esquinas redondeadas
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0,10)
-corner.Parent = btn
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = mainFrame
 
-local busy = false
+-- Título
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Parent = mainFrame
+titleLabel.Size = UDim2.new(1, 0, 0, 30)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Anti-Hit Panel"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.SourceSansBold
 
-btn.MouseButton1Click:Connect(function()
-    if busy then return end
-    busy = true
+-- Botón Anti-Hit
+local antiHitButton = Instance.new("TextButton")
+antiHitButton.Name = "AntiHitButton"
+antiHitButton.Parent = mainFrame
+antiHitButton.Size = UDim2.new(0.8, 0, 0, 40)
+antiHitButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+antiHitButton.BackgroundColor3 = Color3.fromRGB(70, 130, 200)
+antiHitButton.Text = "Anti-Hit: OFF"
+antiHitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+antiHitButton.TextScaled = true
+antiHitButton.Font = Enum.Font.SourceSansBold
+
+-- Esquinas redondeadas para el botón
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 8)
+buttonCorner.Parent = antiHitButton
+
+-- Variables de estado
+local antiHitEnabled = false
+local originalConnections = {}
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+-- Función para activar/desactivar Anti-Hit
+local function toggleAntiHit()
+    antiHitEnabled = not antiHitEnabled
     
-    -- Activar anti-hit
-    pcall(function()
-        Remote:FireServer()
-    end)
+    if antiHitEnabled then
+        -- Activar Anti-Hit
+        antiHitButton.Text = "Anti-Hit: ON"
+        antiHitButton.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
+        
+        -- Hacer al personaje inmune a daño
+        if humanoid then
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
+        end
+        
+        -- Desactivar PlatformStand (permite movimiento)
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+        
+        -- Hacer todas las partes del cuerpo "CanCollide" = false para evitar empujes
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = false
+            end
+        end
+        
+        -- Prevenir ragdoll desconectando todas las conexiones de daño
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = character.HumanoidRootPart
+        
+        -- Proteger contra scripts que intenten cambiar la salud
+        originalConnections.healthChanged = humanoid.HealthChanged:Connect(function()
+            if antiHitEnabled then
+                humanoid.Health = math.huge
+            end
+        end)
+        
+        -- Proteger contra cambios en PlatformStand
+        originalConnections.platformStandChanged = humanoid:GetPropertyChangedSignal("PlatformStand"):Connect(function()
+            if antiHitEnabled then
+                humanoid.PlatformStand = false
+            end
+        end)
+        
+        print("Anti-Hit activado - Inmune a todos los ataques pero puedes moverte")
+        
+    else
+        -- Desactivar Anti-Hit
+        antiHitButton.Text = "Anti-Hit: OFF"
+        antiHitButton.BackgroundColor3 = Color3.fromRGB(70, 130, 200)
+        
+        -- Restaurar valores normales
+        if humanoid then
+            humanoid.MaxHealth = 100
+            humanoid.Health = 100
+            humanoid.PlatformStand = false
+        end
+        
+        -- Restaurar colisiones
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+        
+        -- Limpiar BodyVelocity
+        local bodyVel = character.HumanoidRootPart:FindFirstChild("BodyVelocity")
+        if bodyVel then
+            bodyVel:Destroy()
+        end
+        
+        -- Desconectar todas las conexiones
+        for _, connection in pairs(originalConnections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+        originalConnections = {}
+        
+        print("Anti-Hit desactivado - Vulnerable a ataques normalmente")
+    end
+end
+
+-- Conectar el botón
+antiHitButton.MouseButton1Click:Connect(toggleAntiHit)
+
+-- Reconectar cuando el personaje respawnee
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
     
-    btn.Text = "Activado!"
-    btn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-    
-    wait(2)
-    
-    btn.Text = "Anti-Hit Exploit"
-    btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    busy = false
+    -- Si Anti-Hit estaba activado, reactivarlo
+    if antiHitEnabled then
+        antiHitEnabled = false -- Resetear para que toggleAntiHit lo active correctamente
+        wait(1) -- Esperar a que el personaje cargue completamente
+        toggleAntiHit()
+    end
 end)
 
-print("Anti-Hit Exploit cargado para Steal a Brainrot")
+print("Anti-Hit GUI cargado exitosamente")
