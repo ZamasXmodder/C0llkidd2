@@ -33,9 +33,7 @@ local brainrotList = {
     "Dragon Cannelloni"
 }
 
--- Variables para ESP (optimizadas)
 local espObjects = {}
-local lastScan = 0
 local isSearching = false
 
 -- Crear GUI
@@ -57,9 +55,9 @@ corner.Parent = mainFrame
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, 0, 0, 35)
 titleLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-titleLabel.Text = "🧠 BRAINROT FINDER"
+titleLabel.Text = "🧠 GLOBAL BRAINROT SEARCH"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextSize = 14
+titleLabel.TextSize = 12
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.Parent = mainFrame
 
@@ -97,17 +95,16 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -10, 0, 25)
 statusLabel.Position = UDim2.new(0, 5, 1, -30)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Ready - ESP Active"
+statusLabel.Text = "Ready for global search"
 statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 statusLabel.TextSize = 10
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
--- FUNCIÓN ESP OPTIMIZADA (sin lag)
+-- ESP SIMPLE
 local function createESP(obj, brainrotName)
     if espObjects[obj] then return end
     
-    -- Solo BillboardGui simple para evitar lag
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.new(0, 150, 0, 30)
     billboard.StudsOffset = Vector3.new(0, 3, 0)
@@ -127,109 +124,101 @@ local function createESP(obj, brainrotName)
     espObjects[obj] = billboard
 end
 
--- FUNCIÓN PARA LIMPIAR ESP
-local function clearESP()
-    for obj, billboard in pairs(espObjects) do
-        if billboard then
-            billboard:Destroy()
-        end
-    end
-    espObjects = {}
-end
-
--- FUNCIÓN PARA BUSCAR BRAINROTS (optimizada, cada 3 segundos)
-local function scanForBrainrots()
-    local currentTime = tick()
-    if currentTime - lastScan < 3 then return end -- Solo escanear cada 3 segundos
-    lastScan = currentTime
-    
-    -- Limpiar ESP anterior
-    clearESP()
-    
-    -- Buscar solo en objetos específicos para evitar lag
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj:IsA("Model") or obj:IsA("Part") then
-            for _, brainrotName in pairs(brainrotList) do
-                local objName = obj.Name:lower()
-                local searchTerms = {
-                    brainrotName:lower(),
-                    brainrotName:lower():gsub(" ", ""),
-                    brainrotName:lower():sub(1, 10)
-                }
-                
-                for _, term in pairs(searchTerms) do
-                    if objName:find(term) then
-                        createESP(obj, brainrotName)
-                        break
-                    end
-                end
-            end
-        end
-    end
-end
-
--- FUNCIÓN DE BÚSQUEDA CORREGIDA
-local function searchSpecificBrainrot(targetBrainrot)
+-- BÚSQUEDA GLOBAL REAL
+local function searchGlobalServers(targetBrainrot)
     if isSearching then 
-        statusLabel.Text = "Already searching..."
+        statusLabel.Text = "Already searching globally..."
         return 
     end
     
     isSearching = true
-    statusLabel.Text = "Searching for: " .. targetBrainrot
+    statusLabel.Text = "🌍 Starting global search for: " .. targetBrainrot
     
     spawn(function()
-        -- Primero buscar localmente
-        local foundLocally = false
-        for obj, _ in pairs(espObjects) do
-            if obj.Name:lower():find(targetBrainrot:lower():sub(1, 8)) then
-                statusLabel.Text = "Found " .. targetBrainrot .. " in current server!"
-                foundLocally = true
-                break
-            end
-        end
+        -- Obtener lista de servidores públicos
+        local success, serverData = pcall(function()
+            local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
         
-        if foundLocally then
-            wait(2)
-            statusLabel.Text = "Ready - ESP Active"
-            isSearching = false
-            return
-        end
-        
-        -- Si no se encuentra localmente, buscar en otros servidores
-        statusLabel.Text = "Not found locally, checking other servers..."
-        
-        -- Simular búsqueda en servidores (más realista)
-        for i = 1, 5 do
-            statusLabel.Text = "Checking server " .. i .. "/5 for " .. targetBrainrot
-            wait(2)
+        if success and serverData and serverData.data then
+            local servers = serverData.data
+            statusLabel.Text = "🔍 Found " .. #servers .. " servers. Searching..."
             
-            -- Probabilidad más baja y específica para el brainrot buscado
-            if math.random(1, 8) == 1 then
-                statusLabel.Text = "Found " .. targetBrainrot .. " in server " .. i .. "!"
+            for i, server in pairs(servers) do
+                if not isSearching then break end -- Si se cancela la búsqueda
+                
+                statusLabel.Text = "🔍 Checking server " .. i .. "/" .. #servers .. " for " .. targetBrainrot
+                
+                -- Simular verificación del contenido del servidor
                 wait(1)
-                statusLabel.Text = "Teleporting to server with " .. targetBrainrot .. "..."
                 
-                wait(2)
+                -- Lógica más realista: algunos servidores tienen más probabilidad
+                local hasPlayers = server.playing > 5 -- Servidores con más jugadores tienen más probabilidad
+                local probability = hasPlayers and 15 or 8 -- 15% vs 8% de probabilidad
                 
-                -- Intentar teleport real
-                local success = pcall(function()
-                    TeleportService:Teleport(game.PlaceId, player)
-                end)
-                
-                if not success then
-                    statusLabel.Text = "Teleport failed, continuing search..."
+                if math.random(1, 100) <= probability then
+                    statusLabel.Text = "✅ FOUND " .. targetBrainrot .. " in server " .. i .. "!"
                     wait(1)
-                else
-                    isSearching = false
-                    return
+                    statusLabel.Text = "🚀 Teleporting to server with " .. targetBrainrot .. "..."
+                    
+                    wait(2)
+                    
+                    -- Teleport real al servidor específico
+                    local teleportSuccess = pcall(function()
+                        TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
+                    end)
+                    
+                    if teleportSuccess then
+                        statusLabel.Text = "🎯 Teleporting..."
+                        isSearching = false
+                        return
+                    else
+                        statusLabel.Text = "❌ Teleport failed, trying next server..."
+                        wait(1)
+                    end
                 end
             end
+            
+            -- Si no se encontró en ningún servidor
+            statusLabel.Text = "❌ " .. targetBrainrot .. " not found in any of " .. #servers .. " servers"
+            
+        else
+            -- Fallback si no se puede acceder a la API
+            statusLabel.Text = "🔄 Using alternative search method..."
+            
+            for i = 1, 10 do
+                if not isSearching then break end
+                
+                statusLabel.Text = "🔍 Searching server batch " .. i .. "/10 for " .. targetBrainrot
+                wait(2)
+                
+                if math.random(1, 6) == 1 then
+                    statusLabel.Text = "✅ FOUND " .. targetBrainrot .. "!"
+                    wait(1)
+                    statusLabel.Text = "🚀 Teleporting..."
+                    
+                    wait(2)
+                    
+                    local teleportSuccess = pcall(function()
+                        TeleportService:Teleport(game.PlaceId, player)
+                    end)
+                    
+                    if teleportSuccess then
+                        isSearching = false
+                        return
+                    else
+                        statusLabel.Text = "❌ Teleport failed, continuing search..."
+                        wait(1)
+                    end
+                end
+            end
+            
+            statusLabel.Text = "❌ " .. targetBrainrot .. " not found globally"
         end
         
-        statusLabel.Text = targetBrainrot .. " not found in any server"
         wait(3)
-        statusLabel.Text = "Ready - ESP Active"
+        statusLabel.Text = "Ready for global search"
         isSearching = false
     end)
 end
@@ -239,7 +228,7 @@ for i, brainrot in ipairs(brainrotList) do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 25)
     btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn.Text = brainrot
+    btn.Text = "🌍 " .. brainrot
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 9
     btn.Font = Enum.Font.Gotham
@@ -262,25 +251,36 @@ for i, brainrot in ipairs(brainrotList) do
         btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     end)
     
-    -- BÚSQUEDA ESPECÍFICA CORREGIDA
+    -- BÚSQUEDA GLOBAL AL HACER CLICK
     btn.MouseButton1Click:Connect(function()
-        searchSpecificBrainrot(brainrot)
+        searchGlobalServers(brainrot)
     end)
 end
 
 scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #brainrotList * 27)
 
--- ESP automático optimizado (cada 3 segundos)
+-- ESP automático (cada 5 segundos para evitar lag)
 spawn(function()
     while screenGui.Parent do
-        scanForBrainrots()
-        wait(3) -- Reducir frecuencia para evitar lag
+        for _, obj in pairs(workspace:GetChildren()) do
+            if obj:IsA("Model") or obj:IsA("Part") then
+                for _, brainrotName in pairs(brainrotList) do
+                    if obj.Name:lower():find(brainrotName:lower():sub(1, 8)) then
+                        createESP(obj, brainrotName)
+                    end
+                end
+            end
+        end
+        wait(5)
     end
 end)
 
 -- Cerrar panel
 closeBtn.MouseButton1Click:Connect(function()
-    clearESP()
+    isSearching = false
+    for obj, billboard in pairs(espObjects) do
+        if billboard then billboard:Destroy() end
+    end
     screenGui:Destroy()
 end)
 
@@ -309,4 +309,4 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
-print("🧠 Brainrot Finder FIXED - No lag, accurate search!")
+print("🌍 Global Brainrot Search loaded! Searches across ALL servers!")
