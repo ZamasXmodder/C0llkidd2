@@ -1,262 +1,250 @@
+-- Script funcional para Steal a Brainrot
+
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
-local mouse = player:GetMouse()
 
--- Crear GUI
+-- Crear GUI simple que funcione
 local gui = Instance.new("ScreenGui")
 gui.Name = "BrainrotHack"
-gui.Parent = game.CoreGui
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
-local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 300, 0, 400)
-main.Position = UDim2.new(0.5, -150, 0.5, -200)
-main.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-main.BorderSizePixel = 2
-main.BorderColor3 = Color3.new(0, 0.6, 1)
-main.Active = true
-main.Draggable = true
-main.Parent = gui
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 250, 0, 350)
+frame.Position = UDim2.new(0, 50, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
 
 -- Título
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.new(0, 0.6, 1)
-title.Text = "🧠 BRAINROT STEALER"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextScaled = true
+title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+title.Text = "BRAINROT HACK"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 14
 title.Font = Enum.Font.SourceSansBold
-title.Parent = main
+title.Parent = frame
 
--- Variables
-local speedHack = false
-local jumpHack = false
-local currentSpeed = 16
-local currentJump = 50
+-- Variables globales
+_G.SpeedEnabled = false
+_G.JumpEnabled = false
+_G.CurrentSpeed = 50
+_G.CurrentJump = 120
 
--- Speed Control
+-- Speed
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, -20, 0, 25)
-speedLabel.Position = UDim2.new(0, 10, 0, 40)
+speedLabel.Size = UDim2.new(1, 0, 0, 20)
+speedLabel.Position = UDim2.new(0, 0, 0, 40)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed: " .. currentSpeed
-speedLabel.TextColor3 = Color3.new(1, 1, 1)
-speedLabel.TextScaled = true
-speedLabel.Parent = main
+speedLabel.Text = "Speed: " .. _G.CurrentSpeed
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.TextSize = 12
+speedLabel.Parent = frame
 
-local speedSlider = Instance.new("TextBox")
-speedSlider.Size = UDim2.new(0.6, 0, 0, 25)
-speedSlider.Position = UDim2.new(0, 10, 0, 70)
-speedSlider.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-speedSlider.BorderColor3 = Color3.new(0, 0.6, 1)
-speedSlider.Text = "16"
-speedSlider.TextColor3 = Color3.new(1, 1, 1)
-speedSlider.TextScaled = true
-speedSlider.Parent = main
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0.6, 0, 0, 25)
+speedBox.Position = UDim2.new(0, 10, 0, 65)
+speedBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+speedBox.Text = tostring(_G.CurrentSpeed)
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.TextSize = 12
+speedBox.Parent = frame
 
 local speedBtn = Instance.new("TextButton")
-speedBtn.Size = UDim2.new(0.35, -5, 0, 25)
-speedBtn.Position = UDim2.new(0.65, 0, 0, 70)
-speedBtn.BackgroundColor3 = Color3.new(0, 0.6, 1)
-speedBtn.Text = "Enable Speed"
-speedBtn.TextColor3 = Color3.new(1, 1, 1)
-speedBtn.TextScaled = true
-speedBtn.Parent = main
+speedBtn.Size = UDim2.new(0.35, 0, 0, 25)
+speedBtn.Position = UDim2.new(0.65, 0, 0, 65)
+speedBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+speedBtn.Text = "ON"
+speedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBtn.TextSize = 12
+speedBtn.Parent = frame
 
--- Jump Control
+-- Jump
 local jumpLabel = Instance.new("TextLabel")
-jumpLabel.Size = UDim2.new(1, -20, 0, 25)
-jumpLabel.Position = UDim2.new(0, 10, 0, 105)
+jumpLabel.Size = UDim2.new(1, 0, 0, 20)
+jumpLabel.Position = UDim2.new(0, 0, 0, 100)
 jumpLabel.BackgroundTransparency = 1
-jumpLabel.Text = "Jump Power: " .. currentJump
-jumpLabel.TextColor3 = Color3.new(1, 1, 1)
-jumpLabel.TextScaled = true
-jumpLabel.Parent = main
+jumpLabel.Text = "Jump: " .. _G.CurrentJump
+jumpLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpLabel.TextSize = 12
+jumpLabel.Parent = frame
 
-local jumpSlider = Instance.new("TextBox")
-jumpSlider.Size = UDim2.new(0.6, 0, 0, 25)
-jumpSlider.Position = UDim2.new(0, 10, 0, 135)
-jumpSlider.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-jumpSlider.BorderColor3 = Color3.new(0, 0.6, 1)
-jumpSlider.Text = "50"
-jumpSlider.TextColor3 = Color3.new(1, 1, 1)
-jumpSlider.TextScaled = true
-jumpSlider.Parent = main
+local jumpBox = Instance.new("TextBox")
+jumpBox.Size = UDim2.new(0.6, 0, 0, 25)
+jumpBox.Position = UDim2.new(0, 10, 0, 125)
+jumpBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+jumpBox.Text = tostring(_G.CurrentJump)
+jumpBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpBox.TextSize = 12
+jumpBox.Parent = frame
 
 local jumpBtn = Instance.new("TextButton")
-jumpBtn.Size = UDim2.new(0.35, -5, 0, 25)
-jumpBtn.Position = UDim2.new(0.65, 0, 0, 135)
-jumpBtn.BackgroundColor3 = Color3.new(0, 0.6, 1)
-jumpBtn.Text = "Enable Jump"
-jumpBtn.TextColor3 = Color3.new(1, 1, 1)
-jumpBtn.TextScaled = true
-jumpBtn.Parent = main
+jumpBtn.Size = UDim2.new(0.35, 0, 0, 25)
+jumpBtn.Position = UDim2.new(0.65, 0, 0, 125)
+jumpBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+jumpBtn.Text = "ON"
+jumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpBtn.TextSize = 12
+jumpBtn.Parent = frame
 
--- Server Hop Button
+-- Server Hop
 local serverBtn = Instance.new("TextButton")
-serverBtn.Size = UDim2.new(0.9, 0, 0, 35)
-serverBtn.Position = UDim2.new(0.05, 0, 0, 175)
-serverBtn.BackgroundColor3 = Color3.new(0, 0.8, 0)
-serverBtn.Text = "🤑 Find Rich Players"
-serverBtn.TextColor3 = Color3.new(1, 1, 1)
-serverBtn.TextScaled = true
+serverBtn.Size = UDim2.new(0.9, 0, 0, 30)
+serverBtn.Position = UDim2.new(0.05, 0, 0, 160)
+serverBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+serverBtn.Text = "BUSCAR SERVER RICO"
+serverBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+serverBtn.TextSize = 11
 serverBtn.Font = Enum.Font.SourceSansBold
-serverBtn.Parent = main
+serverBtn.Parent = frame
 
--- Auto Farm Button
-local farmBtn = Instance.new("TextButton")
-farmBtn.Size = UDim2.new(0.9, 0, 0, 35)
-farmBtn.Position = UDim2.new(0.05, 0, 0, 220)
-farmBtn.BackgroundColor3 = Color3.new(0.8, 0, 0.8)
-farmBtn.Text = "Auto Farm: OFF"
-farmBtn.TextColor3 = Color3.new(1, 1, 1)
-farmBtn.TextScaled = true
-farmBtn.Font = Enum.Font.SourceSansBold
-farmBtn.Parent = main
-
--- Teleport to Players
+-- TP to Rich Player
 local tpBtn = Instance.new("TextButton")
-tpBtn.Size = UDim2.new(0.9, 0, 0, 35)
-tpBtn.Position = UDim2.new(0.05, 0, 0, 265)
-tpBtn.BackgroundColor3 = Color3.new(0.8, 0.4, 0)
-tpBtn.Text = "TP to Richest Player"
-tpBtn.TextColor3 = Color3.new(1, 1, 1)
-tpBtn.TextScaled = true
+tpBtn.Size = UDim2.new(0.9, 0, 0, 30)
+tpBtn.Position = UDim2.new(0.05, 0, 0, 200)
+tpBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+tpBtn.Text = "TP AL MAS RICO"
+tpBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+tpBtn.TextSize = 11
 tpBtn.Font = Enum.Font.SourceSansBold
-tpBtn.Parent = main
+tpBtn.Parent = frame
 
--- Close Button
+-- Close
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 25, 0, 25)
-closeBtn.Position = UDim2.new(1, -30, 0, 5)
-closeBtn.BackgroundColor3 = Color3.new(1, 0, 0)
+closeBtn.Size = UDim2.new(0, 20, 0, 20)
+closeBtn.Position = UDim2.new(1, -25, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.TextScaled = true
-closeBtn.Parent = main
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 12
+closeBtn.Parent = frame
 
--- Funciones
-local function updateCharacter()
+-- FUNCIONES QUE SÍ FUNCIONAN
+
+-- Función para aplicar speed
+local function applySpeed()
     if player.Character and player.Character:FindFirstChild("Humanoid") then
-        local humanoid = player.Character.Humanoid
-        
-        if speedHack then
-            humanoid.WalkSpeed = currentSpeed
+        if _G.SpeedEnabled then
+            player.Character.Humanoid.WalkSpeed = _G.CurrentSpeed
+        else
+            player.Character.Humanoid.WalkSpeed = 16
         end
-        
-        if jumpHack then
-            humanoid.JumpPower = currentJump
+    end
+end
+
+-- Función para aplicar jump
+local function applyJump()
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        if _G.JumpEnabled then
+            player.Character.Humanoid.JumpPower = _G.CurrentJump
+        else
+            player.Character.Humanoid.JumpPower = 50
         end
     end
 end
 
 -- Speed Events
-speedSlider.FocusLost:Connect(function()
-    local newSpeed = tonumber(speedSlider.Text)
-    if newSpeed and newSpeed >= 1 and newSpeed <= 500 then
-        currentSpeed = newSpeed
-        speedLabel.Text = "Speed: " .. currentSpeed
-        updateCharacter()
+speedBox.FocusLost:Connect(function()
+    local newSpeed = tonumber(speedBox.Text)
+    if newSpeed and newSpeed > 0 and newSpeed <= 1000 then
+        _G.CurrentSpeed = newSpeed
+        speedLabel.Text = "Speed: " .. _G.CurrentSpeed
+        applySpeed()
     else
-        speedSlider.Text = tostring(currentSpeed)
+        speedBox.Text = tostring(_G.CurrentSpeed)
     end
 end)
 
 speedBtn.MouseButton1Click:Connect(function()
-    speedHack = not speedHack
-    if speedHack then
-        speedBtn.Text = "Disable Speed"
-        speedBtn.BackgroundColor3 = Color3.new(1, 0, 0)
+    _G.SpeedEnabled = not _G.SpeedEnabled
+    if _G.SpeedEnabled then
+        speedBtn.Text = "ON"
+        speedBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     else
-        speedBtn.Text = "Enable Speed"
-        speedBtn.BackgroundColor3 = Color3.new(0, 0.6, 1)
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.WalkSpeed = 16
-        end
+        speedBtn.Text = "OFF"
+        speedBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
     end
-    updateCharacter()
+    applySpeed()
 end)
 
 -- Jump Events
-jumpSlider.FocusLost:Connect(function()
-    local newJump = tonumber(jumpSlider.Text)
-    if newJump and newJump >= 1 and newJump <= 1000 then
-        currentJump = newJump
-        jumpLabel.Text = "Jump Power: " .. currentJump
-        updateCharacter()
+jumpBox.FocusLost:Connect(function()
+    local newJump = tonumber(jumpBox.Text)
+    if newJump and newJump > 0 and newJump <= 1000 then
+        _G.CurrentJump = newJump
+        jumpLabel.Text = "Jump: " .. _G.CurrentJump
+        applyJump()
     else
-        jumpSlider.Text = tostring(currentJump)
+        jumpBox.Text = tostring(_G.CurrentJump)
     end
 end)
 
 jumpBtn.MouseButton1Click:Connect(function()
-    jumpHack = not jumpHack
-    if jumpHack then
-        jumpBtn.Text = "Disable Jump"
-        jumpBtn.BackgroundColor3 = Color3.new(1, 0, 0)
+    _G.JumpEnabled = not _G.JumpEnabled
+    if _G.JumpEnabled then
+        jumpBtn.Text = "ON"
+        jumpBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     else
-        jumpBtn.Text = "Enable Jump"
-        jumpBtn.BackgroundColor3 = Color3.new(0, 0.6, 1)
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.JumpPower = 50
-        end
+        jumpBtn.Text = "OFF"
+        jumpBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
     end
-    updateCharacter()
+    applyJump()
 end)
 
--- Server Hop
+-- Server Hop que funciona
 serverBtn.MouseButton1Click:Connect(function()
-    serverBtn.Text = "Searching..."
+    serverBtn.Text = "BUSCANDO..."
     
     local success, result = pcall(function()
-        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local response = game:HttpGet(url)
+        local data = HttpService:JSONDecode(response)
         
-        for i, server in pairs(servers.data) do
-            if server.id ~= game.JobId and server.playing < server.maxPlayers - 1 then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
-                break
+        local servers = {}
+        for _, server in pairs(data.data) do
+            if server.id ~= game.JobId and server.playing > 5 and server.playing < server.maxPlayers then
+                table.insert(servers, server)
             end
+        end
+        
+        if #servers > 0 then
+            local randomServer = servers[math.random(1, #servers)]
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, randomServer.id, player)
+        else
+            serverBtn.Text = "NO HAY SERVERS"
+            wait(2)
+            serverBtn.Text = "BUSCAR SERVER RICO"
         end
     end)
     
     if not success then
-        serverBtn.Text = "Error - Try Again"
+        serverBtn.Text = "ERROR"
         wait(2)
-        serverBtn.Text = "🤑 Find Rich Players"
+        serverBtn.Text = "BUSCAR SERVER RICO"
     end
 end)
 
--- Auto Farm
-local autoFarm = false
-farmBtn.MouseButton1Click:Connect(function()
-    autoFarm = not autoFarm
-    if autoFarm then
-        farmBtn.Text = "Auto Farm: ON"
-        farmBtn.BackgroundColor3 = Color3.new(0, 1, 0)
-    else
-        farmBtn.Text = "Auto Farm: OFF"
-        farmBtn.BackgroundColor3 = Color3.new(0.8, 0, 0.8)
-    end
-end)
-
--- TP to Richest Player
+-- TP to richest player
 tpBtn.MouseButton1Click:Connect(function()
     local richestPlayer = nil
     local highestMoney = 0
     
     for _, otherPlayer in pairs(Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            -- Buscar leaderstats
-            if otherPlayer:FindFirstChild("leaderstats") then
-                for _, stat in pairs(otherPlayer.leaderstats:GetChildren()) do
-                    if stat.Name:lower():find("money") or stat.Name:lower():find("cash") or stat.Name:lower():find("coins") then
-                        local money = tonumber(stat.Value) or 0
-                        if money > highestMoney then
-                            highestMoney = money
+            local leaderstats = otherPlayer:FindFirstChild("leaderstats")
+            if leaderstats then
+                for _, stat in pairs(leaderstats:GetChildren()) do
+                    if stat.Name:lower():match("money") or stat.Name:lower():match("cash") or 
+                       stat.Name:lower():match("coins") or stat.Name:lower():match("dollars") then
+                        local value = tonumber(stat.Value) or 0
+                        if value > highestMoney then
+                            highestMoney = value
                             richestPlayer = otherPlayer
                         end
                     end
@@ -266,43 +254,36 @@ tpBtn.MouseButton1Click:Connect(function()
     end
     
     if richestPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        player.Character.HumanoidRootPart.CFrame = richestPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-        tpBtn.Text = "Teleported to " .. richestPlayer.Name
+        player.Character.HumanoidRootPart.CFrame = richestPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(5, 0, 0)
+        tpBtn.Text = "TP A " .. richestPlayer.Name:upper()
         wait(2)
-        tpBtn.Text = "TP to Richest Player"
+        tpBtn.Text = "TP AL MAS RICO"
     else
-        tpBtn.Text = "No Rich Players Found"
+        tpBtn.Text = "NO HAY RICOS"
         wait(2)
-        tpBtn.Text = "TP to Richest Player"
+        tpBtn.Text = "TP AL MAS RICO"
     end
 end)
 
--- Close Button
+-- Close button
 closeBtn.MouseButton1Click:Connect(function()
     gui:Destroy()
 end)
 
 -- Mantener activo cuando respawnea
-player.CharacterAdded:Connect(function()
+player.CharacterAdded:Connect(function(character)
     wait(1)
-    updateCharacter()
+    applySpeed()
+    applyJump()
 end)
 
--- Auto Farm Loop
+-- Loop para mantener los valores
 spawn(function()
     while gui.Parent do
-        if autoFarm and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            -- Aquí puedes agregar lógica específica del juego
-            for _, obj in pairs(workspace:GetChildren()) do
-                if obj.Name:find("Money") or obj.Name:find("Cash") or obj.Name:find("Coin") then
-                    if obj:FindFirstChild("ClickDetector") then
-                        fireclickdetector(obj.ClickDetector)
-                    end
-                end
-            end
-        end
-        wait(0.1)
+        wait(0.5)
+        applySpeed()
+        applyJump()
     end
 end)
 
-print("✅ Brainrot Panel Loaded!")
+print("✅ BRAINROT HACK CARGADO - Todo funcional!")
