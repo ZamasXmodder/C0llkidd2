@@ -4,6 +4,7 @@ local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -12,8 +13,9 @@ local humanoid = character:WaitForChild("Humanoid")
 
 -- Variables globales
 local savedLocation = nil
-local isFlying = false
-local flyConnection = nil
+local isAutoRunning = false
+local autoRunConnection = nil
+local speedCoil = nil
 
 -- Lista de brainrots
 local brainrotList = {
@@ -75,7 +77,7 @@ local teleGuideBtn = Instance.new("TextButton")
 teleGuideBtn.Size = UDim2.new(1, 0, 0, 45)
 teleGuideBtn.Position = UDim2.new(0, 0, 0, 0)
 teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-teleGuideBtn.Text = "🚀\nTeleGuide"
+teleGuideBtn.Text = "🏃\nTeleGuide"
 teleGuideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 teleGuideBtn.TextSize = 9
 teleGuideBtn.Font = Enum.Font.GothamBold
@@ -105,7 +107,7 @@ mainFrame.Size = UDim2.new(0, 320, 0, 420)
 mainFrame.Position = UDim2.new(0, 80, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
-mainFrame.Visible = false -- Inicialmente oculto
+mainFrame.Visible = false
 mainFrame.Parent = screenGui
 
 local corner = Instance.new("UICorner")
@@ -161,67 +163,150 @@ statusLabel.TextSize = 9
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
--- FUNCIONES DE VUELO
-local function startFlying()
-    if isFlying then return end
-    isFlying = true
+-- FUNCIÓN PARA CREAR SPEEDCOIL
+local function createSpeedCoil()
+    if speedCoil then speedCoil:Destroy() end
     
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.Parent = character.HumanoidRootPart
+    speedCoil = Instance.new("Tool")
+    speedCoil.Name = "SpeedCoil"
+    speedCoil.RequiresHandle = true
     
-    local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyPosition.Position = character.HumanoidRootPart.Position
-    bodyPosition.Parent = character.HumanoidRootPart
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(1, 1, 4)
+    handle.Material = Enum.Material.Neon
+    handle.BrickColor = BrickColor.new("Bright blue")
+    handle.Shape = Enum.PartType.Cylinder
+    handle.Parent = speedCoil
     
-    flyConnection = RunService.Heartbeat:Connect(function()
-        if not isFlying then return end
+    -- Efecto visual del speedcoil
+    local light = Instance.new("PointLight")
+    light.Color = Color3.fromRGB(0, 150, 255)
+    light.Brightness = 2
+    light.Range = 10
+    light.Parent = handle
+    
+    speedCoil.Parent = player.Backpack
+    speedCoil:Clone().Parent = character
+    
+    return speedCoil
+end
+
+-- FUNCIÓN PARA AUTO-CORRER AL PUNTO GUARDADO
+local function autoRunToLocation()
+    if not savedLocation or isAutoRunning then return end
+    if not character or not character.HumanoidRootPart then return end
+    
+    isAutoRunning = true
+    teleGuideBtn.Text = "🏃\nRunning..."
+    teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    
+    -- Crear speedcoil
+    createSpeedCoil()
+    
+    -- Equipar speedcoil automáticamente
+    spawn(function()
+        wait(0.5)
+        if speedCoil and speedCoil.Parent == player.Backpack then
+            humanoid:EquipTool(speedCoil)
+        end
+    end)
+    
+    -- Crear pathfinding
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 3,
+        AgentHeight = 6,
+        AgentCanJump = true,
+        WaypointSpacing = 4
+    })
+    
+    spawn(function()
+        local success, errorMessage = pcall(function()
+            path:ComputeAsync(character.HumanoidRootPart.Position, savedLocation)
+        end)
         
-        local camera = workspace.CurrentCamera
-        local moveVector = Vector3.new(0, 0, 0)
+        if success then
+            local waypoints = path:GetWaypoints()
+            
+            for i, waypoint in pairs(waypoints) do
+                if not isAutoRunning then break end
+                
+                -- Mover hacia el waypoint
+                humanoid:MoveTo(waypoint.Position)
+                
+                -- Saltar si es necesario
+                if waypoint.Action == Enum.PathWaypointAction.Jump then
+                    humanoid.Jump = true
+                end
+                
+                -- Esperar a llegar al waypoint
+                local timeOut = 0
+                while (character.HumanoidRootPart.Position - waypoint.Position).Magnitude > 5 and timeOut < 10 do
+                    wait(0.1)
+                    timeOut = timeOut + 0.1
+                    if not isAutoRunning then break end
+                end
+            end
+            
+            -- Llegó al destino
+            if isAutoRunning then
+                teleGuideBtn.Text = "✅\nArrived!"
+                teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                
+                wait(2)
+                teleGuideBtn.Text = "🏃\nTeleGuide"
+                -- Continuación del código
+                teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+                
+                -- Quitar speedcoil después de llegar
+                if speedCoil then
+                    speedCoil:Destroy()
+                    speedCoil = nil
+                end
+            end
+        else
+            -- Si pathfinding falla, usar movimiento directo
+            teleGuideBtn.Text = "🏃\nDirect..."
+            
+            -- Movimiento directo hacia el objetivo
+            while isAutoRunning and (character.HumanoidRootPart.Position - savedLocation).Magnitude > 5 do
+                humanoid:MoveTo(savedLocation)
+                
+                -- Si se queda atascado, saltar
+                local startPos = character.HumanoidRootPart.Position
+                wait(2)
+                if (character.HumanoidRootPart.Position - startPos).Magnitude < 2 then
+                    humanoid.Jump = true
+                    wait(1)
+                end
+            end
+            
+            if isAutoRunning then
+                teleGuideBtn.Text = "✅\nArrived!"
+                wait(2)
+                teleGuideBtn.Text = "🏃\nTeleGuide"
+                teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+                
+                if speedCoil then
+                    speedCoil:Destroy()
+                    speedCoil = nil
+                end
+            end
+        end
         
-        -- Controles de vuelo
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-            moveVector = moveVector + camera.CFrame.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-            moveVector = moveVector - camera.CFrame.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-            moveVector = moveVector - camera.CFrame.RightVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-            moveVector = moveVector + camera.CFrame.RightVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            moveVector = moveVector + Vector3.new(0, 1, 0)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-            moveVector = moveVector - Vector3.new(0, 1, 0)
-        end
-        
-        -- Velocidad doble
-        bodyVelocity.Velocity = moveVector * 32 -- Velocidad doble (16 * 2)
+        isAutoRunning = false
     end)
 end
 
-local function stopFlying()
-    if not isFlying then return end
-    isFlying = false
-    
-    if flyConnection then
-        flyConnection:Disconnect()
-        flyConnection = nil
+-- FUNCIÓN PARA DETENER AUTO-RUN
+local function stopAutoRun()
+    isAutoRunning = false
+    if speedCoil then
+        speedCoil:Destroy()
+        speedCoil = nil
     end
-    
-    -- Limpiar objetos de vuelo
-    for _, obj in pairs(character.HumanoidRootPart:GetChildren()) do
-        if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") then
-            obj:Destroy()
-        end
-    end
+    teleGuideBtn.Text = "🏃\nTeleGuide"
+    teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 end
 
 -- FUNCIÓN PARA GUARDAR UBICACIÓN
@@ -231,59 +316,41 @@ local function saveCurrentLocation()
         saveLocationBtn.Text = "✅\nSaved!"
         saveLocationBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
         
-        wait(1)
-        saveLocationBtn.Text = "📍\nSave Loc"
-        saveLocationBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+        spawn(function()
+            wait(1)
+            saveLocationBtn.Text = "📍\nSave Loc"
+            saveLocationBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+        end)
         
         print("Location saved: " .. tostring(savedLocation))
     end
 end
 
--- FUNCIÓN PARA TELEGUIDE
+-- FUNCIÓN TELEGUIDE MEJORADA
 local function teleGuide()
     if not savedLocation then
         teleGuideBtn.Text = "❌\nNo Loc!"
         teleGuideBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         
-        wait(1)
-        teleGuideBtn.Text = "🚀\nTeleGuide"
-        teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        spawn(function()
+            wait(1)
+            teleGuideBtn.Text = "🏃\nTeleGuide"
+            teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        end)
         return
     end
     
-    if character and character.HumanoidRootPart then
-        teleGuideBtn.Text = "🚀\nFlying..."
-        teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        
-        -- Iniciar vuelo
-        startFlying()
-        
-        -- Volar hacia la ubicación guardada
-        spawn(function()
-            local startPos = character.HumanoidRootPart.Position
-            local targetPos = savedLocation
-            local distance = (targetPos - startPos).Magnitude
-            local flyTime = distance / 32 -- Velocidad doble
-            
-            local bodyPosition = character.HumanoidRootPart:FindFirstChild("BodyPosition")
-            if bodyPosition then
-                bodyPosition.Position = targetPos
-            end
-            
-            wait(flyTime + 1)
-            
-            -- Detener vuelo al llegar
-            stopFlying()
-            teleGuideBtn.Text = "✅\nArrived!"
-            
-            wait(2)
-            teleGuideBtn.Text = "🚀\nTeleGuide"
-            teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-        end)
+    if isAutoRunning then
+        -- Si ya está corriendo, detenerlo
+        stopAutoRun()
+        return
     end
+    
+    -- Iniciar auto-run
+    autoRunToLocation()
 end
 
--- Continuación del ESP y resto del código
+-- ESP
 local function createESP(obj, brainrotName)
     if espObjects[obj] then return end
     
@@ -306,7 +373,7 @@ local function createESP(obj, brainrotName)
     espObjects[obj] = billboard
 end
 
--- BÚSQUEDA REAL-TIME
+-- BÚSQUEDA REAL-TIME (misma función anterior)
 local function searchRealTime(targetBrainrot)
     if isSearching then 
         statusLabel.Text = "⏳ Already searching...\nPlease wait"
@@ -479,7 +546,7 @@ saveLocationBtn.MouseButton1Click:Connect(function()
     saveCurrentLocation()
 end)
 
--- TeleGuide
+-- Continuación de TeleGuide
 teleGuideBtn.MouseButton1Click:Connect(function()
     teleGuide()
 end)
@@ -529,7 +596,7 @@ end)
 screenGui.AncestryChanged:Connect(function()
     if not screenGui.Parent then
         isSearching = false
-        stopFlying()
+        stopAutoRun()
         for obj, billboard in pairs(espObjects) do
             if billboard then billboard:Destroy() end
         end
@@ -540,9 +607,26 @@ end)
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = character:WaitForChild("Humanoid")
-    stopFlying() -- Detener vuelo si estaba volando
+    stopAutoRun() -- Detener auto-run si estaba corriendo
 end)
 
-print("🧠 Brainrot Finder with Controls loaded!")
-print("📍 Left: Toggle Panel | Right: Save Location & TeleGuide")
-print("🚀 Use WASD + Space/Shift to fly when using TeleGuide")
+-- Detener auto-run si el jugador se mueve manualmente
+spawn(function()
+    while true do
+        if isAutoRunning and humanoid then
+            -- Si el jugador presiona teclas de movimiento, detener auto-run
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) or 
+               UserInputService:IsKeyDown(Enum.KeyCode.A) or 
+               UserInputService:IsKeyDown(Enum.KeyCode.S) or 
+               UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                stopAutoRun()
+            end
+        end
+        wait(0.1)
+    end
+end)
+
+print("🧠 Brainrot Finder with Auto-Run loaded!")
+print("📍 Left: Toggle Panel | Right: Save Location & Auto-Run TeleGuide")
+print("🏃 TeleGuide now runs automatically to saved location with SpeedCoil!")
+print("⏹️ Press WASD to stop auto-run manually")
