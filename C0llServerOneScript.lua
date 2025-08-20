@@ -9,7 +9,7 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- ID del juego Steal a Brainrot (DEBES CAMBIARLO POR EL ID REAL)
-local GAME_ID = 123456789 -- ⚠️ CAMBIAR POR EL ID REAL DEL JUEGO
+local GAME_ID = 109983668079237 -- ⚠️ CAMBIAR POR EL ID REAL DEL JUEGO
 
 -- Lista de brainrots secretos a buscar
 local SECRET_BRAINROTS = {
