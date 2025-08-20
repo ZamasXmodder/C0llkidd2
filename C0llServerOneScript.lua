@@ -1,4 +1,4 @@
--- Anti-Hit GUI Script para Steal a Brainrot
+-- Anti-Hit GUI Script para Steal a Brainrot (Sistema Nativo del Gancho)
 -- Crear ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AntiHitGUI"
@@ -52,64 +52,170 @@ buttonCorner.Parent = antiHitButton
 
 -- Variables de estado
 local antiHitEnabled = false
-local originalConnections = {}
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
+local hookConnection = nil
+local originalHookPart = nil
+
+-- Función para encontrar una trampa real en el workspace
+local function findTrapInWorkspace()
+    local trap = nil
+    
+    -- Buscar específicamente por "Trampa" y variaciones
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (
+            string.lower(obj.Name):find("trampa") or 
+            string.lower(obj.Name):find("trap") or
+            string.lower(obj.Name):find("freeze") or
+            string.lower(obj.Name):find("hook") or
+            string.lower(obj.Name):find("gancho") or
+            obj.Name == "Trampa" or
+            obj.Name == "TrampaModel" or
+            obj.Name == "TrapPart"
+        ) then
+            trap = obj
+            print("Trampa encontrada: " .. obj.Name)
+            break
+        end
+    end
+    
+    -- Buscar en modelos que contengan trampas
+    if not trap then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and (
+                string.lower(obj.Name):find("trampa") or 
+                string.lower(obj.Name):find("trap")
+            ) then
+                -- Buscar la parte principal dentro del modelo
+                for _, part in pairs(obj:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        trap = part
+                        print("Trampa encontrada en modelo: " .. obj.Name .. " -> " .. part.Name)
+                        break
+                    end
+                end
+                if trap then break end
+            end
+        end
+    end
+    
+    -- Buscar por características físicas (partes con eventos de toque y scripts)
+    if not trap then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Touched then
+                -- Verificar si tiene RemoteEvents o scripts relacionados con congelamiento
+                local hasRelevantScript = false
+                for _, child in pairs(obj:GetDescendants()) do
+                    if (child:IsA("RemoteEvent") or child:IsA("Script") or child:IsA("LocalScript")) and
+                       (string.lower(child.Name):find("freeze") or 
+                        string.lower(child.Name):find("trap") or
+                        string.lower(child.Name):find("hook") or
+                        string.lower(child.Name):find("immun")) then
+                        hasRelevantScript = true
+                        break
+                    end
+                end
+                if hasRelevantScript then
+                    trap = obj
+                    print("Trampa encontrada por script: " .. obj.Name)
+                    break
+                end
+            end
+        end
+    end
+    
+    return trap
+end
+
+-- Función para simular pisar la trampa (activar sistema nativo)
+local function simulateTrapStep()
+    local trap = findTrapInWorkspace()
+    
+    if trap and trap.Touched then
+        -- Simular que el HumanoidRootPart toca la trampa
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            -- Disparar el evento Touched de la trampa
+            trap.Touched:Fire(humanoidRootPart)
+            originalHookPart = trap
+            print("Simulando toque en trampa: " .. trap.Name)
+            return true
+        end
+    else
+        print("No se encontró ninguna trampa en el workspace")
+    end
+    
+    return false
+end
+
+-- Función para mantener el efecto de la trampa activo
+local function maintainTrapEffect()
+    if originalHookPart and originalHookPart.Parent then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            -- Reactivar el toque cada pocos frames para mantener el efecto
+            originalHookPart.Touched:Fire(humanoidRootPart)
+        end
+    end
+end
 
 -- Función para activar/desactivar Anti-Hit
 local function toggleAntiHit()
     antiHitEnabled = not antiHitEnabled
     
     if antiHitEnabled then
-        -- Activar Anti-Hit
+        -- Activar Anti-Hit usando el sistema nativo del juego
         antiHitButton.Text = "Anti-Hit: ON"
         antiHitButton.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
         
-        -- Hacer al personaje inmune a daño
-        if humanoid then
-            humanoid.MaxHealth = math.huge
-            humanoid.Health = math.huge
-        end
+        -- Intentar simular el gancho real
+        local success = simulateHookStep()
         
-        -- Desactivar PlatformStand (permite movimiento)
-        if humanoid then
-            humanoid.PlatformStand = false
-        end
-        
-        -- Hacer todas las partes del cuerpo "CanCollide" = false para evitar empujes
-        for _, part in pairs(character:GetChildren()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.CanCollide = false
-            end
-        end
-        
-        -- Prevenir ragdoll desconectando todas las conexiones de daño
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = character.HumanoidRootPart
-        
-        -- Proteger contra scripts que intenten cambiar la salud
-        originalConnections.healthChanged = humanoid.HealthChanged:Connect(function()
-            if antiHitEnabled then
+        if success then
+            -- Mantener el efecto activo
+            hookConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if antiHitEnabled then
+                    maintainHookEffect()
+                    
+                    -- Asegurar que el jugador pueda moverse
+                    if humanoid then
+                        humanoid.PlatformStand = false
+                        humanoid.Sit = false
+                    end
+                end
+            end)
+            
+            print("Anti-Hit activado - Sistema nativo del gancho simulado")
+        else
+            -- Fallback: método manual si no encontramos el gancho
+            print("Gancho no encontrado, usando método alternativo...")
+            
+            if humanoid then
+                humanoid.MaxHealth = math.huge
                 humanoid.Health = math.huge
-            end
-        end)
-        
-        -- Proteger contra cambios en PlatformStand
-        originalConnections.platformStandChanged = humanoid:GetPropertyChangedSignal("PlatformStand"):Connect(function()
-            if antiHitEnabled then
                 humanoid.PlatformStand = false
             end
-        end)
-        
-        print("Anti-Hit activado - Inmune a todos los ataques pero puedes moverte")
+            
+            -- Crear efecto de inmunidad manual
+            hookConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if antiHitEnabled and humanoid then
+                    humanoid.Health = math.huge
+                    humanoid.PlatformStand = false
+                end
+            end)
+        end
         
     else
         -- Desactivar Anti-Hit
         antiHitButton.Text = "Anti-Hit: OFF"
         antiHitButton.BackgroundColor3 = Color3.fromRGB(70, 130, 200)
+        
+        -- Desconectar el mantenimiento del efecto
+        if hookConnection then
+            hookConnection:Disconnect()
+            hookConnection = nil
+        end
         
         -- Restaurar valores normales
         if humanoid then
@@ -118,28 +224,8 @@ local function toggleAntiHit()
             humanoid.PlatformStand = false
         end
         
-        -- Restaurar colisiones
-        for _, part in pairs(character:GetChildren()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.CanCollide = true
-            end
-        end
-        
-        -- Limpiar BodyVelocity
-        local bodyVel = character.HumanoidRootPart:FindFirstChild("BodyVelocity")
-        if bodyVel then
-            bodyVel:Destroy()
-        end
-        
-        -- Desconectar todas las conexiones
-        for _, connection in pairs(originalConnections) do
-            if connection then
-                connection:Disconnect()
-            end
-        end
-        originalConnections = {}
-        
-        print("Anti-Hit desactivado - Vulnerable a ataques normalmente")
+        originalHookPart = nil
+        print("Anti-Hit desactivado - Vulnerable normalmente")
     end
 end
 
@@ -159,4 +245,4 @@ player.CharacterAdded:Connect(function(newCharacter)
     end
 end)
 
-print("Anti-Hit GUI cargado exitosamente")
+print("Anti-Hit GUI cargado - Buscando sistema nativo de trampas...")
