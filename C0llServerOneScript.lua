@@ -119,7 +119,7 @@ StatusLabel.BackgroundTransparency = 1
 StatusLabel.Position = UDim2.new(0.05, 0, 0.45, 0)
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
 StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.Text = "Presiona para buscar brainrots específicos"
+StatusLabel.Text = "Presiona para buscar en todos los servidores"
 StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 StatusLabel.TextScaled = true
 StatusLabel.TextWrapped = true
@@ -296,8 +296,8 @@ local function getRealServers()
     return servers
 end
 
--- FUNCIÓN REAL PARA DETECTAR BRAINROTS EN SERVIDOR ACTUAL
-local function hasBrainrotInCurrentServer()
+-- FUNCIÓN REAL PARA DETECTAR BRAINROTS EN SERVIDOR DESPUÉS DEL TELEPORT
+local function hasBrainrotInServer()
     local workspace = game:GetService("Workspace")
     
     -- Verificar brainrots específicos en workspace
@@ -323,8 +323,8 @@ local function hasBrainrotInCurrentServer()
         
         -- Buscar en descendientes de ReplicatedStorage
         for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-            if obj.Name == brainrotName then
-                                return true, brainrotName
+                        if obj.Name == brainrotName then
+                return true, brainrotName
             end
         end
     end
@@ -391,7 +391,7 @@ local function teleportToRealServer(jobId)
     return true
 end
 
--- FUNCIÓN PRINCIPAL DE BÚSQUEDA REAL CON TELEPORT
+-- FUNCIÓN PRINCIPAL DE BÚSQUEDA REAL - SOLO EN OTROS SERVIDORES
 local function searchForRealBrainrots()
     if isSearching then
         isSearching = false
@@ -405,33 +405,20 @@ local function searchForRealBrainrots()
         return
     end
     
-    -- Primero verificar servidor actual
-    StatusLabel.Text = "🔍 Verificando servidor actual..."
-    local hasCurrentBrainrot, currentBrainrotType = hasBrainrotInCurrentServer()
-    
-    if hasCurrentBrainrot then
-        brainrotsFound = brainrotsFound + 1
-        StatusLabel.Text = "🎉 BRAINROT EN SERVIDOR ACTUAL!"
-        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        ServersFoundLabel.Text = "Servidores: " .. serversScanned .. " | Brainrots: " .. brainrotsFound
-        showNotification("🎉 BRAINROT AQUÍ!", "Encontrado: " .. (currentBrainrotType or "Brainrot") .. "\n¡Ya estás en el servidor correcto!", 5)
-        return
-    end
-    
     isSearching = true
     SearchButton.Text = "⏸️ DETENER"
     SearchButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    StatusLabel.Text = "🌍 INICIANDO BÚSQUEDA REAL..."
+    StatusLabel.Text = "🌍 INICIANDO BÚSQUEDA EN SERVIDORES..."
     StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     
     spawn(function()
         while isSearching do
-            StatusLabel.Text = "🔍 Obteniendo servidores reales..."
+            StatusLabel.Text = "🔍 Obteniendo lista de servidores..."
             
             local realServers = getRealServers()
             
             if realServers and #realServers > 0 then
-                StatusLabel.Text = "✅ " .. #realServers .. " servidores obtenidos"
+                StatusLabel.Text = "✅ " .. #realServers .. " servidores encontrados"
                 
                 for i, server in pairs(realServers) do
                     if not isSearching then break end
@@ -447,12 +434,31 @@ local function searchForRealBrainrots()
                     
                     if teleportSuccess then
                         -- El teleport fue exitoso, el script se reiniciará en el nuevo servidor
-                        -- y verificará automáticamente si hay brainrots
-                        StatusLabel.Text = "✅ TELEPORTADO! Verificando..."
-                        isSearching = false
-                        SearchButton.Text = "🎯 BUSCAR BRAINROTS"
-                        SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
-                        return
+                        StatusLabel.Text = "✅ TELEPORTADO! Verificando brainrots..."
+                        
+                        -- Esperar un momento para que cargue el nuevo servidor
+                        wait(3)
+                        
+                        -- Verificar si hay brainrots en este servidor
+                        local hasBrainrot, brainrotType = hasBrainrotInServer()
+                        
+                        if hasBrainrot then
+                            -- ENCONTRADO! Quedarse en este servidor
+                            brainrotsFound = brainrotsFound + 1
+                            StatusLabel.Text = "🎉 BRAINROT ENCONTRADO!"
+                            StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                            ServersFoundLabel.Text = "Servidores: " .. serversScanned .. " | Brainrots: " .. brainrotsFound
+                            
+                            showNotification("🎉 BRAINROT DETECTADO!", "Tipo: " .. (brainrotType or "Brainrot") .. "\n¡Servidor encontrado!", 8)
+                            
+                            isSearching = false
+                            SearchButton.Text = "🎯 BUSCAR BRAINROTS"
+                            SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
+                            return
+                        else
+                            -- No hay brainrots, continuar buscando
+                            StatusLabel.Text = "❌ Sin brainrots, continuando..."
+                        end
                     else
                         -- Si falla el teleport, continuar con el siguiente
                         StatusLabel.Text = "❌ Fallo teleport, probando siguiente..."
@@ -462,35 +468,16 @@ local function searchForRealBrainrots()
                     wait(0.5) -- Pausa entre intentos de teleport
                 end
                 
-                StatusLabel.Text = "🔄 Ciclo completado, reiniciando..."
+                StatusLabel.Text = "🔄 Ciclo completado, obteniendo más servidores..."
             else
                 StatusLabel.Text = "❌ Error obteniendo servidores, reintentando..."
                 StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
             end
             
-            wait(2) -- Pausa antes del siguiente ciclo
+            wait(3) -- Pausa antes del siguiente ciclo
         end
     end)
 end
-
--- Auto-verificación al cargar el script
-spawn(function()
-    wait(2) -- Esperar a que todo cargue
-    StatusLabel.Text = "🔍 Auto-verificando servidor actual..."
-    
-    local hasCurrentBrainrot, currentBrainrotType = hasBrainrotInCurrentServer()
-    
-    if hasCurrentBrainrot then
-        brainrotsFound = brainrotsFound + 1
-        StatusLabel.Text = "🎉 BRAINROT DETECTADO AQUÍ!"
-        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        ServersFoundLabel.Text = "Servidores: 0 | Brainrots: " .. brainrotsFound
-        showNotification("🎉 BRAINROT ENCONTRADO!", "Tipo: " .. (currentBrainrotType or "Brainrot") .. "\n¡Este servidor tiene brainrots!", 8)
-    else
-        StatusLabel.Text = "❌ Sin brainrots en este servidor"
-        StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    end
-end)
 
 -- Eventos
 ToggleButton.MouseButton1Click:Connect(function()
@@ -511,12 +498,12 @@ CloseButton.MouseButton1Click:Connect(function()
 end)
 
 -- Notificación de inicio
-showNotification("🎯 Brainrot Finder REAL", "Panel cargado!\nVerificando servidor actual...", 5)
+showNotification("🎯 Brainrot Finder", "Panel cargado!\nBusca brainrots en TODOS los servidores", 5)
 
-print("🎯 Brainrot Finder REAL cargado!")
-print("📋 Busca estos brainrots específicos:")
+print("🎯 Brainrot Finder cargado!")
+print("📋 Busca estos brainrots en otros servidores:")
 for i, brainrot in pairs(BRAINROTS) do
     print("   • " .. brainrot)
 end
 print("🚀 Teleport REAL servidor por servidor")
-print("🔍 Auto-verificación del servidor actual activada")
+print("🔍 NO verifica servidor actual - SOLO otros servidores")
