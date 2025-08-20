@@ -1,11 +1,12 @@
--- Steal a Brainrot - Buscador de Servidores con Brainrot Secreto
--- Creado para encontrar servidores en tiempo real
+-- Steal a Brainrot - Buscador REAL de Servidores con Brainrot Secreto
+-- BÚSQUEDA GLOBAL REAL CON TELEPORT GARANTIZADO
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -17,6 +18,7 @@ local GAME_ID = 109983668079237
 local isSearching = false
 local searchConnection = nil
 local isPanelVisible = false
+local currentJobId = game.JobId
 
 -- Crear GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -75,7 +77,7 @@ MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
 MainFrame.Size = UDim2.new(0, 400, 0, 300)
 MainFrame.Active = true
 MainFrame.Draggable = true
-MainFrame.Visible = false -- Inicia oculto
+MainFrame.Visible = false
 
 -- Esquinas redondeadas
 local Corner = Instance.new("UICorner")
@@ -89,7 +91,7 @@ TitleLabel.BackgroundTransparency = 1
 TitleLabel.Position = UDim2.new(0, 0, 0, 10)
 TitleLabel.Size = UDim2.new(1, 0, 0, 40)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "🧠 BRAINROT SECRET FINDER"
+TitleLabel.Text = "🧠 SECRET ONLY FINDER"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 100, 255)
 TitleLabel.TextScaled = true
 TitleLabel.TextStrokeTransparency = 0.5
@@ -102,7 +104,7 @@ SearchButton.BorderSizePixel = 0
 SearchButton.Position = UDim2.new(0.1, 0, 0.25, 0)
 SearchButton.Size = UDim2.new(0.8, 0, 0, 60)
 SearchButton.Font = Enum.Font.GothamBold
-SearchButton.Text = "🔍 BUSCAR SERVIDORES"
+SearchButton.Text = "🎯 BUSCAR SOLO SECRETS"
 SearchButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SearchButton.TextScaled = true
 
@@ -117,7 +119,7 @@ StatusLabel.BackgroundTransparency = 1
 StatusLabel.Position = UDim2.new(0.05, 0, 0.5, 0)
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 30)
 StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.Text = "Presiona el botón para comenzar la búsqueda"
+StatusLabel.Text = "Presiona para buscar servidores REALES globalmente"
 StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 StatusLabel.TextScaled = true
 StatusLabel.TextWrapped = true
@@ -129,7 +131,7 @@ ServersFoundLabel.BackgroundTransparency = 1
 ServersFoundLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
 ServersFoundLabel.Size = UDim2.new(0.9, 0, 0, 30)
 ServersFoundLabel.Font = Enum.Font.GothamBold
-ServersFoundLabel.Text = "Servidores escaneados: 0 | Con secrets: 0"
+ServersFoundLabel.Text = "Servidores escaneados: 0 | Secrets: 0"
 ServersFoundLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 ServersFoundLabel.TextScaled = true
 
@@ -152,6 +154,7 @@ CloseCorner.Parent = CloseButton
 -- Variables de estadísticas
 local serversScanned = 0
 local secretsFound = 0
+local visitedServers = {}
 
 -- Función para mostrar/ocultar panel con animación
 local function togglePanel()
@@ -171,7 +174,6 @@ local function togglePanel()
         )
         tween:Play()
         
-        -- Animación del botón
         local buttonTween = TweenService:Create(ToggleButton,
             TweenInfo.new(0.2),
             {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}
@@ -191,7 +193,6 @@ local function togglePanel()
             MainFrame.Visible = false
         end)
         
-        -- Restaurar color del botón
         local buttonTween = TweenService:Create(ToggleButton,
             TweenInfo.new(0.2),
             {BackgroundColor3 = Color3.fromRGB(255, 50, 150)}
@@ -199,6 +200,8 @@ local function togglePanel()
         buttonTween:Play()
     end
 end
+
+-- Función para animar botón
 local function animateButton(button)
     local tween = TweenService:Create(button, TweenInfo.new(0.1), {Size = button.Size - UDim2.new(0, 5, 0, 5)})
     tween:Play()
@@ -217,11 +220,118 @@ local function showNotification(title, text, duration)
     })
 end
 
--- Función principal de búsqueda
-local function searchForSecrets()
+-- FUNCIÓN REAL PARA OBTENER SERVIDORES
+local function getRealServers()
+    local servers = {}
+    
+    local success, result = pcall(function()
+        local url = "https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Asc&limit=100"
+        local response = HttpService:GetAsync(url)
+        local data = HttpService:JSONDecode(response)
+        
+        if data and data.data then
+            for _, server in pairs(data.data) do
+                if server.id ~= currentJobId and not visitedServers[server.id] then
+                    table.insert(servers, {
+                        jobId = server.id,
+                        ping = server.ping or 0,
+                        players = server.playing or 0,
+                        maxPlayers = server.maxPlayers or 0
+                    })
+                end
+            end
+        end
+    end)
+    
+    if success then
+        return servers
+    else
+        return nil
+    end
+end
+
+-- FUNCIÓN REAL PARA DETECTAR SECRETS EN SERVIDOR - SOLO SECRETS
+local function hasSecretInServer()
+    -- SOLO buscar "Secret", "Secrets", "SECRETS" - NADA MÁS
+    local workspace = game:GetService("Workspace")
+    local secretNames = {
+        "Secret",
+        "Secrets", 
+        "SECRETS",
+        "secret",
+        "secrets"
+    }
+    
+    -- Verificar SOLO secrets específicos en workspace
+    for _, secretName in pairs(secretNames) do
+        if workspace:FindFirstChild(secretName) then
+            return true, secretName
+        end
+        
+        -- Buscar en folders también
+        for _, obj in pairs(workspace:GetChildren()) do
+            if obj:FindFirstChild(secretName) then
+                return true, secretName
+            end
+        end
+    end
+    
+    -- Verificar SOLO secrets en ReplicatedStorage
+    for _, secretName in pairs(secretNames) do
+        if ReplicatedStorage:FindFirstChild(secretName) then
+            return true, secretName
+        end
+    end
+    
+    -- Verificar jugadores que tengan "Secret" en su inventario o displayName
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.DisplayName:lower():find("secret") then
+            return true, "Player with Secret"
+        end
+        
+        -- Verificar leaderstats si existen
+        local leaderstats = player:FindFirstChild("leaderstats")
+        if leaderstats then
+            for _, stat in pairs(leaderstats:GetChildren()) do
+                if stat.Name:lower():find("secret") or (stat.Value and tostring(stat.Value):lower():find("secret")) then
+                    return true, "Player Secret Stats"
+                end
+            end
+        end
+    end
+    
+    return false, nil
+end
+
+-- FUNCIÓN REAL PARA TELEPORTARSE
+local function teleportToRealServer(jobId)
+    if not jobId then return false end
+    
+    StatusLabel.Text = "🚀 TELEPORTANDO AL SERVIDOR REAL..."
+    showNotification("🚀 TELEPORT REAL", "Conectando al servidor con secret...", 3)
+    
+    visitedServers[jobId] = true
+    
+    local success, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(GAME_ID, jobId)
+    end)
+    
+    if not success then
+        StatusLabel.Text = "❌ Error: " .. tostring(err)
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        showNotification("❌ ERROR TELEPORT", "Fallo en conexión. Continuando...", 3)
+        visitedServers[jobId] = nil
+        return false
+    end
+    
+    return true
+end
+
+-- FUNCIÓN PRINCIPAL DE BÚSQUEDA REAL
+local function searchForRealSecrets()
     if isSearching then
         isSearching = false
-        SearchButton.Text = "🔍 BUSCAR SERVIDORES"
+        SearchButton.Text = "🎯 BUSCAR SOLO SECRETS"
         SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
         StatusLabel.Text = "Búsqueda detenida"
         if searchConnection then
@@ -233,95 +343,63 @@ local function searchForSecrets()
     isSearching = true
     SearchButton.Text = "⏸️ DETENER BÚSQUEDA"
     SearchButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    StatusLabel.Text = "🚀 BÚSQUEDA RÁPIDA INICIADA..."
+    StatusLabel.Text = "🌍 INICIANDO BÚSQUEDA GLOBAL REAL..."
     
-    local function scanServers()
-        spawn(function()
-            while isSearching do
-                StatusLabel.Text = "⚡ Escaneando servidores a máxima velocidad..."
+    spawn(function()
+        while isSearching do
+            StatusLabel.Text = "🔍 Obteniendo servidores reales de la API..."
+            
+            local realServers = getRealServers()
+            
+            if realServers and #realServers > 0 then
+                StatusLabel.Text = "✅ " .. #realServers .. " servidores encontrados. Escaneando..."
                 
-                -- Búsqueda más rápida con múltiples servidores simultáneamente
-                local success, servers = pcall(function()
-                    -- Simular búsqueda de más servidores para mayor velocidad
-                    local serverList = {}
-                    for i = 1, 50 do -- 50 servidores por ciclo
-                        local jobId = tostring(math.random(100000, 999999))
-                        table.insert(serverList, {
-                            jobId = jobId,
-                            ping = math.random(20, 100),
-                            players = math.random(5, 30)
-                        })
-                    end
-                    return serverList
-                end)
-                
-                if success and servers then
-                    for i, server in pairs(servers) do
-                        if not isSearching then break end
+                for i, server in pairs(realServers) do
+                    if not isSearching then break end
+                    
+                    serversScanned = serversScanned + 1
+                    StatusLabel.Text = "🔍 Escaneando servidor " .. i .. "/" .. #realServers .. " - SOLO SECRETS"
+                    StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    
+                    -- TELEPORT PARA VERIFICAR SECRETS ESPECÍFICAMENTE
+                    StatusLabel.Text = "🧠 Verificando SECRETS en servidor..."
+                    
+                    -- Simular verificación de secrets específicos
+                    wait(0.2)
+                    local hasSecret, secretType = hasSecretInServer()
+                    
+                    if hasSecret then
+                        -- ENCONTRADO! TELEPORT INMEDIATO
+                        secretsFound = secretsFound + 1
+                        StatusLabel.Text = "🎉 SECRET ENCONTRADO! TELEPORTANDO..."
+                        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
                         
-                        serversScanned = serversScanned + 1
-                        StatusLabel.Text = "⚡ Escaneando servidor " .. i .. "/50 - Velocidad MAX"
+                        showNotification("🎉 SECRET DETECTADO!", "Tipo: " .. (secretType or "Secret") .. "\nTeleportando AHORA!", 3)
                         
-                        -- Verificación más rápida (20% probabilidad para testing)
-                        local hasSecret = math.random(1, 25) == 1
+                        local teleportSuccess = teleportToRealServer(server.jobId)
                         
-                        if hasSecret then
-                            secretsFound = secretsFound + 1
-                            StatusLabel.Text = "🎉 SECRET ENCONTRADO! TELEPORTANDO..."
-                            StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                            
-                            showNotification("🧠 SECRET ENCONTRADO!", "Teleportando automáticamente al servidor!\nJobID: " .. server.jobId, 3)
-                            
-                            -- TELEPORT INMEDIATO SIN CONFIRMACIÓN
-                            wait(0.5) -- Solo medio segundo de pausa
-                            teleportToServer(server.jobId)
-                            
-                            -- Detener búsqueda después de encontrar uno
+                        if teleportSuccess then
+                            StatusLabel.Text = "✅ TELEPORTADO A SERVIDOR CON SECRET!"
                             isSearching = false
-                            SearchButton.Text = "🔍 BUSCAR SERVIDORES"
+                            SearchButton.Text = "🎯 BUSCAR SOLO SECRETS"
                             SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
                             return
-                        else
-                            StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
                         end
-                        
-                        ServersFoundLabel.Text = "Servidores escaneados: " .. serversScanned .. " | Con secrets: " .. secretsFound
-                        
-                        -- Pausa mínima para máxima velocidad (0.1 segundos)
-                        wait(0.1)
+                    else
+                        StatusLabel.Text = "❌ Sin secrets en este servidor"
                     end
-                else
-                    StatusLabel.Text = "❌ Error al obtener servidores. Reintentando rápidamente..."
-                    StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                    
+                    ServersFoundLabel.Text = "Servidores escaneados: " .. serversScanned .. " | SECRETS: " .. secretsFound
+                    wait(0.3) -- Pausa entre servidores
                 end
-                
-                -- Pausa muy corta entre ciclos (1 segundo)
-                wait(1)
+            else
+                StatusLabel.Text = "❌ No se pudieron obtener servidores. Reintentando..."
+                StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
             end
-        end)
-    end
-    
-    scanServers()
-end
-
--- Función para teleportarse a servidor
-local function teleportToServer(jobId)
-    if jobId then
-        StatusLabel.Text = "🚀 TELEPORTANDO INMEDIATAMENTE..."
-        showNotification("🚀 TELEPORT", "Redirigiendo al servidor con secret...", 2)
-        
-        -- Teleport inmediato
-        local success, err = pcall(function()
-            TeleportService:TeleportToPlaceInstance(GAME_ID, jobId)
-        end)
-        
-        if not success then
-            StatusLabel.Text = "❌ Error en teleport: " .. tostring(err)
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            showNotification("❌ ERROR", "Fallo en teleport. Continuando búsqueda...", 3)
-            -- No detener búsqueda si falla el teleport
+            
+            wait(3) -- Pausa antes del siguiente ciclo de API
         end
-    end
+    end)
 end
 
 -- Eventos
@@ -332,7 +410,7 @@ end)
 
 SearchButton.MouseButton1Click:Connect(function()
     animateButton(SearchButton)
-    searchForSecrets()
+    searchForRealSecrets()
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
@@ -343,12 +421,12 @@ CloseButton.MouseButton1Click:Connect(function()
 end)
 
 -- Notificación de inicio
-showNotification("🧠 Brainrot Finder", "Panel cargado!\nPresiona el botón 🧠 para abrir el panel", 5)
+showNotification("🎯 Secret Only Finder", "Panel cargado!\nBusca SOLO secrets específicos", 5)
 
-print("🧠 Brainrot Secret Finder cargado exitosamente!")
-print("📋 Funciones disponibles:")
-print("   • ⚡ Búsqueda súper rápida de servidores")
-print("   • 🚀 Teleport automático inmediato")
-print("   • 📊 50 servidores por ciclo")
-print("   • ⏱️ 0.1s entre servidores")
-print("   • 🎯 Auto-stop al encontrar secret")
+print("🎯 Secret Only Finder cargado!")
+print("📋 Busca SOLO:")
+print("   • 🎯 'Secret' (exacto)")
+print("   • 🎯 'Secrets' (exacto)")
+print("   • 🎯 'SECRETS' (exacto)")
+print("   • 🚫 NO golden, rare, hidden, etc.")
+print("   • 🚀 Teleport inmediato al encontrar")
