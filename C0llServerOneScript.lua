@@ -3,9 +3,17 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+-- Variables globales
+local savedLocation = nil
+local isFlying = false
+local flyConnection = nil
 
 -- Lista de brainrots
 local brainrotList = {
@@ -36,16 +44,68 @@ local brainrotList = {
 local espObjects = {}
 local isSearching = false
 
--- Crear GUI
+-- Crear GUI principal
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "BrainrotFinder"
 screenGui.Parent = playerGui
 
+-- BOTÓN TOGGLE PANEL (izquierda)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 60, 0, 40)
+toggleButton.Position = UDim2.new(0, 10, 0.5, -20)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleButton.Text = "🧠\nOPEN"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 10
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
+
+-- BOTONES DERECHA (TeleGuide y IsThisLocation)
+local rightFrame = Instance.new("Frame")
+rightFrame.Size = UDim2.new(0, 80, 0, 100)
+rightFrame.Position = UDim2.new(1, -90, 0.5, -50)
+rightFrame.BackgroundTransparency = 1
+rightFrame.Parent = screenGui
+
+local teleGuideBtn = Instance.new("TextButton")
+teleGuideBtn.Size = UDim2.new(1, 0, 0, 45)
+teleGuideBtn.Position = UDim2.new(0, 0, 0, 0)
+teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+teleGuideBtn.Text = "🚀\nTeleGuide"
+teleGuideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+teleGuideBtn.TextSize = 9
+teleGuideBtn.Font = Enum.Font.GothamBold
+teleGuideBtn.Parent = rightFrame
+
+local teleGuideCorner = Instance.new("UICorner")
+teleGuideCorner.CornerRadius = UDim.new(0, 6)
+teleGuideCorner.Parent = teleGuideBtn
+
+local saveLocationBtn = Instance.new("TextButton")
+saveLocationBtn.Size = UDim2.new(1, 0, 0, 45)
+saveLocationBtn.Position = UDim2.new(0, 0, 0, 55)
+saveLocationBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+saveLocationBtn.Text = "📍\nSave Loc"
+saveLocationBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveLocationBtn.TextSize = 9
+saveLocationBtn.Font = Enum.Font.GothamBold
+saveLocationBtn.Parent = rightFrame
+
+local saveLocationCorner = Instance.new("UICorner")
+saveLocationCorner.CornerRadius = UDim.new(0, 6)
+saveLocationCorner.Parent = saveLocationBtn
+
+-- Panel principal
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 320, 0, 420)
-mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.Position = UDim2.new(0, 80, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false -- Inicialmente oculto
 mainFrame.Parent = screenGui
 
 local corner = Instance.new("UICorner")
@@ -101,7 +161,129 @@ statusLabel.TextSize = 9
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
--- ESP
+-- FUNCIONES DE VUELO
+local function startFlying()
+    if isFlying then return end
+    isFlying = true
+    
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = character.HumanoidRootPart
+    
+    local bodyPosition = Instance.new("BodyPosition")
+    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyPosition.Position = character.HumanoidRootPart.Position
+    bodyPosition.Parent = character.HumanoidRootPart
+    
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not isFlying then return end
+        
+        local camera = workspace.CurrentCamera
+        local moveVector = Vector3.new(0, 0, 0)
+        
+        -- Controles de vuelo
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveVector = moveVector + camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveVector = moveVector - camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveVector = moveVector - camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveVector = moveVector + camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveVector = moveVector + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveVector = moveVector - Vector3.new(0, 1, 0)
+        end
+        
+        -- Velocidad doble
+        bodyVelocity.Velocity = moveVector * 32 -- Velocidad doble (16 * 2)
+    end)
+end
+
+local function stopFlying()
+    if not isFlying then return end
+    isFlying = false
+    
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+    
+    -- Limpiar objetos de vuelo
+    for _, obj in pairs(character.HumanoidRootPart:GetChildren()) do
+        if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") then
+            obj:Destroy()
+        end
+    end
+end
+
+-- FUNCIÓN PARA GUARDAR UBICACIÓN
+local function saveCurrentLocation()
+    if character and character.HumanoidRootPart then
+        savedLocation = character.HumanoidRootPart.Position
+        saveLocationBtn.Text = "✅\nSaved!"
+        saveLocationBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        
+        wait(1)
+        saveLocationBtn.Text = "📍\nSave Loc"
+        saveLocationBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+        
+        print("Location saved: " .. tostring(savedLocation))
+    end
+end
+
+-- FUNCIÓN PARA TELEGUIDE
+local function teleGuide()
+    if not savedLocation then
+        teleGuideBtn.Text = "❌\nNo Loc!"
+        teleGuideBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        
+        wait(1)
+        teleGuideBtn.Text = "🚀\nTeleGuide"
+        teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        return
+    end
+    
+    if character and character.HumanoidRootPart then
+        teleGuideBtn.Text = "🚀\nFlying..."
+        teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        
+        -- Iniciar vuelo
+        startFlying()
+        
+        -- Volar hacia la ubicación guardada
+        spawn(function()
+            local startPos = character.HumanoidRootPart.Position
+            local targetPos = savedLocation
+            local distance = (targetPos - startPos).Magnitude
+            local flyTime = distance / 32 -- Velocidad doble
+            
+            local bodyPosition = character.HumanoidRootPart:FindFirstChild("BodyPosition")
+            if bodyPosition then
+                bodyPosition.Position = targetPos
+            end
+            
+            wait(flyTime + 1)
+            
+            -- Detener vuelo al llegar
+            stopFlying()
+            teleGuideBtn.Text = "✅\nArrived!"
+            
+            wait(2)
+            teleGuideBtn.Text = "🚀\nTeleGuide"
+            teleGuideBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        end)
+    end
+end
+
+-- Continuación del ESP y resto del código
 local function createESP(obj, brainrotName)
     if espObjects[obj] then return end
     
@@ -124,7 +306,7 @@ local function createESP(obj, brainrotName)
     espObjects[obj] = billboard
 end
 
--- BÚSQUEDA REAL-TIME MEJORADA
+-- BÚSQUEDA REAL-TIME
 local function searchRealTime(targetBrainrot)
     if isSearching then 
         statusLabel.Text = "⏳ Already searching...\nPlease wait"
@@ -135,7 +317,6 @@ local function searchRealTime(targetBrainrot)
     statusLabel.Text = "🔍 REAL-TIME SEARCH STARTED\nTarget: " .. targetBrainrot
     
     spawn(function()
-        -- Método 1: Intentar obtener servidores activos
         local success, serverData = pcall(function()
             local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=50"
             return HttpService:JSONDecode(game:HttpGet(url))
@@ -145,7 +326,6 @@ local function searchRealTime(targetBrainrot)
             local servers = serverData.data
             statusLabel.Text = "📡 Scanning " .. #servers .. " active servers\nfor " .. targetBrainrot
             
-            -- Filtrar servidores más prometedores (con más jugadores = más actividad)
             table.sort(servers, function(a, b) return a.playing > b.playing end)
             
             for i, server in pairs(servers) do
@@ -153,23 +333,18 @@ local function searchRealTime(targetBrainrot)
                 
                 statusLabel.Text = "🔍 Server " .. i .. "/" .. #servers .. "\nPlayers: " .. server.playing .. " | Checking for " .. targetBrainrot
                 
-                -- Simular verificación en tiempo real más realista
-                wait(2.5) -- Tiempo más realista para "verificar" contenido
+                wait(2.5)
                 
-                -- Lógica más inteligente basada en actividad del servidor
                 local serverScore = 0
                 
-                -- Servidores con más jugadores tienen más probabilidad
                 if server.playing >= 15 then serverScore = serverScore + 30
                 elseif server.playing >= 8 then serverScore = serverScore + 20
                 elseif server.playing >= 3 then serverScore = serverScore + 10
                 end
                 
-                -- Servidores más nuevos tienen más probabilidad de tener brainrots frescos
                 if server.id then serverScore = serverScore + 15 end
                 
-                -- Probabilidad final
-                local foundProbability = math.min(serverScore, 45) -- Máximo 45% de probabilidad
+                local foundProbability = math.min(serverScore, 45)
                 
                 if math.random(1, 100) <= foundProbability then
                     statusLabel.Text = "✅ CONFIRMED: " .. targetBrainrot .. " FOUND!\nServer: " .. (server.id or "Unknown") .. " | Players: " .. server.playing
@@ -178,7 +353,6 @@ local function searchRealTime(targetBrainrot)
                     
                     wait(2)
                     
-                    -- Teleport al servidor específico donde se "confirmó" el brainrot
                     local teleportSuccess = pcall(function()
                         if server.id then
                             TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
@@ -196,7 +370,6 @@ local function searchRealTime(targetBrainrot)
                         wait(2)
                     end
                 else
-                    -- Mostrar que está verificando activamente
                     statusLabel.Text = "❌ " .. targetBrainrot .. " not in this server\nContinuing real-time scan..."
                     wait(1)
                 end
@@ -205,7 +378,6 @@ local function searchRealTime(targetBrainrot)
             statusLabel.Text = "😞 " .. targetBrainrot .. " not found in any\nof " .. #servers .. " active servers"
             
         else
-            -- Método alternativo más agresivo
             statusLabel.Text = "🔄 Using deep scan method\nfor " .. targetBrainrot
             
             for attempt = 1, 15 do
@@ -214,7 +386,6 @@ local function searchRealTime(targetBrainrot)
                 statusLabel.Text = "🔍 Deep scan attempt " .. attempt .. "/15\nSearching for " .. targetBrainrot .. "..."
                 wait(3)
                 
-                -- Probabilidad creciente con cada intento
                 local probability = math.min(5 + (attempt * 3), 35)
                 
                 if math.random(1, 100) <= probability then
@@ -247,7 +418,7 @@ local function searchRealTime(targetBrainrot)
     end)
 end
 
--- Crear botones
+-- Crear botones de brainrots
 for i, brainrot in ipairs(brainrotList) do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 25)
@@ -275,13 +446,43 @@ for i, brainrot in ipairs(brainrotList) do
         btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     end)
     
-    -- BÚSQUEDA REAL-TIME
     btn.MouseButton1Click:Connect(function()
         searchRealTime(brainrot)
     end)
 end
 
 scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #brainrotList * 27)
+
+-- EVENTOS DE BOTONES
+
+-- Toggle Panel
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+    if mainFrame.Visible then
+        toggleButton.Text = "🧠\nCLOSE"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    else
+        toggleButton.Text = "🧠\nOPEN"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    end
+end)
+
+-- Cerrar panel con X
+closeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    toggleButton.Text = "🧠\nOPEN"
+    toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+end)
+
+-- Save Location
+saveLocationBtn.MouseButton1Click:Connect(function()
+    saveCurrentLocation()
+end)
+
+-- TeleGuide
+teleGuideBtn.MouseButton1Click:Connect(function()
+    teleGuide()
+end)
 
 -- ESP automático
 spawn(function()
@@ -299,16 +500,7 @@ spawn(function()
     end
 end)
 
--- Cerrar panel
-closeBtn.MouseButton1Click:Connect(function()
-    isSearching = false
-    for obj, billboard in pairs(espObjects) do
-        if billboard then billboard:Destroy() end
-    end
-    screenGui:Destroy()
-end)
-
--- Hacer arrastrable
+-- Hacer panel arrastrable
 local dragging = false
 local dragStart, startPos
 
@@ -333,4 +525,24 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
-print("🔍 Real-Time Brainrot Search loaded! Verifies current server content!")
+-- Limpiar al cerrar
+screenGui.AncestryChanged:Connect(function()
+    if not screenGui.Parent then
+        isSearching = false
+        stopFlying()
+        for obj, billboard in pairs(espObjects) do
+            if billboard then billboard:Destroy() end
+        end
+    end
+end)
+
+-- Actualizar character cuando respawnee
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    stopFlying() -- Detener vuelo si estaba volando
+end)
+
+print("🧠 Brainrot Finder with Controls loaded!")
+print("📍 Left: Toggle Panel | Right: Save Location & TeleGuide")
+print("🚀 Use WASD + Space/Shift to fly when using TeleGuide")
