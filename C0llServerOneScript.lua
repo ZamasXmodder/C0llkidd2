@@ -1,14 +1,16 @@
-
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Lista de brainrots secretos a detectar
+-- ID del juego Steal a Brainrot (reemplaza con el ID real)
+local GAME_ID = 109983668079237 -- Cambia este número por el ID real del juego
+
+-- Lista de brainrots secretos a buscar
 local SECRET_BRAINROTS = {
     "La Vacca Staturno Saturnita",
     "Chimpanzini Spiderini",
@@ -31,266 +33,307 @@ local SECRET_BRAINROTS = {
 -- Variables de control
 local isScanning = false
 local foundServers = {}
-local gui = nil
+local scanConnection
 
--- Función para crear la interfaz gráfica
+-- Crear GUI
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "BrainrotScanner"
     screenGui.Parent = playerGui
     
     local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 400, 0, 300)
-    mainFrame.Position = UDim2.new(0, 10, 0, 10)
+    mainFrame.Size = UDim2.new(0, 400, 0, 500)
+    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -250)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
     
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 10)
     corner.Parent = mainFrame
     
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 40)
+    title.Size = UDim2.new(1, 0, 0, 50)
     title.Position = UDim2.new(0, 0, 0, 0)
-    title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    title.Text = "🔍 Brainrot Scanner"
+    title.BackgroundTransparency = 1
+    title.Text = "Brainrot Server Scanner"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextScaled = true
-    title.Font = Enum.Font.GothamBold
+    title.Font = Enum.Font.SourceSansBold
     title.Parent = mainFrame
     
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 8)
-    titleCorner.Parent = title
+    local startButton = Instance.new("TextButton")
+    startButton.Size = UDim2.new(0.8, 0, 0, 40)
+    startButton.Position = UDim2.new(0.1, 0, 0, 60)
+    startButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    startButton.Text = "Iniciar Escaneo"
+    startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    startButton.TextScaled = true
+    startButton.Font = Enum.Font.SourceSansBold
+    startButton.Parent = mainFrame
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 5)
+    buttonCorner.Parent = startButton
     
     local statusLabel = Instance.new("TextLabel")
-    statusLabel.Name = "StatusLabel"
-    statusLabel.Size = UDim2.new(1, -20, 0, 30)
-    statusLabel.Position = UDim2.new(0, 10, 0, 50)
+    statusLabel.Size = UDim2.new(1, 0, 0, 30)
+    statusLabel.Position = UDim2.new(0, 0, 0, 110)
     statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = "Estado: Iniciando..."
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+    statusLabel.Text = "Listo para escanear"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     statusLabel.TextScaled = true
-    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Font = Enum.Font.SourceSans
     statusLabel.Parent = mainFrame
     
     local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Name = "ServerList"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -90)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 80)
+    scrollFrame.Size = UDim2.new(1, -20, 1, -160)
+    scrollFrame.Position = UDim2.new(0, 10, 0, 150)
     scrollFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.ScrollBarThickness = 8
     scrollFrame.Parent = mainFrame
     
     local scrollCorner = Instance.new("UICorner")
-    scrollCorner.CornerRadius = UDim.new(0, 4)
+    scrollCorner.CornerRadius = UDim.new(0, 5)
     scrollCorner.Parent = scrollFrame
     
     local listLayout = Instance.new("UIListLayout")
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Padding = UDim.new(0, 2)
+    listLayout.Padding = UDim.new(0, 5)
     listLayout.Parent = scrollFrame
     
-    return screenGui
+    return screenGui, startButton, statusLabel, scrollFrame
 end
 
--- Función para actualizar la GUI
-local function updateGUI(status, servers)
-    if not gui then return end
+-- Función para obtener servidores activos
+local function getActiveServers()
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. GAME_ID .. "/servers/Public?sortOrder=Asc&limit=100"))
+    end)
     
-    local statusLabel = gui.Frame.StatusLabel
-    local serverList = gui.Frame.ServerList
+    if success and result.data then
+        return result.data
+    end
+    return {}
+end
+
+-- Función para verificar brainrots en un servidor específico
+local function checkBrainrotsInServer(serverId, callback)
+    spawn(function()
+        local success, result = pcall(function()
+            -- Simular verificación de brainrots (aquí necesitarías la lógica específica del juego)
+            -- Esta es una implementación de ejemplo que deberás adaptar
+            local foundBrainrots = {}
+            
+            -- Aquí iría la lógica real para verificar los brainrots en el servidor
+            -- Por ejemplo, usando RemoteEvents o verificando el workspace del servidor
+            
+            -- Simulación temporal (reemplaza con lógica real)
+            if math.random(1, 10) == 1 then -- 10% de probabilidad para demo
+                local randomBrainrot = SECRET_BRAINROTS[math.random(1, #SECRET_BRAINROTS)]
+                table.insert(foundBrainrots, randomBrainrot)
+            end
+            
+            return foundBrainrots
+        end)
+        
+        if success then
+            callback(result or {})
+        else
+            callback({})
+        end
+    end)
+end
+
+-- Función para teletransportar al jugador
+local function teleportToServer(serverId, brainrotName)
+    local success, errorMessage = pcall(function()
+        TeleportService:TeleportToPlaceInstance(GAME_ID, serverId, player)
+    end)
     
-    statusLabel.Text = "Estado: " .. status
+    if not success then
+        StarterGui:SetCore("SendNotification", {
+            Title = "Error de Teleport";
+            Text = "No se pudo conectar al servidor";
+            Duration = 5;
+        })
+    else
+        StarterGui:SetCore("SendNotification", {
+            Title = "Teleportando...";
+            Text = "Conectando a servidor con " .. brainrotName;
+            Duration = 3;
+        })
+    end
+end
+
+-- Función para crear entrada de servidor en la lista
+local function createServerEntry(scrollFrame, serverId, brainrotName, playerCount)
+    local entry = Instance.new("Frame")
+    entry.Size = UDim2.new(1, -10, 0, 60)
+    entry.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    entry.BorderSizePixel = 0
+    entry.Parent = scrollFrame
     
-    -- Limpiar lista anterior
-    for _, child in pairs(serverList:GetChildren()) do
-        if child:IsA("TextLabel") then
+    local entryCorner = Instance.new("UICorner")
+    entryCorner.CornerRadius = UDim.new(0, 5)
+    entryCorner.Parent = entry
+    
+    local brainrotLabel = Instance.new("TextLabel")
+    brainrotLabel.Size = UDim2.new(0.7, 0, 0.5, 0)
+    brainrotLabel.Position = UDim2.new(0, 10, 0, 5)
+    brainrotLabel.BackgroundTransparency = 1
+    brainrotLabel.Text = brainrotName
+    brainrotLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    brainrotLabel.TextScaled = true
+    brainrotLabel.Font = Enum.Font.SourceSansBold
+    brainrotLabel.TextXAlignment = Enum.TextXAlignment.Left
+    brainrotLabel.Parent = entry
+    
+    local serverInfo = Instance.new("TextLabel")
+    serverInfo.Size = UDim2.new(0.7, 0, 0.5, 0)
+    serverInfo.Position = UDim2.new(0, 10, 0.5, 0)
+    serverInfo.BackgroundTransparency = 1
+    serverInfo.Text = "Servidor: " .. serverId .. " | Jugadores: " .. playerCount
+    serverInfo.TextColor3 = Color3.fromRGB(200, 200, 200)
+    serverInfo.TextScaled = true
+    serverInfo.Font = Enum.Font.SourceSans
+    serverInfo.TextXAlignment = Enum.TextXAlignment.Left
+    serverInfo.Parent = entry
+    
+    local joinButton = Instance.new("TextButton")
+    joinButton.Size = UDim2.new(0.25, 0, 0.7, 0)
+    joinButton.Position = UDim2.new(0.7, 5, 0.15, 0)
+    joinButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    joinButton.Text = "UNIRSE"
+    joinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    joinButton.TextScaled = true
+    joinButton.Font = Enum.Font.SourceSansBold
+    joinButton.Parent = entry
+    
+    local joinCorner = Instance.new("UICorner")
+    joinCorner.CornerRadius = UDim.new(0, 3)
+    joinCorner.Parent = joinButton
+    
+    joinButton.MouseButton1Click:Connect(function()
+        teleportToServer(serverId, brainrotName)
+    end)
+    
+    return entry
+end
+
+-- Función principal de escaneo
+local function startScanning(statusLabel, scrollFrame)
+    if isScanning then return end
+    
+    isScanning = true
+    statusLabel.Text = "Escaneando servidores..."
+    
+    -- Limpiar resultados anteriores
+    for _, child in pairs(scrollFrame:GetChildren()) do
+        if child:IsA("Frame") then
             child:Destroy()
         end
     end
     
-    -- Agregar servidores encontrados
-    for i, serverInfo in pairs(servers) do
-        local serverLabel = Instance.new("TextLabel")
-        serverLabel.Size = UDim2.new(1, -10, 0, 25)
-        serverLabel.Position = UDim2.new(0, 5, 0, (i-1) * 27)
-        serverLabel.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        serverLabel.Text = string.format("🎯 Servidor: %s | Brainrot: %s", 
-            serverInfo.id or "Unknown", serverInfo.brainrot or "Unknown")
-        serverLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        serverLabel.TextScaled = true
-        serverLabel.Font = Enum.Font.Gotham
-        serverLabel.Parent = serverList
-        
-        local labelCorner = Instance.new("UICorner")
-        labelCorner.CornerRadius = UDim.new(0, 3)
-        labelCorner.Parent = serverLabel
-    end
+    foundServers = {}
     
-    serverList.CanvasSize = UDim2.new(0, 0, 0, #servers * 27)
-end
-
--- Función para detectar brainrots en un servidor
-local function checkServerForBrainrots(serverId)
-    local success, result = pcall(function()
-        -- Simular verificación de servidor (en un juego real necesitarías acceso a la API del juego)
-        -- Esta es una implementación conceptual
-        local serverData = {
-            players = {},
-            items = {},
-            events = {}
-        }
+    scanConnection = RunService.Heartbeat:Connect(function()
+        local servers = getActiveServers()
         
-        -- Verificar si algún brainrot está presente
-        for _, brainrot in pairs(SECRET_BRAINROTS) do
-            -- Aquí implementarías la lógica específica del juego para detectar cada brainrot
-            -- Por ejemplo, verificar inventarios de jugadores, objetos en el mundo, etc.
-            local chance = math.random(1, 1000)
-            if chance <= 2 then -- 0.2% de probabilidad para testing
-                return brainrot
+        for _, server in pairs(servers) do
+            if server.id and server.playing and server.playing > 0 then
+                checkBrainrotsInServer(server.id, function(brainrots)
+                    if #brainrots > 0 then
+                        for _, brainrot in pairs(brainrots) do
+                            if not foundServers[server.id] then
+                                foundServers[server.id] = true
+                                
+                                -- Crear entrada en la GUI
+                                createServerEntry(scrollFrame, server.id, brainrot, server.playing)
+                                
+                                -- Actualizar canvas size
+                                scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #scrollFrame:GetChildren() * 65)
+                                
+                                -- Notificación
+                                StarterGui:SetCore("SendNotification", {
+                                    Title = "¡Brainrot Encontrado!";
+                                    Text = brainrot .. " en servidor " .. server.id;
+                                    Duration = 5;
+                                })
+                                
+                                -- Auto-teleport (opcional, descomenta si quieres teleport automático)
+                                -- teleportToServer(server.id, brainrot)
+                                -- return
+                            end
+                        end
+                    end
+                end)
             end
         end
         
-        return nil
+        statusLabel.Text = "Escaneando... Servidores encontrados: " .. #foundServers
     end)
-    
-    if success and result then
-        return result
+end
+
+-- Función para detener escaneo
+local function stopScanning(statusLabel)
+    if scanConnection then
+        scanConnection:Disconnect()
+        scanConnection = nil
     end
-    return nil
-end
-
--- Función para obtener lista de servidores
-local function getServerList()
-    local success, servers = pcall(function()
-        -- En un entorno real, usarías la API de Roblox para obtener servidores
-        -- Esta es una simulación para demostrar la estructura
-        local serverList = {}
-        
-        for i = 1, 20 do -- Simular 20 servidores
-            table.insert(serverList, {
-                id = "Server_" .. i,
-                playerCount = math.random(1, 50),
-                ping = math.random(50, 200)
-            })
-        end
-        
-        return serverList
-    end)
-    
-    if success then
-        return servers
-    else
-        return {}
-    end
-end
-
--- Función para teletransportarse a un servidor
-local function teleportToServer(serverId, brainrotFound)
-    local success, errorMsg = pcall(function()
-        print("🚀 Teletransportando a servidor:", serverId)
-        print("🎯 Brainrot encontrado:", brainrotFound)
-        
-        -- Intentar teletransporte
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, player)
-    end)
-    
-    if not success then
-        warn("❌ Error al teletransportarse:", errorMsg)
-        -- Intentar teletransporte alternativo
-        TeleportService:Teleport(game.PlaceId, player)
-    end
-end
-
--- Función principal de escaneo
-local function scanServers()
-    if isScanning then return end
-    isScanning = true
-    
-    spawn(function()
-        while isScanning do
-            local servers = getServerList()
-            local foundBrainrots = {}
-            
-            updateGUI("Escaneando " .. #servers .. " servidores...", foundBrainrots)
-            
-            for _, server in pairs(servers) do
-                if not isScanning then break end
-                
-                local brainrotFound = checkServerForBrainrots(server.id)
-                
-                if brainrotFound then
-                    print("🎉 ¡BRAINROT ENCONTRADO!")
-                    print("📍 Servidor:", server.id)
-                    print("🧠 Brainrot:", brainrotFound)
-                    
-                    table.insert(foundBrainrots, {
-                        id = server.id,
-                        brainrot = brainrotFound
-                    })
-                    
-                    updateGUI("¡Brainrot encontrado! Teletransportando...", foundBrainrots)
-                    
-                    -- Teletransporte automático inmediato
-                    teleportToServer(server.id, brainrotFound)
-                    return -- Salir del bucle después del teletransporte
-                end
-                
-                wait(0.1) -- Pequeña pausa entre verificaciones
-            end
-            
-            if #foundBrainrots == 0 then
-                updateGUI("Escaneando... (Sin brainrots encontrados)", foundBrainrots)
-            end
-            
-            wait(5) -- Esperar 5 segundos antes del próximo escaneo completo
-        end
-    end)
-end
-
--- Función para inicializar el script
-local function initialize()
-    print("🔍 Iniciando Brainrot Scanner...")
-    print("📋 Brainrots objetivo:", #SECRET_BRAINROTS)
-    
-    -- Crear interfaz gráfica
-    gui = createGUI()
-    
-    -- Iniciar escaneo
-    scanServers()
-    
-    print("✅ Scanner iniciado correctamente")
-end
-
--- Función para detener el scanner
-local function stopScanner()
     isScanning = false
-    if gui then
-        gui:Destroy()
-    end
-    print("🛑 Scanner detenido")
+    statusLabel.Text = "Escaneo detenido"
 end
 
--- Manejar cuando el jugador sale del juego
-Players.PlayerRemoving:Connect(function(leavingPlayer)
-    if leavingPlayer == player then
-        stopScanner()
-    end
-end)
+-- Inicializar GUI y funcionalidad
+local function initialize()
+    local gui, startButton, statusLabel, scrollFrame = createGUI()
+    
+    startButton.MouseButton1Click:Connect(function()
+        if not isScanning then
+            startButton.Text = "Detener Escaneo"
+            startButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+            startScanning(statusLabel, scrollFrame)
+        else
+            startButton.Text = "Iniciar Escaneo"
+            startButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+            stopScanning(statusLabel)
+        end
+    end)
+    
+    -- Hacer la GUI arrastrable
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    gui.Frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = gui.Frame.Position
+        end
+    end)
+    
+    gui.Frame.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            gui.Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    gui.Frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+end
 
--- Inicializar el script
+-- Ejecutar el script
 initialize()
 
--- Comando para reiniciar manualmente (opcional)
-player.Chatted:Connect(function(message)
-    if message:lower() == "/restart_scanner" then
-        stopScanner()
-        wait(1)
-        initialize()
-    elseif message:lower() == "/stop_scanner" then
-        stopScanner()
-    end
-end)
+StarterGui:SetCore("SendNotification", {
+    Title = "Brainrot Scanner";
+    Text = "Script cargado correctamente. ¡Recuerda cambiar el GAME_ID!";
+    Duration = 5;
+})
