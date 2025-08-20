@@ -1,4 +1,4 @@
--- Steal a Brainrot - Buscador REAL de Servidores con Brainrot Secreto
+-- Steal a Brainrot - Buscador REAL de Servidores con Brainrots Específicos
 -- BÚSQUEDA GLOBAL REAL CON TELEPORT GARANTIZADO
 
 local Players = game:GetService("Players")
@@ -68,13 +68,13 @@ local ShadowCorner = Instance.new("UICorner")
 ShadowCorner.CornerRadius = UDim.new(0, 30)
 ShadowCorner.Parent = ToggleShadow
 
--- Configurar Frame principal
+-- Configurar Frame principal (MÁS PEQUEÑO)
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
-MainFrame.Size = UDim2.new(0, 400, 0, 300)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 300, 0, 200)
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Visible = false
@@ -88,10 +88,10 @@ Corner.Parent = MainFrame
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Parent = MainFrame
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Position = UDim2.new(0, 0, 0, 10)
-TitleLabel.Size = UDim2.new(1, 0, 0, 40)
+TitleLabel.Position = UDim2.new(0, 0, 0, 5)
+TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "🧠 SECRET ONLY FINDER"
+TitleLabel.Text = "🧠 BRAINROT FINDER"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 100, 255)
 TitleLabel.TextScaled = true
 TitleLabel.TextStrokeTransparency = 0.5
@@ -101,10 +101,10 @@ SearchButton.Name = "SearchButton"
 SearchButton.Parent = MainFrame
 SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
 SearchButton.BorderSizePixel = 0
-SearchButton.Position = UDim2.new(0.1, 0, 0.25, 0)
-SearchButton.Size = UDim2.new(0.8, 0, 0, 60)
+SearchButton.Position = UDim2.new(0.1, 0, 0.2, 0)
+SearchButton.Size = UDim2.new(0.8, 0, 0, 40)
 SearchButton.Font = Enum.Font.GothamBold
-SearchButton.Text = "🎯 BUSCAR SOLO SECRETS"
+SearchButton.Text = "🎯 BUSCAR BRAINROTS"
 SearchButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SearchButton.TextScaled = true
 
@@ -116,10 +116,10 @@ SearchCorner.Parent = SearchButton
 StatusLabel.Name = "StatusLabel"
 StatusLabel.Parent = MainFrame
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0.05, 0, 0.5, 0)
-StatusLabel.Size = UDim2.new(0.9, 0, 0, 30)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.45, 0)
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
 StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.Text = "Presiona para buscar servidores REALES globalmente"
+StatusLabel.Text = "Presiona para buscar brainrots específicos"
 StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 StatusLabel.TextScaled = true
 StatusLabel.TextWrapped = true
@@ -129,9 +129,9 @@ ServersFoundLabel.Name = "ServersFoundLabel"
 ServersFoundLabel.Parent = MainFrame
 ServersFoundLabel.BackgroundTransparency = 1
 ServersFoundLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
-ServersFoundLabel.Size = UDim2.new(0.9, 0, 0, 30)
+ServersFoundLabel.Size = UDim2.new(0.9, 0, 0, 25)
 ServersFoundLabel.Font = Enum.Font.GothamBold
-ServersFoundLabel.Text = "Servidores escaneados: 0 | Secrets: 0"
+ServersFoundLabel.Text = "Servidores: 0 | Brainrots: 0"
 ServersFoundLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 ServersFoundLabel.TextScaled = true
 
@@ -141,20 +141,40 @@ CloseButton.Parent = MainFrame
 CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 CloseButton.BorderSizePixel = 0
 CloseButton.Position = UDim2.new(0.85, 0, 0, 5)
-CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
 CloseButton.Font = Enum.Font.GothamBold
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.TextScaled = true
 
 local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 15)
+CloseCorner.CornerRadius = UDim.new(0, 12)
 CloseCorner.Parent = CloseButton
 
 -- Variables de estadísticas
 local serversScanned = 0
-local secretsFound = 0
+local brainrotsFound = 0
 local visitedServers = {}
+
+-- Lista de brainrots específicos a buscar
+local BRAINROTS = {
+    "La Vacca Staturno Saturnita",
+    "Chimpanzini Spiderini",
+    "Los Tralaleritos",
+    "Las Tralaleritas",
+    "Graipuss Medussi",
+    "La Grande Combinasion",
+    "Nuclearo Dinossauro",
+    "Garama and Madundung",
+    "Tortuginni Dragonfruitini",
+    "Pot Hotspot",
+    "Las Vaquitas Saturnitas",
+    "Chicleteira Bicicleteira",
+    "Agarrini la Palini",
+    "Dragon Cannelloni",
+    "Los Combinasionas",
+    "Karkerkar Kurkur"
+}
 
 -- Función para mostrar/ocultar panel con animación
 local function togglePanel()
@@ -168,8 +188,8 @@ local function togglePanel()
         local tween = TweenService:Create(MainFrame, 
             TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
             {
-                Size = UDim2.new(0, 400, 0, 300),
-                Position = UDim2.new(0.5, -200, 0.5, -150)
+                Size = UDim2.new(0, 300, 0, 200),
+                Position = UDim2.new(0.5, -150, 0.5, -100)
             }
         )
         tween:Play()
@@ -250,51 +270,47 @@ local function getRealServers()
     end
 end
 
--- FUNCIÓN REAL PARA DETECTAR SECRETS EN SERVIDOR - SOLO SECRETS
-local function hasSecretInServer()
-    -- SOLO buscar "Secret", "Secrets", "SECRETS" - NADA MÁS
+-- FUNCIÓN REAL PARA DETECTAR BRAINROTS EN SERVIDOR
+local function hasBrainrotInServer()
     local workspace = game:GetService("Workspace")
-    local secretNames = {
-        "Secret",
-        "Secrets", 
-        "SECRETS",
-        "secret",
-        "secrets"
-    }
     
-    -- Verificar SOLO secrets específicos en workspace
-    for _, secretName in pairs(secretNames) do
-        if workspace:FindFirstChild(secretName) then
-            return true, secretName
+    -- Verificar brainrots específicos en workspace
+    for _, brainrotName in pairs(BRAINROTS) do
+        if workspace:FindFirstChild(brainrotName) then
+            return true, brainrotName
         end
         
         -- Buscar en folders también
         for _, obj in pairs(workspace:GetChildren()) do
-            if obj:FindFirstChild(secretName) then
-                return true, secretName
+            if obj:FindFirstChild(brainrotName) then
+                return true, brainrotName
             end
         end
     end
     
-    -- Verificar SOLO secrets en ReplicatedStorage
-    for _, secretName in pairs(secretNames) do
-        if ReplicatedStorage:FindFirstChild(secretName) then
-            return true, secretName
+    -- Verificar brainrots en ReplicatedStorage
+    for _, brainrotName in pairs(BRAINROTS) do
+        if ReplicatedStorage:FindFirstChild(brainrotName) then
+            return true, brainrotName
         end
     end
     
-    -- Verificar jugadores que tengan "Secret" en su inventario o displayName
+    -- Verificar jugadores que tengan brainrots en su inventario o displayName
     for _, player in pairs(Players:GetPlayers()) do
-        if player.DisplayName:lower():find("secret") then
-            return true, "Player with Secret"
+        for _, brainrotName in pairs(BRAINROTS) do
+            if player.DisplayName:find(brainrotName) then
+                return true, "Player with " .. brainrotName
+            end
         end
         
         -- Verificar leaderstats si existen
         local leaderstats = player:FindFirstChild("leaderstats")
         if leaderstats then
             for _, stat in pairs(leaderstats:GetChildren()) do
-                if stat.Name:lower():find("secret") or (stat.Value and tostring(stat.Value):lower():find("secret")) then
-                    return true, "Player Secret Stats"
+                for _, brainrotName in pairs(BRAINROTS) do
+                    if stat.Name:find(brainrotName) or (stat.Value and tostring(stat.Value):find(brainrotName)) then
+                        return true, "Player " .. brainrotName .. " Stats"
+                    end
                 end
             end
         end
@@ -307,8 +323,8 @@ end
 local function teleportToRealServer(jobId)
     if not jobId then return false end
     
-    StatusLabel.Text = "🚀 TELEPORTANDO AL SERVIDOR REAL..."
-    showNotification("🚀 TELEPORT REAL", "Conectando al servidor con secret...", 3)
+    StatusLabel.Text = "🚀 TELEPORTANDO..."
+    showNotification("🚀 TELEPORT REAL", "Conectando al servidor con brainrot...", 3)
     
     visitedServers[jobId] = true
     
@@ -319,7 +335,7 @@ local function teleportToRealServer(jobId)
     if not success then
         StatusLabel.Text = "❌ Error: " .. tostring(err)
         StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        showNotification("❌ ERROR TELEPORT", "Fallo en conexión. Continuando...", 3)
+                showNotification("❌ ERROR TELEPORT", "Fallo en conexión. Continuando...", 3)
         visitedServers[jobId] = nil
         return false
     end
@@ -328,10 +344,10 @@ local function teleportToRealServer(jobId)
 end
 
 -- FUNCIÓN PRINCIPAL DE BÚSQUEDA REAL
-local function searchForRealSecrets()
+local function searchForRealBrainrots()
     if isSearching then
         isSearching = false
-        SearchButton.Text = "🎯 BUSCAR SOLO SECRETS"
+        SearchButton.Text = "🎯 BUSCAR BRAINROTS"
         SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
         StatusLabel.Text = "Búsqueda detenida"
         if searchConnection then
@@ -341,63 +357,62 @@ local function searchForRealSecrets()
     end
     
     isSearching = true
-    SearchButton.Text = "⏸️ DETENER BÚSQUEDA"
+    SearchButton.Text = "⏸️ DETENER"
     SearchButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    StatusLabel.Text = "🌍 INICIANDO BÚSQUEDA GLOBAL REAL..."
+    StatusLabel.Text = "🌍 INICIANDO BÚSQUEDA..."
     
     spawn(function()
         while isSearching do
-            StatusLabel.Text = "🔍 Obteniendo servidores reales de la API..."
+            StatusLabel.Text = "🔍 Obteniendo servidores..."
             
             local realServers = getRealServers()
             
             if realServers and #realServers > 0 then
-                StatusLabel.Text = "✅ " .. #realServers .. " servidores encontrados. Escaneando..."
+                StatusLabel.Text = "✅ " .. #realServers .. " servidores encontrados"
                 
                 for i, server in pairs(realServers) do
                     if not isSearching then break end
                     
                     serversScanned = serversScanned + 1
-                    StatusLabel.Text = "🔍 Escaneando servidor " .. i .. "/" .. #realServers .. " - SOLO SECRETS"
+                    StatusLabel.Text = "🔍 Escaneando " .. i .. "/" .. #realServers
                     StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
                     
-                    -- TELEPORT PARA VERIFICAR SECRETS ESPECÍFICAMENTE
-                    StatusLabel.Text = "🧠 Verificando SECRETS en servidor..."
+                    -- Verificar brainrots específicos
+                    StatusLabel.Text = "🧠 Verificando brainrots..."
                     
-                    -- Simular verificación de secrets específicos
                     wait(0.2)
-                    local hasSecret, secretType = hasSecretInServer()
+                    local hasBrainrot, brainrotType = hasBrainrotInServer()
                     
-                    if hasSecret then
+                    if hasBrainrot then
                         -- ENCONTRADO! TELEPORT INMEDIATO
-                        secretsFound = secretsFound + 1
-                        StatusLabel.Text = "🎉 SECRET ENCONTRADO! TELEPORTANDO..."
+                        brainrotsFound = brainrotsFound + 1
+                        StatusLabel.Text = "🎉 BRAINROT ENCONTRADO!"
                         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
                         
-                        showNotification("🎉 SECRET DETECTADO!", "Tipo: " .. (secretType or "Secret") .. "\nTeleportando AHORA!", 3)
+                        showNotification("🎉 BRAINROT DETECTADO!", "Tipo: " .. (brainrotType or "Brainrot") .. "\nTeleportando AHORA!", 3)
                         
                         local teleportSuccess = teleportToRealServer(server.jobId)
                         
                         if teleportSuccess then
-                            StatusLabel.Text = "✅ TELEPORTADO A SERVIDOR CON SECRET!"
+                            StatusLabel.Text = "✅ TELEPORTADO!"
                             isSearching = false
-                            SearchButton.Text = "🎯 BUSCAR SOLO SECRETS"
+                            SearchButton.Text = "🎯 BUSCAR BRAINROTS"
                             SearchButton.BackgroundColor3 = Color3.fromRGB(255, 50, 150)
                             return
                         end
                     else
-                        StatusLabel.Text = "❌ Sin secrets en este servidor"
+                        StatusLabel.Text = "❌ Sin brainrots aquí"
                     end
                     
-                    ServersFoundLabel.Text = "Servidores escaneados: " .. serversScanned .. " | SECRETS: " .. secretsFound
-                    wait(0.3) -- Pausa entre servidores
+                    ServersFoundLabel.Text = "Servidores: " .. serversScanned .. " | Brainrots: " .. brainrotsFound
+                    wait(0.3)
                 end
             else
-                StatusLabel.Text = "❌ No se pudieron obtener servidores. Reintentando..."
+                StatusLabel.Text = "❌ Error obteniendo servidores"
                 StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
             end
             
-            wait(3) -- Pausa antes del siguiente ciclo de API
+            wait(3)
         end
     end)
 end
@@ -410,7 +425,7 @@ end)
 
 SearchButton.MouseButton1Click:Connect(function()
     animateButton(SearchButton)
-    searchForRealSecrets()
+    searchForRealBrainrots()
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
@@ -421,12 +436,11 @@ CloseButton.MouseButton1Click:Connect(function()
 end)
 
 -- Notificación de inicio
-showNotification("🎯 Secret Only Finder", "Panel cargado!\nBusca SOLO secrets específicos", 5)
+showNotification("🎯 Brainrot Finder", "Panel cargado!\nBusca brainrots específicos", 5)
 
-print("🎯 Secret Only Finder cargado!")
-print("📋 Busca SOLO:")
-print("   • 🎯 'Secret' (exacto)")
-print("   • 🎯 'Secrets' (exacto)")
-print("   • 🎯 'SECRETS' (exacto)")
-print("   • 🚫 NO golden, rare, hidden, etc.")
-print("   • 🚀 Teleport inmediato al encontrar")
+print("🎯 Brainrot Finder cargado!")
+print("📋 Busca estos brainrots:")
+for i, brainrot in pairs(BRAINROTS) do
+    print("   • " .. brainrot)
+end
+print("🚀 Teleport inmediato al encontrar")
