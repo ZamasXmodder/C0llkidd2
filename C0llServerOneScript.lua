@@ -11,7 +11,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ID del juego Steal a Brainrot
-local GAME_ID = 17851821660
+local GAME_ID = 109983668079237
 
 -- Variables de control
 local isSearching = false
