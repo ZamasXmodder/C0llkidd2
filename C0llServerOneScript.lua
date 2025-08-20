@@ -1,279 +1,220 @@
--- Debug y Bypass para Knockback Walls - Steal a Brainrot
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- Crear RemoteEvent
+local remoteEvent = Instance.new("RemoteEvent")
+remoteEvent.Name = "AntiHitRemote"
+remoteEvent.Parent = ReplicatedStorage
 
--- Variables globales
-local bypassEnabled = false
-local debugMode = true -- Cambiar a false cuando encuentres el remote
-local originalCollisions = {}
-local hookedNamecall = nil
-local bodyObjectConnection = nil
-local knownKnockbackRemote = nil -- Aquí guardaremos el remote identificado
+-- Tabla para trackear jugadores con anti-hit activo
+local antiHitPlayers = {}
 
--- Crear GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WallBypassGUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 250, 0, 120)
-mainFrame.Position = UDim2.new(0, 10, 0, 10)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = mainFrame
-
-local bypassButton = Instance.new("TextButton")
-bypassButton.Size = UDim2.new(0, 230, 0, 40)
-bypassButton.Position = UDim2.new(0, 10, 0, 10)
-bypassButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-bypassButton.Text = "BypassWall: OFF"
-bypassButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-bypassButton.TextScaled = true
-bypassButton.Font = Enum.Font.GothamBold
-bypassButton.Parent = mainFrame
-
-local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0, 6)
-buttonCorner.Parent = bypassButton
-
-local debugButton = Instance.new("TextButton")
-debugButton.Size = UDim2.new(0, 110, 0, 30)
-debugButton.Position = UDim2.new(0, 10, 0, 60)
-debugButton.BackgroundColor3 = Color3.fromRGB(70, 70, 255)
-debugButton.Text = "Debug: ON"
-debugButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-debugButton.TextScaled = true
-debugButton.Font = Enum.Font.Gotham
-debugButton.Parent = mainFrame
-
-local clearButton = Instance.new("TextButton")
-clearButton.Size = UDim2.new(0, 110, 0, 30)
-clearButton.Position = UDim2.new(0, 130, 0, 60)
-clearButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-clearButton.Text = "Clear Console"
-clearButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-clearButton.TextScaled = true
-clearButton.Font = Enum.Font.Gotham
-clearButton.Parent = mainFrame
-
-local debugCorner1 = Instance.new("UICorner")
-debugCorner1.CornerRadius = UDim.new(0, 4)
-debugCorner1.Parent = debugButton
-
-local debugCorner2 = Instance.new("UICorner")
-debugCorner2.CornerRadius = UDim.new(0, 4)
-debugCorner2.Parent = clearButton
-
--- Función para identificar knockback walls
-local function isKnockbackWall(part)
-    if not part or not part:IsA("BasePart") then
-        return false
-    end
+-- Función para crear GUI del jugador
+local function createGUI(player)
+    local playerGui = player:WaitForChild("PlayerGui")
     
-    local name = part.Name:lower()
-    local parent = part.Parent and part.Parent.Name:lower() or ""
+    -- Crear ScreenGui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AntiHitGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = playerGui
     
-    -- Patrones amplios para detectar walls
-    local patterns = {
-        "wall", "barrier", "invisible", "block", "teleport", "kill", "damage", "hurt", "death"
-    }
+    -- Frame principal
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 200, 0, 100)
+    frame.Position = UDim2.new(0, 20, 0, 20)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
     
-    for _, pattern in pairs(patterns) do
-        if name:find(pattern) or parent:find(pattern) then
-            return true
-        end
-    end
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
     
-    -- Walls invisibles con colisión
-    if part.Transparency >= 0.7 and part.CanCollide then
-        return true
-    end
+    -- Botón principal
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -20, 0, 40)
+    button.Position = UDim2.new(0, 10, 0, 10)
+    button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    button.Text = "Activar Anti-Hit"
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.TextScaled = true
+    button.Font = Enum.Font.GothamBold
+    button.Parent = frame
     
-    return false
-end
-
--- Función para desactivar colisiones
-local function disableWallCollisions()
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if isKnockbackWall(obj) then
-            if not originalCollisions[obj] then
-                originalCollisions[obj] = obj.CanCollide
-            end
-            obj.CanCollide = false
-            if debugMode then
-                warn("Colisión desactivada en:", obj.Name, "Parent:", obj.Parent.Name)
-            end
-        end
-    end
-end
-
--- Función para restaurar colisiones
-local function restoreWallCollisions()
-    for wall, originalState in pairs(originalCollisions) do
-        if wall and wall.Parent then
-            wall.CanCollide = originalState
-        end
-    end
-    originalCollisions = {}
-end
-
--- Función para destruir BodyObjects de knockback
-local function destroyKnockbackObjects()
-    local character = player.Character
-    if not character then return end
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = button
     
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    -- Label de tiempo
+    local timeLabel = Instance.new("TextLabel")
+    timeLabel.Size = UDim2.new(1, -20, 0, 30)
+    timeLabel.Position = UDim2.new(0, 10, 0, 60)
+    timeLabel.BackgroundTransparency = 1
+    timeLabel.Text = ""
+    timeLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+    timeLabel.TextScaled = true
+    timeLabel.Font = Enum.Font.Gotham
+    timeLabel.Parent = frame
     
-    bodyObjectConnection = RunService.Heartbeat:Connect(function()
-        if bypassEnabled then
-            for _, obj in pairs(rootPart:GetChildren()) do
-                if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") or 
-                   obj:IsA("BodyThrust") or obj:IsA("BodyAngularVelocity") or
-                   obj:IsA("VectorForce") or obj:IsA("AlignPosition") or
-                   obj:IsA("AlignOrientation") then
-                    if debugMode then
-                        warn("Destruyendo BodyObject:", obj.ClassName, "de knockback")
-                    end
-                    obj:Destroy()
-                end
-            end
-        end
-    end)
-end
-
--- Hook principal para detectar remotes
-local function hookRemoteDetection()
-    hookedNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
+    -- Script local dentro del GUI
+    local localScript = Instance.new("LocalScript")
+    localScript.Source = [[
+        local button = script.Parent.Frame.TextButton
+        local timeLabel = script.Parent.Frame.TextLabel
+        local remoteEvent = game.ReplicatedStorage:WaitForChild("AntiHitRemote")
         
-        if method == "FireServer" or method == "InvokeServer" then
-            if debugMode then
-                -- Mostrar TODOS los remotes para identificar el correcto
-                warn("=== REMOTE DETECTADO ===")
-                warn("Nombre:", self.Name)
-                warn("Clase:", self.ClassName)
-                warn("Parent:", self.Parent and self.Parent.Name or "nil")
-                warn("Método:", method)
-                warn("Argumentos:", unpack(args))
-                warn("========================")
-            end
-            
-            -- Si ya identificamos el remote de knockback, bloquearlo
-            if bypassEnabled and knownKnockbackRemote and self.Name == knownKnockbackRemote then
-                warn("BLOQUEANDO REMOTE DE KNOCKBACK:", self.Name)
-                return -- Bloquear completamente
-            end
-        end
+        local isActive = false
+        local timeLeft = 0
         
-        return hookedNamecall(self, ...)
-    end)
-end
-
--- Función para establecer el remote de knockback identificado
-local function setKnockbackRemote(remoteName)
-    knownKnockbackRemote = remoteName
-    warn("Remote de knockback establecido:", remoteName)
-end
-
--- Función principal de toggle
-local function toggleBypass()
-    bypassEnabled = not bypassEnabled
-    
-    if bypassEnabled then
-        bypassButton.Text = "BypassWall: ON"
-        bypassButton.BackgroundColor3 = Color3.fromRGB(70, 255, 70)
-        
-        -- Desactivar colisiones
-        disableWallCollisions()
-        
-        -- Destruir BodyObjects de knockback
-        destroyKnockbackObjects()
-        
-        -- Monitorear nuevas walls
-        workspace.DescendantAdded:Connect(function(obj)
-            if bypassEnabled and isKnockbackWall(obj) then
-                originalCollisions[obj] = obj.CanCollide
-                obj.CanCollide = false
-                if debugMode then
-                    warn("Nueva wall detectada y desactivada:", obj.Name)
-                end
+        button.MouseButton1Click:Connect(function()
+            if not isActive then
+                remoteEvent:FireServer("activate")
             end
         end)
         
-        warn("BYPASS ACTIVADO - Toca una knockback wall para ver los remotes")
+        remoteEvent.OnClientEvent:Connect(function(action, data)
+            if action == "start" then
+                isActive = true
+                timeLeft = 10
+                button.Text = "Anti-Hit Activo"
+                button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+                
+            elseif action == "update" then
+                timeLeft = data
+                timeLabel.Text = "Tiempo: " .. timeLeft .. "s"
+                
+            elseif action == "end" then
+                isActive = false
+                timeLeft = 0
+                button.Text = "Activar Anti-Hit"
+                button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+                timeLabel.Text = ""
+            end
+        end)
+    ]]
+    localScript.Parent = screenGui
+end
+
+-- Función para activar anti-hit
+local function activateAntiHit(player)
+    if antiHitPlayers[player] then return end -- Ya está activo
+    
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
+    
+    -- Configurar anti-hit
+    antiHitPlayers[player] = {
+        timeLeft = 10,
+        originalPlatformStand = humanoid.PlatformStand,
+        bodyVelocity = nil,
+        bodyPosition = nil
+    }
+    
+    -- Crear BodyVelocity para anular knockback
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000) -- Solo X y Z, permitir gravedad
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+    
+    antiHitPlayers[player].bodyVelocity = bodyVelocity
+    
+    -- Hacer invulnerable (método más efectivo)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+    
+    -- Notificar al cliente
+    remoteEvent:FireClient(player, "start")
+    
+    print(player.Name .. " activó anti-hit por 10 segundos")
+end
+
+-- Función para desactivar anti-hit
+local function deactivateAntiHit(player)
+    local data = antiHitPlayers[player]
+    if not data then return end
+    
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
         
-    else
-        bypassButton.Text = "BypassWall: OFF"
-        bypassButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-        
-        -- Restaurar colisiones
-        restoreWallCollisions()
-        
-        -- Desconectar monitoreo de BodyObjects
-        if bodyObjectConnection then
-            bodyObjectConnection:Disconnect()
-            bodyObjectConnection = nil
+        if humanoid then
+            -- Restaurar estados
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
         end
         
-        warn("BYPASS DESACTIVADO")
+        -- Limpiar BodyVelocity
+        if data.bodyVelocity then
+            data.bodyVelocity:Destroy()
+        end
+        if data.bodyPosition then
+            data.bodyPosition:Destroy()
+        end
     end
-end
-
--- Toggle debug mode
-local function toggleDebug()
-    debugMode = not debugMode
-    debugButton.Text = debugMode and "Debug: ON" or "Debug: OFF"
-    debugButton.BackgroundColor3 = debugMode and Color3.fromRGB(70, 70, 255) or Color3.fromRGB(100, 100, 100)
-    warn("Debug mode:", debugMode and "ACTIVADO" or "DESACTIVADO")
-end
-
--- Limpiar consola
-local function clearConsole()
-    for i = 1, 50 do
-        print("")
-    end
-    warn("=== CONSOLA LIMPIADA ===")
-end
-
--- Eventos
-bypassButton.MouseButton1Click:Connect(toggleBypass)
-debugButton.MouseButton1Click:Connect(toggleDebug)
-clearButton.MouseButton1Click:Connect(clearConsole)
-
--- Teclas rápidas
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
     
-    if input.KeyCode == Enum.KeyCode.B then
-        toggleBypass()
-    elseif input.KeyCode == Enum.KeyCode.N then
-        toggleDebug()
-    elseif input.KeyCode == Enum.KeyCode.M then
-        clearConsole()
+    antiHitPlayers[player] = nil
+    
+    -- Notificar al cliente
+    remoteEvent:FireClient(player, "end")
+    
+    print(player.Name .. " anti-hit desactivado")
+end
+
+-- Manejar solicitudes del cliente
+remoteEvent.OnServerEvent:Connect(function(player, action)
+    if action == "activate" then
+        activateAntiHit(player)
     end
 end)
 
--- Inicializar hook
-hookRemoteDetection()
+-- Loop principal para countdown
+RunService.Heartbeat:Connect(function(deltaTime)
+    for player, data in pairs(antiHitPlayers) do
+        if data.timeLeft > 0 then
+            data.timeLeft = data.timeLeft - deltaTime
+            
+            -- Actualizar UI cada segundo aproximadamente
+            local timeLeftInt = math.ceil(data.timeLeft)
+            remoteEvent:FireClient(player, "update", timeLeftInt)
+            
+            -- Verificar si terminó el tiempo
+            if data.timeLeft <= 0 then
+                deactivateAntiHit(player)
+            end
+        end
+    end
+end)
 
-warn("=== WALL BYPASS CARGADO ===")
-warn("1. Activa Debug y toca una knockback wall")
-warn("2. Mira la consola para ver el remote exacto")
-warn("3. Dime el nombre del remote para bloquearlo")
-warn("Teclas: B=Bypass, N=Debug, M=Clear")
-warn("===========================")
+-- Limpiar al desconectar
+Players.PlayerRemoving:Connect(function(player)
+    if antiHitPlayers[player] then
+        antiHitPlayers[player] = nil
+    end
+end)
 
--- Función para establecer manualmente el remote (usar en consola)
-_G.setKnockbackRemote = setKnockbackRemote
+-- Crear GUI cuando el jugador se une
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        wait(1) -- Esperar a que cargue completamente
+        createGUI(player)
+    end)
+end)
+
+-- Para jugadores ya conectados
+for _, player in pairs(Players:GetPlayers()) do
+    if player.Character then
+        createGUI(player)
+    end
+    player.CharacterAdded:Connect(function()
+        wait(1)
+        createGUI(player)
+    end)
+end
