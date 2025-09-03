@@ -1,4 +1,4 @@
--- Instant Chilli v2 Panel for Steal a Brainrot - Fixed Version
+-- Instant Chilli v2 Panel - Unlimited Aimbot & Quantum Cloner
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -15,10 +15,16 @@ local aimbotEnabled = false
 local instantTeleportEnabled = false
 local aimbotConnection = nil
 local autoEquipConnection = nil
+local teleportConnection = nil
 
 -- Configuración
-local PREFERRED_TOOL_NAME = "Laser" -- Cambia esto por el nombre exacto de tu tool
-local DETECTION_RANGE = 50 -- Rango para detectar jugadores
+local TOOL_NAMES = {
+    "Clonador cuántico",
+    "Quantum Cloner", 
+    "QuantumCloner",
+    "Clonador",
+    "Cloner"
+}
 
 -- Create GUI
 local screenGui = Instance.new("ScreenGui")
@@ -81,7 +87,7 @@ aimbotButton.Size = UDim2.new(0.8, 0, 0, 35)
 aimbotButton.Position = UDim2.new(0.1, 0, 0, 110)
 aimbotButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 aimbotButton.BorderSizePixel = 0
-aimbotButton.Text = "Aimbot: OFF"
+aimbotButton.Text = "Unlimited Aimbot: OFF"
 aimbotButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 aimbotButton.TextScaled = true
 aimbotButton.Font = Enum.Font.Gotham
@@ -126,23 +132,42 @@ local function togglePanel()
     end
 end
 
-local function getSpawnPosition()
-    -- Buscar el punto de spawn del jugador
+local function findSpawnPosition()
+    -- Múltiples métodos para encontrar el spawn
+    local character = player.Character
+    if not character then return Vector3.new(0, 50, 0) end
+    
+    -- Método 1: Buscar SpawnLocation
     local spawnLocation = workspace:FindFirstChild("SpawnLocation")
-    if spawnLocation then
+    if spawnLocation and spawnLocation:FindFirstChild("Position") then
         return spawnLocation.Position + Vector3.new(0, 5, 0)
     end
     
-    -- Buscar spawns alternativos
+    -- Método 2: Buscar en Spawns
     local spawns = workspace:FindFirstChild("Spawns")
     if spawns then
-        local playerSpawn = spawns:FindFirstChild(player.Name) or spawns:GetChildren()[1]
-        if playerSpawn then
-            return playerSpawn.Position + Vector3.new(0, 5, 0)
+        for _, spawn in pairs(spawns:GetChildren()) do
+            if spawn.Name == player.Name or spawn.Name:find("Spawn") then
+                return spawn.Position + Vector3.new(0, 5, 0)
+            end
         end
     end
     
-    -- Posición por defecto del spawn
+    -- Método 3: Buscar bases de jugadores
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name:lower():find("base") or obj.Name:lower():find("spawn") then
+            local playerBase = obj:FindFirstChild(player.Name)
+            if playerBase then
+                return playerBase.Position + Vector3.new(0, 5, 0)
+            end
+        end
+    end
+    
+    -- Método 4: Usar la posición inicial guardada
+    if player:FindFirstChild("leaderstats") then
+        return Vector3.new(0, 50, 0) -- Posición central por defecto
+    end
+    
     return Vector3.new(0, 50, 0)
 end
 
@@ -150,109 +175,153 @@ local function hasBrainrotInHand()
     local character = player.Character
     if not character then return false end
     
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool and (tool.Name:lower():find("brainrot") or tool.Name:lower():find("brain")) then
-        return true
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            local toolName = tool.Name:lower()
+            if toolName:find("brainrot") or toolName:find("brain") or toolName:find("rot") then
+                return true
+            end
+        end
     end
     
     return false
 end
 
 local function instantTeleport()
-    if not instantTeleportEnabled then return end
-    if not hasBrainrotInHand() then return end
-    
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
-        local spawnPosition = getSpawnPosition()
+        local spawnPosition = findSpawnPosition()
         character.HumanoidRootPart.CFrame = CFrame.new(spawnPosition)
+        print("Teleported to spawn!")
     end
 end
 
-local function getNearbyPlayers(range)
-    local nearbyPlayers = {}
-    local character = player.Character
-    
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return nearbyPlayers
-    end
-    
-    local playerPosition = character.HumanoidRootPart.Position
+local function getAllPlayers()
+    local allPlayers = {}
     
     for _, otherPlayer in pairs(Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local distance = (otherPlayer.Character.HumanoidRootPart.Position - playerPosition).Magnitude
-            if distance <= range then
-                table.insert(nearbyPlayers, otherPlayer)
+            table.insert(allPlayers, otherPlayer)
+        end
+    end
+    
+    return allPlayers
+end
+
+local function findQuantumCloner()
+    local character = player.Character
+    local backpack = player:FindFirstChild("Backpack")
+    
+    -- Buscar en el character primero
+    if character then
+        for _, tool in pairs(character:GetChildren()) do
+            if tool:IsA("Tool") then
+                for _, name in pairs(TOOL_NAMES) do
+                    if tool.Name:lower():find(name:lower()) or tool.Name == name then
+                        return tool, true -- tool, isEquipped
+                    end
+                end
             end
         end
     end
     
-    return nearbyPlayers
-end
-
-local function equipPreferredTool()
-    local character = player.Character
-    if not character then return end
-    
-    local backpack = player:FindFirstChild("Backpack")
-    if not backpack then return end
-    
-    -- Buscar la tool preferida en el backpack
-    local preferredTool = backpack:FindFirstChild(PREFERRED_TOOL_NAME)
-    if preferredTool then
-        character.Humanoid:EquipTool(preferredTool)
-        return true
+    -- Buscar en el backpack
+    if backpack then
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                for _, name in pairs(TOOL_NAMES) do
+                    if tool.Name:lower():find(name:lower()) or tool.Name == name then
+                        return tool, false -- tool, isEquipped
+                    end
+                end
+            end
+        end
     end
     
-    return false
+    return nil, false
 end
 
-local function hasPreferredToolEquipped()
+local function equipQuantumCloner()
     local character = player.Character
     if not character then return false end
     
-    local equippedTool = character:FindFirstChild(PREFERRED_TOOL_NAME)
-    return equippedTool ~= nil
-end
-
-local function autoEquipTool()
-    local nearbyPlayers = getNearbyPlayers(DETECTION_RANGE)
+    local tool, isEquipped = findQuantumCloner()
     
-    if #nearbyPlayers > 0 then
-        -- Hay jugadores cerca, asegurar que tenemos la tool equipada
-        if not hasPreferredToolEquipped() then
-            equipPreferredTool()
-        end
+    if tool and not isEquipped then
+        character.Humanoid:EquipTool(tool)
+        return true
     end
+    
+    return isEquipped
 end
 
-local function fireLaser(targetPlayer)
+local function hasQuantumClonerEquipped()
+    local tool, isEquipped = findQuantumCloner()
+    return isEquipped
+end
+
+local function fireQuantumCloner(targetPlayer)
     local character = player.Character
     if not character then return end
     
-    local tool = character:FindFirstChild(PREFERRED_TOOL_NAME)
-    if not tool then return end
+    local tool, isEquipped = findQuantumCloner()
+    if not tool or not isEquipped then return end
     
-    -- Buscar RemoteEvent o función de disparo en la tool
-    local remoteEvent = tool:FindFirstChild("RemoteEvent") or tool:FindFirstChild("Fire") or tool:FindFirstChild("Shoot")
-    if remoteEvent and remoteEvent:IsA("RemoteEvent") then
-        remoteEvent:FireServer(targetPlayer.Character.HumanoidRootPart)
+    -- Múltiples métodos para activar el clonador
+    local target = targetPlayer.Character.HumanoidRootPart
+    
+    -- Método 1: RemoteEvent
+    for _, child in pairs(tool:GetDescendants()) do
+        if child:IsA("RemoteEvent") then
+            pcall(function()
+                child:FireServer(target)
+                child:FireServer(targetPlayer)
+                child:FireServer(target.Position)
+            end)
+        end
     end
     
-    -- Método alternativo: activar la tool
-    if tool:FindFirstChild("Handle") then
+    -- Método 2: Activar tool
+    pcall(function()
         tool:Activate()
+    end)
+    
+    -- Método 3: Simular click
+    pcall(function()
+        if tool:FindFirstChild("Handle") then
+            tool.Handle:Activate()
+        end
+    end)
+end
+
+local function unlimitedAimbotLoop()
+    if not aimbotEnabled then return end
+    
+    -- Asegurar que tenemos el clonador equipado
+    if not hasQuantumClonerEquipped() then
+        equipQuantumCloner()
+    end
+    
+    local allPlayers = getAllPlayers()
+    
+    -- Disparar a TODOS los jugadores sin límite de distancia
+    for _, targetPlayer in pairs(allPlayers) do
+        fireQuantumCloner(targetPlayer)
     end
 end
 
-local function aimbotLoop()
-    if not aimbotEnabled then return end
+local function autoEquipLoop()
+    local allPlayers = getAllPlayers()
     
-    local nearbyPlayers = getNearbyPlayers(DETECTION_RANGE)
-    
-    for _, targetPlayer in pairs(nearbyPlayers) do
-        fireLaser(targetPlayer)
+    if #allPlayers > 0 then
+        equipQuantumCloner()
+    end
+end
+
+local function teleportLoop()
+    if instantTeleportEnabled and hasBrainrotInHand() then
+        instantTeleport()
+        wait(0.5) -- Cooldown para evitar spam
     end
 end
 
@@ -261,16 +330,25 @@ teleportButton.MouseButton1Click:Connect(function()
     instantTeleportEnabled = not instantTeleportEnabled
     teleportButton.Text = "Instant Teleport: " .. (instantTeleportEnabled and "ON" or "OFF")
     teleportButton.BackgroundColor3 = instantTeleportEnabled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(70, 70, 70)
+    
+    if instantTeleportEnabled then
+        teleportConnection = RunService.Heartbeat:Connect(teleportLoop)
+    else
+        if teleportConnection then
+            teleportConnection:Disconnect()
+            teleportConnection = nil
+        end
+    end
 end)
 
 aimbotButton.MouseButton1Click:Connect(function()
     aimbotEnabled = not aimbotEnabled
-    aimbotButton.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
+    aimbotButton.Text = "Unlimited Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
     aimbotButton.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(150, 50, 50) or Color3.fromRGB(70, 70, 70)
     
     if aimbotEnabled then
-        aimbotConnection = RunService.Heartbeat:Connect(aimbotLoop)
-        autoEquipConnection = RunService.Heartbeat:Connect(autoEquipTool)
+        aimbotConnection = RunService.Heartbeat:Connect(unlimitedAimbotLoop)
+        autoEquipConnection = RunService.Heartbeat:Connect(autoEquipLoop)
     else
         if aimbotConnection then
             aimbotConnection:Disconnect()
@@ -306,13 +384,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Monitor for brainrot in hand for instant teleport
-RunService.Heartbeat:Connect(function()
-    if instantTeleportEnabled and hasBrainrotInHand() then
-        wait(0.1)
-        instantTeleport()
-    end
-end)
-
-print("Instant Chilli v2 Fixed loaded! Press F to open panel.")
-print("Make sure to change PREFERRED_TOOL_NAME to your exact tool name!")
+print("Instant Chilli v2 Unlimited loaded!")
+print("Features: Unlimited Aimbot + Quantum Cloner Auto-Equip + Instant Teleport")
+print("Press F to open panel")
