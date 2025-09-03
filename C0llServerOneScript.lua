@@ -293,7 +293,9 @@ local function equipQuantumCloner()
     local tool, isEquipped = findQuantumCloner()
     
     if tool and not isEquipped then
-        character.Humanoid:EquipTool(tool)
+        pcall(function()
+            character.Humanoid:EquipTool(tool)
+        end)
         lastEquipTime = currentTime
         return true
     end
@@ -313,7 +315,8 @@ local function fireQuantumCloner(targetPlayer)
     local tool, isEquipped = findQuantumCloner()
     if not tool or not isEquipped then return end
     
-    local target = targetPlayer.Character.HumanoidRootPart
+    local target = targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not target then return end
     
     -- Método 1: RemoteEvent más común
     for _, child in pairs(tool:GetDescendants()) do
@@ -344,7 +347,9 @@ local function unlimitedAimbotLoop()
     
     -- Disparar a todos los jugadores
     for _, targetPlayer in pairs(allPlayers) do
-        fireQuantumCloner(targetPlayer)
+        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            fireQuantumCloner(targetPlayer)
+        end
     end
 end
 
@@ -392,7 +397,7 @@ aimbotButton.MouseButton1Click:Connect(function()
         aimbotConnection = RunService.Heartbeat:Connect(unlimitedAimbotLoop)
         autoEquipConnection = RunService.Heartbeat:Connect(smartAutoEquip)
     else
-                    if aimbotConnection then
+        if aimbotConnection then
             aimbotConnection:Disconnect()
             aimbotConnection = nil
         end
@@ -433,6 +438,15 @@ spawn(function()
         if hasBrainrotActive() then
             print("Brainrot detected! Character is purple/stolen")
         end
+    end
+end)
+
+-- Cleanup function cuando se remueve el script
+game.Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        if aimbotConnection then aimbotConnection:Disconnect() end
+        if autoEquipConnection then autoEquipConnection:Disconnect() end
+        if teleportConnection then teleportConnection:Disconnect() end
     end
 end)
 
