@@ -1,4 +1,4 @@
--- Instant Chilli v2 Panel - Unlimited Aimbot & Quantum Cloner
+-- Instant Chilli v2 Panel - Fixed Brainrot Detection & Clone Swap
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -16,6 +16,7 @@ local instantTeleportEnabled = false
 local aimbotConnection = nil
 local autoEquipConnection = nil
 local teleportConnection = nil
+local lastEquipTime = 0
 
 -- Configuración
 local TOOL_NAMES = {
@@ -133,52 +134,90 @@ local function togglePanel()
 end
 
 local function findSpawnPosition()
-    -- Múltiples métodos para encontrar el spawn
     local character = player.Character
     if not character then return Vector3.new(0, 50, 0) end
     
-    -- Método 1: Buscar SpawnLocation
-    local spawnLocation = workspace:FindFirstChild("SpawnLocation")
-    if spawnLocation and spawnLocation:FindFirstChild("Position") then
-        return spawnLocation.Position + Vector3.new(0, 5, 0)
-    end
+    -- Buscar múltiples tipos de spawn
+    local spawnLocations = {
+        workspace:FindFirstChild("SpawnLocation"),
+        workspace:FindFirstChild("Spawn"),
+        workspace:FindFirstChild("PlayerSpawn")
+    }
     
-    -- Método 2: Buscar en Spawns
-    local spawns = workspace:FindFirstChild("Spawns")
-    if spawns then
-        for _, spawn in pairs(spawns:GetChildren()) do
-            if spawn.Name == player.Name or spawn.Name:find("Spawn") then
-                return spawn.Position + Vector3.new(0, 5, 0)
-            end
+    for _, spawn in pairs(spawnLocations) do
+        if spawn then
+            return spawn.Position + Vector3.new(0, 5, 0)
         end
     end
     
-    -- Método 3: Buscar bases de jugadores
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj.Name:lower():find("base") or obj.Name:lower():find("spawn") then
-            local playerBase = obj:FindFirstChild(player.Name)
-            if playerBase then
-                return playerBase.Position + Vector3.new(0, 5, 0)
+    -- Buscar en carpetas de spawns
+    local spawnFolders = {
+        workspace:FindFirstChild("Spawns"),
+        workspace:FindFirstChild("PlayerSpawns"),
+        workspace:FindFirstChild("Bases")
+    }
+    
+    for _, folder in pairs(spawnFolders) do
+        if folder then
+            local playerSpawn = folder:FindFirstChild(player.Name)
+            if playerSpawn then
+                return playerSpawn.Position + Vector3.new(0, 5, 0)
+            end
+            
+            -- Si no encuentra por nombre, usar el primero disponible
+            local firstSpawn = folder:GetChildren()[1]
+            if firstSpawn then
+                return firstSpawn.Position + Vector3.new(0, 5, 0)
             end
         end
-    end
-    
-    -- Método 4: Usar la posición inicial guardada
-    if player:FindFirstChild("leaderstats") then
-        return Vector3.new(0, 50, 0) -- Posición central por defecto
     end
     
     return Vector3.new(0, 50, 0)
 end
 
-local function hasBrainrotInHand()
+local function hasBrainrotActive()
     local character = player.Character
     if not character then return false end
     
-    for _, tool in pairs(character:GetChildren()) do
-        if tool:IsA("Tool") then
-            local toolName = tool.Name:lower()
-            if toolName:find("brainrot") or toolName:find("brain") or toolName:find("rot") then
+    -- Método 1: Verificar por color del personaje (púrpura)
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        local bodyColors = character:FindFirstChild("Body Colors")
+        if bodyColors then
+            -- Verificar si tiene colores púrpuras
+            local headColor = bodyColors.HeadColor3
+            local torsoColor = bodyColors.TorsoColor3
+            
+            if headColor.R < 0.5 and headColor.B > 0.5 and headColor.G < 0.5 then
+                return true
+            end
+            if torsoColor.R < 0.5 and torsoColor.B > 0.5 and torsoColor.G < 0.5 then
+                return true
+            end
+        end
+    end
+    
+    -- Método 2: Verificar por partes del cuerpo púrpuras
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            local color = part.Color
+            if color.R < 0.5 and color.B > 0.5 and color.G < 0.5 then
+                return true
+            end
+        end
+    end
+    
+    -- Método 3: Verificar por efectos o valores
+    local brainrotValue = character:FindFirstChild("Brainrot") or character:FindFirstChild("BrainrotActive")
+    if brainrotValue then
+        return true
+    end
+    
+    -- Método 4: Verificar por GUI activa
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        for _, gui in pairs(playerGui:GetChildren()) do
+            if gui.Name:lower():find("brainrot") or gui.Name:lower():find("stolen") then
                 return true
             end
         end
@@ -192,7 +231,7 @@ local function instantTeleport()
     if character and character:FindFirstChild("HumanoidRootPart") then
         local spawnPosition = findSpawnPosition()
         character.HumanoidRootPart.CFrame = CFrame.new(spawnPosition)
-        print("Teleported to spawn!")
+        print("Teleported to spawn with brainrot!")
     end
 end
 
@@ -245,10 +284,17 @@ local function equipQuantumCloner()
     local character = player.Character
     if not character then return false end
     
+    local currentTime = tick()
+    -- Evitar equipar muy frecuentemente para no interferir con "Cambia con clon"
+    if currentTime - lastEquipTime < 1 then
+        return false
+    end
+    
     local tool, isEquipped = findQuantumCloner()
     
     if tool and not isEquipped then
         character.Humanoid:EquipTool(tool)
+        lastEquipTime = currentTime
         return true
     end
     
@@ -267,12 +313,11 @@ local function fireQuantumCloner(targetPlayer)
     local tool, isEquipped = findQuantumCloner()
     if not tool or not isEquipped then return end
     
-    -- Múltiples métodos para activar el clonador
     local target = targetPlayer.Character.HumanoidRootPart
     
-    -- Método 1: RemoteEvent
+    -- Método 1: RemoteEvent más común
     for _, child in pairs(tool:GetDescendants()) do
-        if child:IsA("RemoteEvent") then
+        if child:IsA("RemoteEvent") and (child.Name:lower():find("fire") or child.Name:lower():find("shoot") or child.Name:lower():find("attack")) then
             pcall(function()
                 child:FireServer(target)
                 child:FireServer(targetPlayer)
@@ -285,43 +330,40 @@ local function fireQuantumCloner(targetPlayer)
     pcall(function()
         tool:Activate()
     end)
-    
-    -- Método 3: Simular click
-    pcall(function()
-        if tool:FindFirstChild("Handle") then
-            tool.Handle:Activate()
-        end
-    end)
 end
 
 local function unlimitedAimbotLoop()
     if not aimbotEnabled then return end
     
-    -- Asegurar que tenemos el clonador equipado
-    if not hasQuantumClonerEquipped() then
+    local allPlayers = getAllPlayers()
+    
+    -- Solo equipar si no tenemos el clonador y hay jugadores
+    if #allPlayers > 0 and not hasQuantumClonerEquipped() then
         equipQuantumCloner()
     end
     
-    local allPlayers = getAllPlayers()
-    
-    -- Disparar a TODOS los jugadores sin límite de distancia
+    -- Disparar a todos los jugadores
     for _, targetPlayer in pairs(allPlayers) do
         fireQuantumCloner(targetPlayer)
     end
 end
 
-local function autoEquipLoop()
+local function smartAutoEquip()
     local allPlayers = getAllPlayers()
     
-    if #allPlayers > 0 then
-        equipQuantumCloner()
+    -- Solo auto-equipar si hay jugadores cerca Y no tenemos el clonador equipado
+    if #allPlayers > 0 and not hasQuantumClonerEquipped() then
+        local currentTime = tick()
+        if currentTime - lastEquipTime >= 2 then -- Cooldown más largo
+            equipQuantumCloner()
+        end
     end
 end
 
 local function teleportLoop()
-    if instantTeleportEnabled and hasBrainrotInHand() then
+    if instantTeleportEnabled and hasBrainrotActive() then
         instantTeleport()
-        wait(0.5) -- Cooldown para evitar spam
+        wait(1) -- Cooldown más largo para evitar spam
     end
 end
 
@@ -348,9 +390,9 @@ aimbotButton.MouseButton1Click:Connect(function()
     
     if aimbotEnabled then
         aimbotConnection = RunService.Heartbeat:Connect(unlimitedAimbotLoop)
-        autoEquipConnection = RunService.Heartbeat:Connect(autoEquipLoop)
+        autoEquipConnection = RunService.Heartbeat:Connect(smartAutoEquip)
     else
-        if aimbotConnection then
+                    if aimbotConnection then
             aimbotConnection:Disconnect()
             aimbotConnection = nil
         end
@@ -384,6 +426,20 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
-print("Instant Chilli v2 Unlimited loaded!")
-print("Features: Unlimited Aimbot + Quantum Cloner Auto-Equip + Instant Teleport")
+-- Debug function to help identify brainrot state
+spawn(function()
+    while true do
+        wait(2)
+        if hasBrainrotActive() then
+            print("Brainrot detected! Character is purple/stolen")
+        end
+    end
+end)
+
+print("Instant Chilli v2 Fixed loaded!")
+print("Features:")
+print("- Detects brainrot by character color (purple)")
+print("- Smart auto-equip (doesn't interfere with clone swap)")
+print("- Unlimited aimbot with proper cooldowns")
+print("- Instant teleport when brainrot is active")
 print("Press F to open panel")
