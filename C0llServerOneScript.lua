@@ -1,4 +1,4 @@
--- Instant Chilli v2 Panel for Steal a Brainrot
+-- Instant Chilli v2 Panel for Steal a Brainrot - Fixed Version
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -14,6 +14,11 @@ local panelOpen = false
 local aimbotEnabled = false
 local instantTeleportEnabled = false
 local aimbotConnection = nil
+local autoEquipConnection = nil
+
+-- Configuración
+local PREFERRED_TOOL_NAME = "Laser" -- Cambia esto por el nombre exacto de tu tool
+local DETECTION_RANGE = 50 -- Rango para detectar jugadores
 
 -- Create GUI
 local screenGui = Instance.new("ScreenGui")
@@ -121,19 +126,23 @@ local function togglePanel()
     end
 end
 
-local function getPlayerBase()
-    -- Buscar la base del jugador (ajusta según la estructura del juego)
-    local workspace = game.Workspace
-    local bases = workspace:FindFirstChild("Bases") or workspace:FindFirstChild("PlayerBases")
+local function getSpawnPosition()
+    -- Buscar el punto de spawn del jugador
+    local spawnLocation = workspace:FindFirstChild("SpawnLocation")
+    if spawnLocation then
+        return spawnLocation.Position + Vector3.new(0, 5, 0)
+    end
     
-    if bases then
-        local playerBase = bases:FindFirstChild(player.Name)
-        if playerBase then
-            return playerBase.Position + Vector3.new(0, 5, 0)
+    -- Buscar spawns alternativos
+    local spawns = workspace:FindFirstChild("Spawns")
+    if spawns then
+        local playerSpawn = spawns:FindFirstChild(player.Name) or spawns:GetChildren()[1]
+        if playerSpawn then
+            return playerSpawn.Position + Vector3.new(0, 5, 0)
         end
     end
     
-    -- Posición por defecto si no encuentra la base
+    -- Posición por defecto del spawn
     return Vector3.new(0, 50, 0)
 end
 
@@ -155,8 +164,8 @@ local function instantTeleport()
     
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
-        local basePosition = getPlayerBase()
-        character.HumanoidRootPart.CFrame = CFrame.new(basePosition)
+        local spawnPosition = getSpawnPosition()
+        character.HumanoidRootPart.CFrame = CFrame.new(spawnPosition)
     end
 end
 
@@ -182,34 +191,65 @@ local function getNearbyPlayers(range)
     return nearbyPlayers
 end
 
-local function fireLaser(targetPlayer)
-    -- Simular disparo de láser (ajusta según las mecánicas del juego)
+local function equipPreferredTool()
     local character = player.Character
     if not character then return end
     
-    local tool = character:FindFirstChildOfClass("Tool")
-    if not tool then
-        -- Equipar láser automáticamente si no está equipado
-        local backpack = player:FindFirstChild("Backpack")
-        if backpack then
-            local laser = backpack:FindFirstChild("Laser") or backpack:FindFirstChildWhichIsA("Tool")
-            if laser then
-                character.Humanoid:EquipTool(laser)
-                tool = laser
-            end
-        end
+    local backpack = player:FindFirstChild("Backpack")
+    if not backpack then return end
+    
+    -- Buscar la tool preferida en el backpack
+    local preferredTool = backpack:FindFirstChild(PREFERRED_TOOL_NAME)
+    if preferredTool then
+        character.Humanoid:EquipTool(preferredTool)
+        return true
     end
     
-    if tool and tool:FindFirstChild("RemoteEvent") then
-        -- Disparar al jugador objetivo
-        tool.RemoteEvent:FireServer(targetPlayer.Character.HumanoidRootPart)
+    return false
+end
+
+local function hasPreferredToolEquipped()
+    local character = player.Character
+    if not character then return false end
+    
+    local equippedTool = character:FindFirstChild(PREFERRED_TOOL_NAME)
+    return equippedTool ~= nil
+end
+
+local function autoEquipTool()
+    local nearbyPlayers = getNearbyPlayers(DETECTION_RANGE)
+    
+    if #nearbyPlayers > 0 then
+        -- Hay jugadores cerca, asegurar que tenemos la tool equipada
+        if not hasPreferredToolEquipped() then
+            equipPreferredTool()
+        end
+    end
+end
+
+local function fireLaser(targetPlayer)
+    local character = player.Character
+    if not character then return end
+    
+    local tool = character:FindFirstChild(PREFERRED_TOOL_NAME)
+    if not tool then return end
+    
+    -- Buscar RemoteEvent o función de disparo en la tool
+    local remoteEvent = tool:FindFirstChild("RemoteEvent") or tool:FindFirstChild("Fire") or tool:FindFirstChild("Shoot")
+    if remoteEvent and remoteEvent:IsA("RemoteEvent") then
+        remoteEvent:FireServer(targetPlayer.Character.HumanoidRootPart)
+    end
+    
+    -- Método alternativo: activar la tool
+    if tool:FindFirstChild("Handle") then
+        tool:Activate()
     end
 end
 
 local function aimbotLoop()
     if not aimbotEnabled then return end
     
-    local nearbyPlayers = getNearbyPlayers(50) -- 50 studs de rango
+    local nearbyPlayers = getNearbyPlayers(DETECTION_RANGE)
     
     for _, targetPlayer in pairs(nearbyPlayers) do
         fireLaser(targetPlayer)
@@ -230,10 +270,15 @@ aimbotButton.MouseButton1Click:Connect(function()
     
     if aimbotEnabled then
         aimbotConnection = RunService.Heartbeat:Connect(aimbotLoop)
+        autoEquipConnection = RunService.Heartbeat:Connect(autoEquipTool)
     else
         if aimbotConnection then
             aimbotConnection:Disconnect()
             aimbotConnection = nil
+        end
+        if autoEquipConnection then
+            autoEquipConnection:Disconnect()
+            autoEquipConnection = nil
         end
     end
 end)
@@ -264,9 +309,10 @@ end)
 -- Monitor for brainrot in hand for instant teleport
 RunService.Heartbeat:Connect(function()
     if instantTeleportEnabled and hasBrainrotInHand() then
-        wait(0.1) -- Pequeño delay para evitar spam
+        wait(0.1)
         instantTeleport()
     end
 end)
 
-print("Instant Chilli v2 loaded! Press F to open panel.")
+print("Instant Chilli v2 Fixed loaded! Press F to open panel.")
+print("Make sure to change PREFERRED_TOOL_NAME to your exact tool name!")
