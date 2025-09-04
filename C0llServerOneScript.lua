@@ -20,12 +20,21 @@ local toggleButton = nil
 local backpackForceEnabled = false
 local backpackForceConnection = nil
 
+-- Base teleport variables
+local baseReturnEnabled = false
+local basePosition = nil
+local teleportPart = nil
+local teleportConnection = nil
+local brainrotDetectionConnection = nil
+local baseReturnButton = nil
+
 -- Settings
 local settings = {
     flySpeed = 50,
     hoverHeight = 16,
     rainbowSpeed = 5,
-    floorSize = 12
+    floorSize = 12,
+    teleportSpeed = 30  -- Speed for base teleport
 }
 
 -- Key states for smooth movement
@@ -68,6 +77,222 @@ local function stopBackpackForce()
     end
 end
 
+-- Base teleport functions
+local function setBasePosition()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        basePosition = player.Character.HumanoidRootPart.Position
+        print("🏠 Base position set at: " .. tostring(basePosition))
+    end
+end
+
+local function createTeleportPart()
+    if teleportPart then
+        teleportPart:Destroy()
+    end
+
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+
+    local rootPart = character.HumanoidRootPart
+
+    -- Create teleport part
+    teleportPart = Instance.new("Part")
+    teleportPart.Name = "BaseTeleportPart"
+    teleportPart.Size = Vector3.new(8, 2, 8)
+    teleportPart.Position = rootPart.Position + Vector3.new(0, 5, 0)
+    teleportPart.Anchored = true
+    teleportPart.CanCollide = false
+    teleportPart.Transparency = 0.3
+    teleportPart.Material = Enum.Material.Neon
+    teleportPart.Shape = Enum.PartType.Block
+    teleportPart.Color = Color3.fromRGB(255, 215, 0) -- Gold color
+    teleportPart.Parent = workspace
+
+    -- Add highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = teleportPart
+    highlight.FillTransparency = 0.4
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillColor = Color3.fromRGB(255, 215, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+
+    -- Add text label
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Size = UDim2.new(0, 200, 0, 50)
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+    billboardGui.Parent = teleportPart
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = "🏠 RETURN TO BASE"
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.Parent = billboardGui
+
+    -- Add particles
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = teleportPart
+
+    local particles = Instance.new("ParticleEmitter")
+    particles.Parent = attachment
+    particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    particles.Lifetime = NumberRange.new(1, 3)
+    particles.Rate = 30
+    particles.SpreadAngle = Vector2.new(45, 45)
+    particles.Speed = NumberRange.new(3, 8)
+    particles.Color = ColorSequence.new(Color3.fromRGB(255, 215, 0))
+
+    -- Add touch detection
+    teleportPart.Touched:Connect(function(hit)
+        local character = hit.Parent
+        if character == player.Character and character:FindFirstChild("HumanoidRootPart") then
+            teleportToBase()
+        end
+    end)
+end
+
+local function teleportToBase()
+    if not basePosition or not player.Character then
+        return
+    end
+
+    local character = player.Character
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+
+    if not rootPart then
+        return
+    end
+
+    print("🚀 Teleporting to base...")
+
+    -- Smooth teleport using TweenService
+    local TweenService = game:GetService("TweenService")
+    local tweenInfo = TweenInfo.new(
+        2, -- Duration
+        Enum.EasingStyle.Quad,
+        Enum.EasingDirection.Out,
+        0, -- Repeat count
+        false, -- Reverses
+        0 -- Delay
+    )
+
+    local tween = TweenService:Create(rootPart, tweenInfo, {
+        Position = basePosition + Vector3.new(0, 5, 0)
+    })
+
+    tween:Play()
+
+    tween.Completed:Connect(function()
+        print("🏠 Arrived at base!")
+    end)
+end
+
+local function detectBrainrot()
+    if brainrotDetectionConnection then
+        brainrotDetectionConnection:Disconnect()
+    end
+
+    brainrotDetectionConnection = RunService.Heartbeat:Connect(function()
+        if not baseReturnEnabled or not player.Character then
+            return
+        end
+
+        local character = player.Character
+        local backpack = player:FindFirstChild("Backpack")
+
+        -- Check for brainrot in backpack or equipped
+        local hasBrainrot = false
+
+        if backpack then
+            for _, tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and (
+                    string.find(string.lower(tool.Name), "brainrot") or
+                    string.find(string.lower(tool.Name), "brain") or
+                    string.find(string.lower(tool.Name), "rot") or
+                    string.find(string.lower(tool.Name), "italian") or
+                    string.find(string.lower(tool.Name), "tralalero")
+                ) then
+                    hasBrainrot = true
+                    break
+                end
+            end
+        end
+
+        -- Check equipped tool
+        if not hasBrainrot and character then
+            local equippedTool = character:FindFirstChildOfClass("Tool")
+            if equippedTool and (
+                string.find(string.lower(equippedTool.Name), "brainrot") or
+                string.find(string.lower(equippedTool.Name), "brain") or
+                string.find(string.lower(equippedTool.Name), "rot") or
+                string.find(string.lower(equippedTool.Name), "italian") or
+                string.find(string.lower(equippedTool.Name), "tralalero")
+            ) then
+                hasBrainrot = true
+            end
+        end
+
+        -- Create/destroy teleport part based on brainrot detection
+        if hasBrainrot and not teleportPart then
+            createTeleportPart()
+            print("🧠 Brainrot detected! Teleport part created.")
+        elseif not hasBrainrot and teleportPart then
+            teleportPart:Destroy()
+            teleportPart = nil
+        end
+
+        -- Update teleport part position to follow player
+        if teleportPart and character:FindFirstChild("HumanoidRootPart") then
+            teleportPart.Position = character.HumanoidRootPart.Position + Vector3.new(0, 5, 0)
+        end
+    end)
+end
+
+local function toggleBaseReturn()
+    if baseReturnEnabled then
+        -- Disable base return
+        baseReturnEnabled = false
+
+        if brainrotDetectionConnection then
+            brainrotDetectionConnection:Disconnect()
+            brainrotDetectionConnection = nil
+        end
+
+        if teleportPart then
+            teleportPart:Destroy()
+            teleportPart = nil
+        end
+
+        if baseReturnButton then
+            baseReturnButton.Text = "AUTO RETURN TO BASE: OFF"
+            baseReturnButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+        end
+
+        print("🏠 Auto Return to Base: DISABLED")
+    else
+        -- Enable base return
+        if not basePosition then
+            setBasePosition()
+        end
+
+        baseReturnEnabled = true
+        detectBrainrot()
+
+        if baseReturnButton then
+            baseReturnButton.Text = "AUTO RETURN TO BASE: ON"
+            baseReturnButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        end
+
+        print("🏠 Auto Return to Base: ENABLED")
+        print("🧠 Will detect brainrots and create teleport part")
+    end
+end
+
 -- Create GUI Panel
 local function createControlPanel()
     -- Main ScreenGui
@@ -78,7 +303,7 @@ local function createControlPanel()
     -- Main Frame (increased height for new button)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 300, 0, 450)
+    mainFrame.Size = UDim2.new(0, 300, 0, 500)
     mainFrame.Position = UDim2.new(0, 10, 0, 10)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     mainFrame.BorderSizePixel = 0
@@ -136,21 +361,37 @@ local function createControlPanel()
     local backpackCorner = Instance.new("UICorner")
     backpackCorner.CornerRadius = UDim.new(0, 5)
     backpackCorner.Parent = backpackBtn
-    
+
+    -- Base Return Button
+    local baseBtn = Instance.new("TextButton")
+    baseBtn.Name = "BaseReturnButton"
+    baseBtn.Size = UDim2.new(0.9, 0, 0, 35)
+    baseBtn.Position = UDim2.new(0.05, 0, 0, 155)
+    baseBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+    baseBtn.Text = "AUTO RETURN TO BASE: OFF"
+    baseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    baseBtn.TextScaled = true
+    baseBtn.Font = Enum.Font.Gotham
+    baseBtn.Parent = mainFrame
+
+    local baseCorner = Instance.new("UICorner")
+    baseCorner.CornerRadius = UDim.new(0, 5)
+    baseCorner.Parent = baseBtn
+
     -- Speed Control
     local speedLabel = Instance.new("TextLabel")
     speedLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    speedLabel.Position = UDim2.new(0.05, 0, 0, 160)
+    speedLabel.Position = UDim2.new(0.05, 0, 0, 205)
     speedLabel.BackgroundTransparency = 1
     speedLabel.Text = "Velocidad de Vuelo: " .. settings.flySpeed
     speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     speedLabel.TextScaled = true
     speedLabel.Font = Enum.Font.Gotham
     speedLabel.Parent = mainFrame
-    
+
     local speedSlider = Instance.new("Frame")
     speedSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    speedSlider.Position = UDim2.new(0.05, 0, 0, 195)
+    speedSlider.Position = UDim2.new(0.05, 0, 0, 240)
     speedSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     speedSlider.Parent = mainFrame
     
@@ -172,17 +413,17 @@ local function createControlPanel()
     -- Rainbow Speed Control
     local rainbowLabel = Instance.new("TextLabel")
     rainbowLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    rainbowLabel.Position = UDim2.new(0.05, 0, 0, 230)
+    rainbowLabel.Position = UDim2.new(0.05, 0, 0, 275)
     rainbowLabel.BackgroundTransparency = 1
     rainbowLabel.Text = "Velocidad Arcoíris: " .. settings.rainbowSpeed
     rainbowLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     rainbowLabel.TextScaled = true
     rainbowLabel.Font = Enum.Font.Gotham
     rainbowLabel.Parent = mainFrame
-    
+
     local rainbowSlider = Instance.new("Frame")
     rainbowSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    rainbowSlider.Position = UDim2.new(0.05, 0, 0, 265)
+    rainbowSlider.Position = UDim2.new(0.05, 0, 0, 310)
     rainbowSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     rainbowSlider.Parent = mainFrame
     
@@ -204,17 +445,17 @@ local function createControlPanel()
     -- Floor Size Control
     local sizeLabel = Instance.new("TextLabel")
     sizeLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    sizeLabel.Position = UDim2.new(0.05, 0, 0, 300)
+    sizeLabel.Position = UDim2.new(0.05, 0, 0, 345)
     sizeLabel.BackgroundTransparency = 1
     sizeLabel.Text = "Tamaño del Suelo: " .. settings.floorSize
     sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     sizeLabel.TextScaled = true
     sizeLabel.Font = Enum.Font.Gotham
     sizeLabel.Parent = mainFrame
-    
+
     local sizeSlider = Instance.new("Frame")
     sizeSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    sizeSlider.Position = UDim2.new(0.05, 0, 0, 335)
+    sizeSlider.Position = UDim2.new(0.05, 0, 0, 380)
     sizeSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     sizeSlider.Parent = mainFrame
     
@@ -236,7 +477,7 @@ local function createControlPanel()
     -- Controls Info
     local controlsLabel = Instance.new("TextLabel")
     controlsLabel.Size = UDim2.new(0.9, 0, 0, 60)
-    controlsLabel.Position = UDim2.new(0.05, 0, 0, 370)
+    controlsLabel.Position = UDim2.new(0.05, 0, 0, 415)
     controlsLabel.BackgroundTransparency = 1
     controlsLabel.Text = "Controles:\nW/A/S/D - Movimiento\nEspacio - Subir\nShift - Bajar"
     controlsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -312,7 +553,13 @@ local function createControlPanel()
             print("🎒 Forzado de Backpack: ACTIVADO")
         end
     end)
-    
+
+    -- Base return button functionality
+    baseBtn.MouseButton1Click:Connect(function()
+        toggleBaseReturn()
+    end)
+
+    baseReturnButton = baseBtn
     return screenGui, toggleBtn
 end
 
@@ -572,7 +819,17 @@ player.CharacterRemoving:Connect(function()
         followConnection:Disconnect()
         followConnection = nil
     end
-    
+
+    if teleportPart then
+        teleportPart:Destroy()
+        teleportPart = nil
+    end
+
+    if brainrotDetectionConnection then
+        brainrotDetectionConnection:Disconnect()
+        brainrotDetectionConnection = nil
+    end
+
     stopFlying()
     stopBackpackForce()
 end)
@@ -591,6 +848,14 @@ end)
 game.Players.PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
         stopBackpackForce()
+        if brainrotDetectionConnection then
+            brainrotDetectionConnection:Disconnect()
+            brainrotDetectionConnection = nil
+        end
+        if teleportPart then
+            teleportPart:Destroy()
+            teleportPart = nil
+        end
     end
 end)
 
