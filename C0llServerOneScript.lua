@@ -34,12 +34,44 @@ local secretBrainrots = {
     "Secret Lucky Block"
 }
 
+-- Lista completa de todos los brainrots
+local allBrainrots = {
+    "Noobini Pizzanini", "Lirili Larila", "TIM Cheese", "Flurifura", "Talpa Di Fero",
+    "Svinia Bombardino", "Pipi Kiwi", "Racooni Jandelini", "Pipi Corni", "Trippi Troppi",
+    "Tung Tung Tung Sahur", "Gangster Footera", "Bandito Bobritto", "Boneca Ambalabu",
+    "Cacto Hipopotamo", "Ta Ta Ta Ta Sahur", "Tric Trac Baraboom", "Steal a Brainrot Pipi Avocado",
+    "Cappuccino Assassino", "Brr Brr Patapin", "Trulimero Trulicina", "Bambini Crostini",
+    "Bananita Dolphinita", "Perochello Lemonchello", "Brri Brri Bicus Dicus Bombicus",
+    "Avocadini Guffo", "Salamino Penguino", "Ti Ti Ti Sahur", "Penguino Cocosino",
+    "Burbalini Loliloli", "Chimpanzini Bananini", "Ballerina Cappuccina", "Chef Crabracadabra",
+    "Lionel Cactuseli", "Glorbo Fruttodrillo", "Blueberrini Octapusini", "Strawberelli Flamingelli",
+    "Pandaccini Bananini", "Cocosini Mama", "Sigma Boy", "Pi Pi Watermelon", "frigo Camelo",
+    "Orangutini Ananasini", "Rhino Toasterino", "Bombardiro Crocodilo", "Bombombini Gusini",
+    "Cavallo Virtuso", "Gorillo Watermelondrillo", "Avocadorilla", "Tob Tobi Tobi",
+    "Gangazelli Trulala", "Te Te Te Sahur", "Tracoducotulu Delapeladustuz", "Lerulerulerule",
+    "Carloo", "Spioniro Golubiro", "Zibra Zubra Zibralini", "Tigrilini Watermelini",
+    "Cocofanta Elefanto", "Girafa Celestre", "Gyattatino Nyanino", "Matteo",
+    "Tralalero Tralala", "Espresso Signora", "Odin Din Din Dun", "Statutino Libertino",
+    "Trenostruzzo Turbo 3000", "Ballerino Lololo", "Los Orcalitos", "Tralalita Tralala",
+    "Urubini Flamenguini", "Trigoligre Frutonni", "Orcalero Orcala", "Bulbito Bandito Traktorito",
+    "Los Crocodilitos", "Piccione Macchina", "Trippi Troppi Troppa Trippa", "Los Tungtuntuncitos",
+    "Tukanno Bananno", "Alessio", "Tipi Topi Taco", "Pakrahmatmamat", "Bombardini Tortinii"
+}
+
+-- Combinar listas
+for _, secret in pairs(secretBrainrots) do
+    table.insert(allBrainrots, secret)
+end
+
 -- Variables
 local espEnabled = false
 local autoLaserEnabled = false
+local autoStealEnabled = false
 local espConnections = {}
 local autoLaserConnection = nil
-local espBoxes = {}
+local autoStealConnection = nil
+local initialPosition = nil
+local espObjects = {}
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -47,7 +79,7 @@ screenGui.Name = "BrainrotPanel"
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Size = UDim2.new(0, 300, 0, 250)
 mainFrame.Position = UDim2.new(0, 50, 0, 50)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
@@ -70,8 +102,8 @@ title.Parent = mainFrame
 
 -- Botón ESP
 local espButton = Instance.new("TextButton")
-espButton.Size = UDim2.new(0.8, 0, 0, 40)
-espButton.Position = UDim2.new(0.1, 0, 0, 60)
+espButton.Size = UDim2.new(0.8, 0, 0, 35)
+espButton.Position = UDim2.new(0.1, 0, 0, 50)
 espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 espButton.Text = "ESP Secrets: OFF"
 espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -85,8 +117,8 @@ espCorner.Parent = espButton
 
 -- Botón Auto Laser
 local autoLaserButton = Instance.new("TextButton")
-autoLaserButton.Size = UDim2.new(0.8, 0, 0, 40)
-autoLaserButton.Position = UDim2.new(0.1, 0, 0, 120)
+autoLaserButton.Size = UDim2.new(0.8, 0, 0, 35)
+autoLaserButton.Position = UDim2.new(0.1, 0, 0, 95)
 autoLaserButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 autoLaserButton.Text = "Auto Laser: OFF"
 autoLaserButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -98,6 +130,21 @@ local autoLaserCorner = Instance.new("UICorner")
 autoLaserCorner.CornerRadius = UDim.new(0, 5)
 autoLaserCorner.Parent = autoLaserButton
 
+-- Botón Auto Steal
+local autoStealButton = Instance.new("TextButton")
+autoStealButton.Size = UDim2.new(0.8, 0, 0, 35)
+autoStealButton.Position = UDim2.new(0.1, 0, 0, 140)
+autoStealButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+autoStealButton.Text = "Auto Steal: OFF"
+autoStealButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoStealButton.TextScaled = true
+autoStealButton.Font = Enum.Font.Gotham
+autoStealButton.Parent = mainFrame
+
+local autoStealCorner = Instance.new("UICorner")
+autoStealCorner.CornerRadius = UDim.new(0, 5)
+autoStealCorner.Parent = autoStealButton
+
 -- Función para verificar si es un brainrot secret
 local function isSecretBrainrot(name)
     for _, secretName in pairs(secretBrainrots) do
@@ -108,55 +155,29 @@ local function isSecretBrainrot(name)
     return false
 end
 
--- Función para crear ESP de cuerpo completo
-local function createFullBodyESP(model)
-    if not model or not model:FindFirstChild("HumanoidRootPart") then return end
-    
-    local espFolder = Instance.new("Folder")
-    espFolder.Name = "ESP_" .. model.Name
-    espFolder.Parent = model
-    
-    -- Crear highlight para todo el modelo
-    local highlight = Instance.new("Highlight")
-    highlight.Parent = model
-    highlight.FillColor = Color3.fromRGB(255, 0, 255) -- Color magenta
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Outline blanco
-    highlight.FillTransparency = 0.5
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Se ve a través de paredes
-    
-    -- Crear caja alrededor del modelo
-    local function createBox()
-        local cf, size = model:GetBoundingBox()
-        
-        local box = Instance.new("BoxHandleAdornment")
-        box.Parent = workspace.CurrentCamera
-        box.Size = size
-        box.CFrame = cf
-        box.Color3 = Color3.fromRGB(255, 0, 255)
-        box.Transparency = 0.7
-        box.AlwaysOnTop = true
-        box.ZIndex = 10
-        
-        return box
-    end
-    
-    local box = createBox()
-    
-    -- Actualizar la caja constantemente
-    local connection = RunService.Heartbeat:Connect(function()
-        if model.Parent and model:FindFirstChild("HumanoidRootPart") then
-            local cf, size = model:GetBoundingBox()
-            box.Size = size
-            box.CFrame = cf
-        else
-            box:Destroy()
-            highlight:Destroy()
-            connection:Disconnect()
+-- Función para verificar si es cualquier brainrot
+local function isBrainrot(name)
+    for _, brainrotName in pairs(allBrainrots) do
+        if string.find(name:lower(), brainrotName:lower()) then
+            return true
         end
-    end)
+    end
+    return false
+end
+
+-- Función para crear ESP
+local function createESP(obj)
+    if not obj or not obj.Parent then return end
     
-    return {highlight, box, connection}
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = obj
+    highlight.FillColor = Color3.fromRGB(255, 0, 255)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    
+    return highlight
 end
 
 -- Función para toggle ESP
@@ -167,42 +188,33 @@ local function toggleESP()
         espButton.Text = "ESP Secrets: ON"
         espButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
         
-        -- Buscar brainrots en el workspace
-        local function scanWorkspace(parent)
+        -- Buscar brainrots secrets en el workspace
+        local function scanForSecrets(parent)
             for _, child in pairs(parent:GetChildren()) do
                 if child:IsA("Model") and isSecretBrainrot(child.Name) then
-                    local esp = createFullBodyESP(child)
+                    local esp = createESP(child)
                     if esp then
-                        espBoxes[child] = esp
+                        espObjects[child] = esp
                     end
                 elseif child:IsA("BasePart") and isSecretBrainrot(child.Name) then
-                    -- Para partes individuales, crear un modelo temporal
-                    local tempModel = Instance.new("Model")
-                    tempModel.Name = child.Name
-                    tempModel.Parent = workspace
-                    child.Parent = tempModel
-                    tempModel.PrimaryPart = child
-                    
-                    local esp = createFullBodyESP(tempModel)
+                    local esp = createESP(child)
                     if esp then
-                        espBoxes[tempModel] = esp
+                        espObjects[child] = esp
                     end
                 end
-                scanWorkspace(child)
+                scanForSecrets(child)
             end
         end
         
-        scanWorkspace(workspace)
+        scanForSecrets(workspace)
         
         -- Conectar para nuevos objetos
         local connection = workspace.DescendantAdded:Connect(function(descendant)
             if (descendant:IsA("Model") or descendant:IsA("BasePart")) and isSecretBrainrot(descendant.Name) then
                 wait(0.1)
-                if descendant:IsA("Model") then
-                    local esp = createFullBodyESP(descendant)
-                    if esp then
-                        espBoxes[descendant] = esp
-                    end
+                local esp = createESP(descendant)
+                if esp then
+                    espObjects[descendant] = esp
                 end
             end
         end)
@@ -213,21 +225,15 @@ local function toggleESP()
         espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         
         -- Limpiar ESP
-        for model, espData in pairs(espBoxes) do
-            for _, item in pairs(espData) do
-                if typeof(item) == "RBXScriptConnection" then
-                    item:Disconnect()
-                elseif item and item.Parent then
-                    item:Destroy()
-                end
+        for obj, esp in pairs(espObjects) do
+            if esp and esp.Parent then
+                esp:Destroy()
             end
         end
-        espBoxes = {}
+        espObjects = {}
         
         for _, connection in pairs(espConnections) do
-            if typeof(connection) == "RBXScriptConnection" then
-                connection:Disconnect()
-            end
+            connection:Disconnect()
         end
         espConnections = {}
     end
@@ -246,47 +252,35 @@ local function toggleAutoLaser()
                 return
             end
             
+            -- Verificar si tiene LaserCape equipado
+            local laserCape = player.Character:FindFirstChild("LaserCape")
+            if not laserCape then return end
+            
             local humanoidRootPart = player.Character.HumanoidRootPart
             
-            -- Buscar jugadores cercanos
+            -- Buscar jugador más cercano
+            local closestPlayer = nil
+            local closestDistance = math.huge
+            
             for _, otherPlayer in pairs(Players:GetPlayers()) do
                 if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
                     local distance = (humanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude
                     
-                    -- Si hay un jugador cerca (menos de 50 studs)
-                    if distance < 50 then
-                        -- Intentar disparar el laser
-                        pcall(function()
-                            -- Buscar el LaserCape en el inventario del jugador
-                            local backpack = player:FindFirstChild("Backpack")
-                            local laserCape = nil
-                            
-                            if backpack then
-                                laserCape = backpack:FindFirstChild("LaserCape")
-                            end
-                            
-                            -- Si no está en el backpack, buscar si está equipado
-                            if not laserCape and player.Character then
-                                laserCape = player.Character:FindFirstChild("LaserCape")
-                            end
-                            
-                            if laserCape then
-                                -- Simular el disparo del laser usando el RemoteEvent
-                                local Net_upvr = ReplicatedStorage:FindFirstChild("Net_upvr")
-                                if Net_upvr then
-                                    local PlayerMouse = player:GetMouse()
-                                    PlayerMouse.Target = otherPlayer.Character.HumanoidRootPart
-                                    
-                                    -- Disparar hacia el jugador objetivo
-                                    Net_upvr:FireServer(PlayerMouse.Hit.Position, otherPlayer.Character.HumanoidRootPart)
-                                end
-                            end
-                        end)
-                        
-                        wait(0.1) -- Pequeña pausa entre disparos
-                        break -- Solo disparar a un jugador por frame
+                    if distance < 50 and distance < closestDistance then
+                        closestDistance = distance
+                        closestPlayer = otherPlayer
                     end
                 end
+            end
+            
+            -- Disparar al jugador más cercano
+            if closestPlayer then
+                pcall(function()
+                    local Net_upvr = ReplicatedStorage:WaitForChild("Net_upvr")
+                    local targetPosition = closestPlayer.Character.HumanoidRootPart.Position
+                    Net_upvr:FireServer(targetPosition, closestPlayer.Character.HumanoidRootPart)
+                end)
+                wait(0.2) -- Cooldown entre disparos
             end
         end)
         
@@ -301,9 +295,145 @@ local function toggleAutoLaser()
     end
 end
 
+-- Función para crear part que arrastra al jugador
+local function createDragPart(targetPosition)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    local humanoidRootPart = player.Character.HumanoidRootPart
+    
+    -- Crear part invisible
+    local dragPart = Instance.new("Part")
+    dragPart.Name = "DragPart"
+    dragPart.Size = Vector3.new(1, 1, 1)
+    dragPart.Material = Enum.Material.ForceField
+        dragPart.BrickColor = BrickColor.new("Bright blue")
+    dragPart.Transparency = 0.8
+    dragPart.CanCollide = false
+    dragPart.Anchored = true
+    dragPart.Position = humanoidRootPart.Position
+    dragPart.Parent = workspace
+    
+    -- Crear BodyVelocity para arrastrar al jugador
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = humanoidRootPart
+    
+    -- Crear BodyPosition para mayor control
+    local bodyPosition = Instance.new("BodyPosition")
+    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyPosition.Position = targetPosition
+    bodyPosition.D = 2000 -- Damping
+    bodyPosition.P = 10000 -- Power
+    bodyPosition.Parent = humanoidRootPart
+    
+    -- Animar la part hacia el destino
+    local tweenInfo = TweenInfo.new(
+        2, -- Duración
+        Enum.EasingStyle.Quart,
+        Enum.EasingDirection.Out,
+        0,
+        false,
+        0
+    )
+    
+    local tween = TweenService:Create(dragPart, tweenInfo, {Position = targetPosition})
+    tween:Play()
+    
+    -- Limpiar después de llegar
+    tween.Completed:Connect(function()
+        bodyVelocity:Destroy()
+        bodyPosition:Destroy()
+        dragPart:Destroy()
+    end)
+    
+    -- Limpiar si algo sale mal
+    spawn(function()
+        wait(3)
+        if dragPart.Parent then
+            dragPart:Destroy()
+        end
+        if bodyVelocity.Parent then
+            bodyVelocity:Destroy()
+        end
+        if bodyPosition.Parent then
+            bodyPosition:Destroy()
+        end
+    end)
+end
+
+-- Función para auto steal
+local function toggleAutoSteal()
+    autoStealEnabled = not autoStealEnabled
+    
+    if autoStealEnabled then
+        autoStealButton.Text = "Auto Steal: ON"
+        autoStealButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        
+        -- Guardar posición inicial
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            initialPosition = player.Character.HumanoidRootPart.Position
+        end
+        
+        -- Detectar cuando aparece un brainrot robado
+        local connection1 = workspace.ChildAdded:Connect(function(child)
+            if child:IsA("Model") and isBrainrot(child.Name) then
+                wait(0.1)
+                
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and initialPosition then
+                    local distance = (player.Character.HumanoidRootPart.Position - child:GetModelCFrame().Position).Magnitude
+                    
+                    -- Si el brainrot aparece cerca del jugador (lo robó)
+                    if distance < 30 then
+                        print("¡Brainrot robado detectado: " .. child.Name .. "! Arrastrando de vuelta...")
+                        createDragPart(initialPosition)
+                    end
+                end
+            end
+        end)
+        
+        -- También detectar cambios en el inventario/backpack
+        local connection2 = RunService.Heartbeat:Connect(function()
+            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+                return
+            end
+            
+            -- Verificar si hay algún brainrot cerca que podría haber sido robado
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj:IsA("Model") and isBrainrot(obj.Name) then
+                    local distance = (player.Character.HumanoidRootPart.Position - obj:GetModelCFrame().Position).Magnitude
+                    
+                    if distance < 15 then -- Muy cerca, probablemente robado
+                        if initialPosition then
+                            createDragPart(initialPosition)
+                            wait(2) -- Esperar antes de la siguiente verificación
+                        end
+                        break
+                    end
+                end
+            end
+        end)
+        
+        autoStealConnection = connection1
+        table.insert(espConnections, connection2)
+        
+    else
+        autoStealButton.Text = "Auto Steal: OFF"
+        autoStealButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        
+        if autoStealConnection then
+            autoStealConnection:Disconnect()
+            autoStealConnection = nil
+        end
+    end
+end
+
 -- Conectar botones
 espButton.MouseButton1Click:Connect(toggleESP)
 autoLaserButton.MouseButton1Click:Connect(toggleAutoLaser)
+autoStealButton.MouseButton1Click:Connect(toggleAutoSteal)
 
 -- Hacer el panel arrastrable
 local dragging = false
@@ -331,6 +461,17 @@ mainFrame.InputEnded:Connect(function(input)
     end
 end)
 
+-- Actualizar posición inicial cuando el jugador se mueva significativamente
+spawn(function()
+    while true do
+        wait(5)
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and not autoStealEnabled then
+            initialPosition = player.Character.HumanoidRootPart.Position
+        end
+    end
+end)
+
 print("Brainrot Panel cargado exitosamente!")
-print("ESP: Muestra brainrots secrets con highlight completo")
-print("Auto Laser: Dispara automáticamente a jugadores cercanos")
+print("ESP: Resalta brainrots secrets con highlight")
+print("Auto Laser: Dispara automáticamente a jugadores cercanos (requiere LaserCape equipado)")
+print("Auto Steal: Te arrastra de vuelta al punto inicial cuando robas un brainrot")
