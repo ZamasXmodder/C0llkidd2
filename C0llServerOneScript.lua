@@ -465,9 +465,13 @@ end)
 -- Actualizar posición inicial cuando el jugador se mueva significativamente
 spawn(function()
     while true do
-        wait(5)
+        wait(3) -- Revisar cada 3 segundos
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and not autoStealEnabled then
-            initialPosition = player.Character.HumanoidRootPart.Position
+            local newPos = player.Character.HumanoidRootPart.Position
+            if not initialPosition or (initialPosition and (initialPosition - newPos).Magnitude > 20) then
+                initialPosition = newPos
+                print("📍 Nuevo punto inicial guardado: " .. tostring(initialPosition))
+            end
         end
     end
 end)
