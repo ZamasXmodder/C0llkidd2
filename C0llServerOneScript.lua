@@ -4,6 +4,7 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -16,6 +17,8 @@ local followConnection = nil
 local flyConnection = nil
 local controlPanel = nil
 local toggleButton = nil
+local backpackForceEnabled = false
+local backpackForceConnection = nil
 
 -- Settings
 local settings = {
@@ -35,6 +38,36 @@ local keys = {
     LeftShift = false
 }
 
+-- Force backpack visibility
+local function forceBackpackVisible()
+    if backpackForceConnection then
+        backpackForceConnection:Disconnect()
+    end
+    
+    backpackForceConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+            
+            -- Also try to make sure it's visible in PlayerGui
+            local backpackGui = playerGui:FindFirstChild("Backpack")
+            if backpackGui then
+                backpackGui.Enabled = true
+                if backpackGui:FindFirstChild("Hotbar") then
+                    backpackGui.Hotbar.Visible = true
+                end
+            end
+        end)
+    end)
+end
+
+-- Stop forcing backpack visibility
+local function stopBackpackForce()
+    if backpackForceConnection then
+        backpackForceConnection:Disconnect()
+        backpackForceConnection = nil
+    end
+end
+
 -- Create GUI Panel
 local function createControlPanel()
     -- Main ScreenGui
@@ -42,10 +75,10 @@ local function createControlPanel()
     screenGui.Name = "RainbowAirWalkPanel"
     screenGui.Parent = playerGui
     
-    -- Main Frame
+    -- Main Frame (increased height for new button)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Size = UDim2.new(0, 300, 0, 450)
     mainFrame.Position = UDim2.new(0, 10, 0, 10)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     mainFrame.BorderSizePixel = 0
@@ -88,10 +121,26 @@ local function createControlPanel()
     toggleCorner.CornerRadius = UDim.new(0, 5)
     toggleCorner.Parent = toggleBtn
     
+    -- Backpack Force Button
+    local backpackBtn = Instance.new("TextButton")
+    backpackBtn.Name = "BackpackButton"
+    backpackBtn.Size = UDim2.new(0.9, 0, 0, 35)
+    backpackBtn.Position = UDim2.new(0.05, 0, 0, 110)
+    backpackBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+    backpackBtn.Text = "FORZAR BACKPACK VISIBLE"
+    backpackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    backpackBtn.TextScaled = true
+    backpackBtn.Font = Enum.Font.Gotham
+    backpackBtn.Parent = mainFrame
+    
+    local backpackCorner = Instance.new("UICorner")
+    backpackCorner.CornerRadius = UDim.new(0, 5)
+    backpackCorner.Parent = backpackBtn
+    
     -- Speed Control
     local speedLabel = Instance.new("TextLabel")
     speedLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    speedLabel.Position = UDim2.new(0.05, 0, 0, 120)
+    speedLabel.Position = UDim2.new(0.05, 0, 0, 160)
     speedLabel.BackgroundTransparency = 1
     speedLabel.Text = "Velocidad de Vuelo: " .. settings.flySpeed
     speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -101,7 +150,7 @@ local function createControlPanel()
     
     local speedSlider = Instance.new("Frame")
     speedSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    speedSlider.Position = UDim2.new(0.05, 0, 0, 155)
+    speedSlider.Position = UDim2.new(0.05, 0, 0, 195)
     speedSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     speedSlider.Parent = mainFrame
     
@@ -123,7 +172,7 @@ local function createControlPanel()
     -- Rainbow Speed Control
     local rainbowLabel = Instance.new("TextLabel")
     rainbowLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    rainbowLabel.Position = UDim2.new(0.05, 0, 0, 190)
+    rainbowLabel.Position = UDim2.new(0.05, 0, 0, 230)
     rainbowLabel.BackgroundTransparency = 1
     rainbowLabel.Text = "Velocidad Arcoíris: " .. settings.rainbowSpeed
     rainbowLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -133,7 +182,7 @@ local function createControlPanel()
     
     local rainbowSlider = Instance.new("Frame")
     rainbowSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    rainbowSlider.Position = UDim2.new(0.05, 0, 0, 225)
+    rainbowSlider.Position = UDim2.new(0.05, 0, 0, 265)
     rainbowSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     rainbowSlider.Parent = mainFrame
     
@@ -155,7 +204,7 @@ local function createControlPanel()
     -- Floor Size Control
     local sizeLabel = Instance.new("TextLabel")
     sizeLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    sizeLabel.Position = UDim2.new(0.05, 0, 0, 260)
+    sizeLabel.Position = UDim2.new(0.05, 0, 0, 300)
     sizeLabel.BackgroundTransparency = 1
     sizeLabel.Text = "Tamaño del Suelo: " .. settings.floorSize
     sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -165,7 +214,7 @@ local function createControlPanel()
     
     local sizeSlider = Instance.new("Frame")
     sizeSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    sizeSlider.Position = UDim2.new(0.05, 0, 0, 295)
+    sizeSlider.Position = UDim2.new(0.05, 0, 0, 335)
     sizeSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     sizeSlider.Parent = mainFrame
     
@@ -180,14 +229,14 @@ local function createControlPanel()
     sizeButton.Text = ""
     sizeButton.Parent = sizeSlider
     
-    local sizeButtonCorner = Instance.new("UICorner")
+        local sizeButtonCorner = Instance.new("UICorner")
     sizeButtonCorner.CornerRadius = UDim.new(1, 0)
     sizeButtonCorner.Parent = sizeButton
     
     -- Controls Info
     local controlsLabel = Instance.new("TextLabel")
     controlsLabel.Size = UDim2.new(0.9, 0, 0, 60)
-    controlsLabel.Position = UDim2.new(0.05, 0, 0, 330)
+    controlsLabel.Position = UDim2.new(0.05, 0, 0, 370)
     controlsLabel.BackgroundTransparency = 1
     controlsLabel.Text = "Controles:\nW/A/S/D - Movimiento\nEspacio - Subir\nShift - Bajar"
     controlsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -224,7 +273,7 @@ local function createControlPanel()
         end)
     end
     
-        setupSlider(speedSlider, speedButton, speedLabel, 10, 100, settings.flySpeed, function(value)
+    setupSlider(speedSlider, speedButton, speedLabel, 10, 100, settings.flySpeed, function(value)
         settings.flySpeed = value
         speedLabel.Text = "Velocidad de Vuelo: " .. value
     end)
@@ -245,6 +294,23 @@ local function createControlPanel()
     -- Toggle button functionality
     toggleBtn.MouseButton1Click:Connect(function()
         toggleRainbowAirWalk()
+    end)
+    
+    -- Backpack button functionality
+    backpackBtn.MouseButton1Click:Connect(function()
+        if backpackForceEnabled then
+            backpackForceEnabled = false
+            stopBackpackForce()
+            backpackBtn.Text = "FORZAR BACKPACK VISIBLE"
+            backpackBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+            print("🎒 Forzado de Backpack: DESACTIVADO")
+        else
+            backpackForceEnabled = true
+            forceBackpackVisible()
+            backpackBtn.Text = "PARAR FORZADO BACKPACK"
+            backpackBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 100)
+            print("🎒 Forzado de Backpack: ACTIVADO")
+        end
     end)
     
     return screenGui, toggleBtn
@@ -291,7 +357,7 @@ local function startFollowingPlayer()
     end)
 end
 
--- Flying system (FIXED CONTROLS)
+-- Flying system (FIXED CONTROLS - W/S corrected)
 local function startFlying()
     if flyConnection then
         flyConnection:Disconnect()
@@ -316,17 +382,18 @@ local function startFlying()
         local camera = workspace.CurrentCamera
         local velocity = Vector3.new(0, settings.hoverHeight, 0)
         
-        -- Movement based on key states
+        -- Movement based on key states (FIXED W/S)
         local moveX = 0
         local moveZ = 0
         local moveY = 0
         
-        if keys.W then moveZ = moveZ - 1 end
-        if keys.S then moveZ = moveZ + 1 end
-        if keys.A then moveX = moveX - 1 end
-        if keys.D then moveX = moveX + 1 end
-        if keys.Space then moveY = moveY + 1 end
-        if keys.LeftShift then moveY = moveY - 1 end
+        -- FIXED: W now goes forward (negative Z), S goes backward (positive Z)
+        if keys.W then moveZ = moveZ + 1 end  -- Forward
+        if keys.S then moveZ = moveZ - 1 end  -- Backward
+        if keys.A then moveX = moveX - 1 end  -- Left
+        if keys.D then moveX = moveX + 1 end  -- Right
+        if keys.Space then moveY = moveY + 1 end  -- Up
+        if keys.LeftShift then moveY = moveY - 1 end  -- Down
         
         if moveX ~= 0 or moveZ ~= 0 then
             local cameraCFrame = camera.CFrame
@@ -446,7 +513,7 @@ local function toggleRainbowAirWalk()
             toggleButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
         end
         
-        print("🌈 Rainbow Air Walk: ENABLED - ¡Usa WASD + Espacio/Shift para volar!")
+        print("🌈 Rainbow Air Walk: ENABLED - ¡Controles corregidos!")
     end
 end
 
@@ -459,7 +526,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     elseif airWalkEnabled then
         if input.KeyCode == Enum.KeyCode.W then
             keys.W = true
-        elseif input.KeyCode == Enum.KeyCode.A then
+                elseif input.KeyCode == Enum.KeyCode.A then
             keys.A = true
         elseif input.KeyCode == Enum.KeyCode.S then
             keys.S = true
@@ -507,6 +574,7 @@ player.CharacterRemoving:Connect(function()
     end
     
     stopFlying()
+    stopBackpackForce()
 end)
 
 player.CharacterAdded:Connect(function()
@@ -514,11 +582,23 @@ player.CharacterAdded:Connect(function()
     if airWalkEnabled then
         createFollowingFloor()
     end
+    if backpackForceEnabled then
+        forceBackpackVisible()
+    end
+end)
+
+-- Clean up when leaving game
+game.Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        stopBackpackForce()
+    end
 end)
 
 -- Initialize control panel
 controlPanel, toggleButton = createControlPanel()
 
 print("🌈 Rainbow Air Walk con Panel de Control cargado!")
+print("✅ Controles W/S corregidos")
+print("🎒 Nueva función: Forzar Backpack Visible")
 print("Presiona F para activar/desactivar el vuelo")
 print("Usa el panel para ajustar velocidades y configuraciones")
