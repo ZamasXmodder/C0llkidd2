@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 -- RemoteEvent create/ensure
 local event = ReplicatedStorage:FindFirstChild("AutoFloorEvent")
@@ -10,7 +11,7 @@ if not event then
     event.Parent = ReplicatedStorage
 end
 
--- Client LocalScript source (injected per jugador)
+-- Client LocalScript source (will be placed in StarterPlayerScripts)
 local clientSource = [[
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,7 +33,6 @@ local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 300, 0, 120)
 frame.Position = UDim2.new(0, 16, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(30,30,35)
-frame.BackgroundTransparency = 0
 frame.BorderSizePixel = 0
 frame.Parent = screen
 local corner = Instance.new("UICorner", frame); corner.CornerRadius = UDim.new(0,12)
@@ -178,6 +178,17 @@ player.CharacterRemoving:Connect(function()
 end)
 ]]
 
+-- place LocalScript in StarterPlayerScripts (one-time)
+do
+    local sp = StarterPlayer:WaitForChild("StarterPlayerScripts")
+    local existing = sp:FindFirstChild("AutoFloorClient")
+    if existing then existing:Destroy() end
+    local ls = Instance.new("LocalScript")
+    ls.Name = "AutoFloorClient"
+    ls.Source = clientSource
+    ls.Parent = sp
+end
+
 -- Server-side platform management
 local platforms = {} -- player -> { part = Part, distance = number, enabled = bool, lastReq = number}
 local MIN_DIST, MAX_DIST = 2, 200
@@ -261,31 +272,6 @@ end)
 Players.PlayerRemoving:Connect(function(player)
     removePlatform(player)
 end)
-
--- inject LocalScript into players when they join
-Players.PlayerAdded:Connect(function(player)
-    -- ensure PlayerGui exists
-    local playerGui = player:WaitForChild("PlayerGui")
-    local existing = playerGui:FindFirstChild("AutoFloorClient")
-    if existing then existing:Destroy() end
-    local ls = Instance.new("LocalScript")
-    ls.Name = "AutoFloorClient"
-    ls.Source = clientSource
-    ls.Parent = playerGui
-end)
-
--- inject for players already present
-for _, player in ipairs(Players:GetPlayers()) do
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local existing = playerGui:FindFirstChild("AutoFloorClient")
-        if existing then existing:Destroy() end
-        local ls = Instance.new("LocalScript")
-        ls.Name = "AutoFloorClient"
-        ls.Source = clientSource
-        ls.Parent = playerGui
-    end
-end
 
 -- safety: destroy any leftover parts on server start matching naming pattern
 for _,v in ipairs(workspace:GetChildren()) do
