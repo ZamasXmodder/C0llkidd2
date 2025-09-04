@@ -1,10 +1,10 @@
--- Instant Chilli v3 - Advanced Panel with ESP Features
+-- Steal a Brainrot Advanced Hack v4 - Fixed Mechanics
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -12,20 +12,17 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- Variables
 local panelOpen = false
 local aimbotEnabled = false
-local instantTeleportEnabled = false
-local playersEspEnabled = false
+local forceTPEnabled = false
+local brainrotEspEnabled = false
 local basesEspEnabled = false
-local aimbotConnection = nil
-local autoEquipConnection = nil
-local teleportConnection = nil
-local playersEspConnection = nil
-local basesEspConnection = nil
-local lastEquipTime = 0
-local playerInitialSpawn = nil
+local connections = {}
 local espObjects = {}
+local playerSpawnPosition = nil
+local isPlayerStolen = false
+local lastTeleportTime = 0
 
 -- Configuración
-local TOOL_NAMES = {
+local CLONER_NAMES = {
     "Clonador cuántico",
     "Quantum Cloner", 
     "QuantumCloner",
@@ -35,219 +32,393 @@ local TOOL_NAMES = {
 
 -- Create GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "InstantChilliV3"
+screenGui.Name = "StealBrainrotHack"
 screenGui.Parent = playerGui
 
--- Main Frame (más grande y moderno)
+-- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 380, 0, 520)
-mainFrame.Position = UDim2.new(0.5, -190, 0.5, -260)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.Size = UDim2.new(0, 420, 0, 600)
+mainFrame.Position = UDim2.new(0.5, -210, 0.5, -300)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
 mainFrame.Parent = screenGui
 
--- Efecto de gradiente de fondo
+-- Gradient background
 local gradient = Instance.new("UIGradient")
 gradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 30)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 20))
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 15, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 15))
 }
 gradient.Rotation = 45
 gradient.Parent = mainFrame
 
--- Bordes redondeados
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 15)
 corner.Parent = mainFrame
 
--- Borde brillante
+-- Glowing border
 local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(100, 100, 255)
-stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(255, 100, 255)
+stroke.Thickness = 3
 stroke.Transparency = 0.3
 stroke.Parent = mainFrame
 
--- Header con gradiente
+-- Animate border glow
+spawn(function()
+    while true do
+        for i = 1, 100 do
+            stroke.Transparency = 0.3 + (math.sin(i/10) * 0.2)
+            wait(0.05)
+        end
+    end
+end)
+
+-- Header
 local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 60)
-header.Position = UDim2.new(0, 0, 0, 0)
-header.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+header.Size = UDim2.new(1, 0, 0, 80)
+header.BackgroundColor3 = Color3.fromRGB(40, 20, 60)
 header.BorderSizePixel = 0
 header.Parent = mainFrame
-
-local headerGradient = Instance.new("UIGradient")
-headerGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 60, 200)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 50, 150))
-}
-headerGradient.Rotation = 90
-headerGradient.Parent = header
 
 local headerCorner = Instance.new("UICorner")
 headerCorner.CornerRadius = UDim.new(0, 15)
 headerCorner.Parent = header
 
--- Title con efecto de brillo
+local headerGradient = Instance.new("UIGradient")
+headerGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 50, 200)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 50, 150))
+}
+headerGradient.Rotation = 90
+headerGradient.Parent = header
+
+-- Title
 local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(1, -40, 1, 0)
-title.Position = UDim2.new(0, 10, 0, 0)
+title.Size = UDim2.new(1, -60, 1, 0)
+title.Position = UDim2.new(0, 15, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "🧠 Instant Chilli v3 - Steal a Brainrot"
+title.Text = "🧠 STEAL A BRAINROT HACK 🧠"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = header
 
-local titleStroke = Instance.new("UIStroke")
-titleStroke.Color = Color3.fromRGB(255, 255, 255)
-titleStroke.Thickness = 1
-titleStroke.Transparency = 0.5
-titleStroke.Parent = title
-
--- Close Button (mejorado)
+-- Close Button
 local closeButton = Instance.new("TextButton")
-closeButton.Name = "CloseButton"
-closeButton.Size = UDim2.new(0, 35, 0, 35)
-closeButton.Position = UDim2.new(1, -45, 0, 12.5)
-closeButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-closeButton.BorderSizePixel = 0
+closeButton.Size = UDim2.new(0, 40, 0, 40)
+closeButton.Position = UDim2.new(1, -50, 0, 20)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
 closeButton.Text = "✕"
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.TextSize = 18
 closeButton.Font = Enum.Font.GothamBold
+closeButton.BorderSizePixel = 0
 closeButton.Parent = header
 
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 8)
-closeCorner.Parent = closeButton
+local closeBtnCorner = Instance.new("UICorner")
+closeBtnCorner.CornerRadius = UDim.new(0, 8)
+closeBtnCorner.Parent = closeButton
 
--- Container para los botones
-local buttonsFrame = Instance.new("Frame")
-buttonsFrame.Name = "ButtonsContainer"
-buttonsFrame.Size = UDim2.new(1, -20, 1, -80)
-buttonsFrame.Position = UDim2.new(0, 10, 0, 70)
+-- Buttons Container
+local buttonsFrame = Instance.new("ScrollingFrame")
+buttonsFrame.Size = UDim2.new(1, -20, 1, -100)
+buttonsFrame.Position = UDim2.new(0, 10, 0, 90)
 buttonsFrame.BackgroundTransparency = 1
+buttonsFrame.ScrollBarThickness = 8
+buttonsFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 buttonsFrame.Parent = mainFrame
 
--- Función para crear botones modernos
-local function createModernButton(name, text, position, color, parent)
+-- Function to create modern buttons
+local function createButton(name, text, yPos, color)
     local button = Instance.new("TextButton")
     button.Name = name
-    button.Size = UDim2.new(1, 0, 0, 45)
-    button.Position = position
+    button.Size = UDim2.new(1, -10, 0, 50)
+    button.Position = UDim2.new(0, 5, 0, yPos)
     button.BackgroundColor3 = color
-    button.BorderSizePixel = 0
     button.Text = text
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 14
-    button.Font = Enum.Font.Gotham
-    button.Parent = parent
+    button.TextSize = 16
+    button.Font = Enum.Font.GothamBold
+    button.BorderSizePixel = 0
+    button.Parent = buttonsFrame
     
-    -- Efecto de gradiente
-    local buttonGradient = Instance.new("UIGradient")
-    buttonGradient.Color = ColorSequence.new{
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.Parent = button
+    
+    local btnGradient = Instance.new("UIGradient")
+    btnGradient.Color = ColorSequence.new{
         ColorSequenceKeypoint.new(0, color),
         ColorSequenceKeypoint.new(1, Color3.new(color.R * 0.7, color.G * 0.7, color.B * 0.7))
     }
-    buttonGradient.Rotation = 90
-    buttonGradient.Parent = button
-    
-    -- Bordes redondeados
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 8)
-    buttonCorner.Parent = button
-    
-    -- Borde sutil
-    local buttonStroke = Instance.new("UIStroke")
-    buttonStroke.Color = Color3.fromRGB(255, 255, 255)
-    buttonStroke.Thickness = 1
-    buttonStroke.Transparency = 0.8
-    buttonStroke.Parent = button
-    
-    -- Efecto hover
-    button.MouseEnter:Connect(function()
-        local hoverTween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.new(color.R * 1.2, color.G * 1.2, color.B * 1.2)})
-        hoverTween:Play()
-    end)
-    
-    button.MouseLeave:Connect(function()
-        local leaveTween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = color})
-        leaveTween:Play()
-    end)
+    btnGradient.Rotation = 90
+    btnGradient.Parent = button
     
     return button
 end
 
--- Crear botones con diseño moderno
-local teleportButton = createModernButton("TeleportButton", "🚀 Instant Teleport: OFF", 
-    UDim2.new(0, 0, 0, 0), Color3.fromRGB(60, 180, 75), buttonsFrame)
+-- Create buttons
+local forceTpButton = createButton("ForceTpButton", "🚀 FORCE TELEPORT: OFF", 20, Color3.fromRGB(255, 50, 100))
+local aimbotButton = createButton("AimbotButton", "🎯 BRAINROT AIMBOT: OFF", 80, Color3.fromRGB(100, 255, 100))
+local brainrotEspButton = createButton("BrainrotEspButton", "🧠 BRAINROT ESP: OFF", 140, Color3.fromRGB(255, 100, 255))
+local basesEspButton = createButton("BasesEspButton", "🏠 BASES ESP: OFF", 200, Color3.fromRGB(100, 200, 255))
 
-local aimbotButton = createModernButton("AimbotButton", "🎯 Unlimited Aimbot: OFF", 
-    UDim2.new(0, 0, 0, 60), Color3.fromRGB(255, 99, 71), buttonsFrame)
+-- Status Panel
+local statusPanel = Instance.new("Frame")
+statusPanel.Size = UDim2.new(1, -10, 0, 300)
+statusPanel.Position = UDim2.new(0, 5, 0, 270)
+statusPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+statusPanel.BorderSizePixel = 0
+statusPanel.Parent = buttonsFrame
 
-local playersEspButton = createModernButton("PlayersEspButton", "👥 Players ESP: OFF", 
-    UDim2.new(0, 0, 0, 120), Color3.fromRGB(138, 43, 226), buttonsFrame)
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 10)
+statusCorner.Parent = statusPanel
 
-local basesEspButton = createModernButton("BasesEspButton", "🏠 Bases ESP: OFF", 
-    UDim2.new(0, 0, 0, 180), Color3.fromRGB(255, 165, 0), buttonsFrame)
+local statusText = Instance.new("TextLabel")
+statusText.Size = UDim2.new(1, -20, 1, -20)
+statusText.Position = UDim2.new(0, 10, 0, 10)
+statusText.BackgroundTransparency = 1
+statusText.Text = [[🎮 STEAL A BRAINROT HACK - STATUS
 
--- Separador visual
-local separator = Instance.new("Frame")
-separator.Size = UDim2.new(1, -20, 0, 2)
-separator.Position = UDim2.new(0, 10, 0, 240)
-separator.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-separator.BorderSizePixel = 0
-separator.Parent = buttonsFrame
+📋 FUNCIONES:
+• Force TP: Te teleporta FORZOSAMENTE cuando eres robado
+• Brainrot Aimbot: Dispara automáticamente a brainrots (púrpuras)
+• Brainrot ESP: Muestra todos los brainrots en el mapa
+• Bases ESP: Muestra bases y su estado (abiertas/cerradas)
 
-local sepCorner = Instance.new("UICorner")
-sepCorner.CornerRadius = UDim.new(0, 1)
-sepCorner.Parent = separator
+⚡ ESTADO ACTUAL:
+• Player Status: NORMAL
+• Spawn Saved: NO
+• Active Functions: 0
 
--- Panel de información
-local infoPanel = Instance.new("Frame")
-infoPanel.Name = "InfoPanel"
-infoPanel.Size = UDim2.new(1, -20, 0, 180)
-infoPanel.Position = UDim2.new(0, 10, 0, 260)
-infoPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-infoPanel.BorderSizePixel = 0
-infoPanel.Parent = buttonsFrame
-
-local infoPanelCorner = Instance.new("UICorner")
-infoPanelCorner.CornerRadius = UDim.new(0, 10)
-infoPanelCorner.Parent = infoPanel
-
-local infoPanelStroke = Instance.new("UIStroke")
-infoPanelStroke.Color = Color3.fromRGB(70, 70, 70)
-infoPanelStroke.Thickness = 1
-infoPanelStroke.Parent = infoPanel
-
--- Información del script
-local infoText = Instance.new("TextLabel")
-infoText.Size = UDim2.new(1, -20, 1, -20)
-infoText.Position = UDim2.new(0, 10, 0, 10)
-infoText.BackgroundTransparency = 1
-infoText.Text = [[📋 FEATURES:
-• Instant Teleport cuando tienes brainrot
-• Aimbot ilimitado con auto-equip
-• ESP de jugadores con distancia
-• ESP de bases (abiertas/cerradas)
-• Detección inteligente de brainrot
-
-⌨️ Press F to toggle panel
-🎮 Made for Steal a Brainrot]]
-infoText.TextColor3 = Color3.fromRGB(200, 200, 200)
-infoText.TextSize = 12
-infoText.Font = Enum.Font.Gotham
-infoText.TextXAlignment = Enum.TextXAlignment.Left
-infoText.TextYAlignment = Enum.TextYAlignment.Top
-infoText.TextWrapped = true
-infoText.Parent = infoPanel
+⌨️ Presiona F para abrir/cerrar
+🔥 Optimizado para Steal a Brainrot]]
+statusText.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusText.TextSize = 12
+statusText.Font = Enum.Font.Gotham
+statusText.TextXAlignment = Enum.TextXAlignment.Left
+statusText.TextYAlignment = Enum.TextYAlignment.Top
+statusText.TextWrapped = true
+statusText.Parent = statusPanel
 
 -- Functions
+
+local function clearEsp()
+    for _, obj in pairs(espObjects) do
+        if obj and obj.Parent then
+            pcall(function() obj:Destroy() end)
+        end
+    end
+    espObjects = {}
+end
+
+local function createEspBox(part, color, text, extraInfo)
+    if not part or not part.Parent then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_" .. part.Name
+    billboard.Parent = part
+    billboard.Size = UDim2.new(0, 200, 0, 80)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = color
+    frame.BackgroundTransparency = 0.3
+    frame.BorderSizePixel = 0
+    frame.Parent = billboard
+    
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(0, 8)
+    frameCorner.Parent = frame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 1, -10)
+    label.Position = UDim2.new(0, 5, 0, 5)
+    label.BackgroundTransparency = 1
+    label.Text = text .. (extraInfo and "\n" .. extraInfo or "")
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 14
+    label.Font = Enum.Font.GothamBold
+    label.TextWrapped = true
+    label.Parent = frame
+    
+    table.insert(espObjects, billboard)
+    return billboard
+end
+
+local function updateStatus()
+    local activeFunctions = 0
+    if forceTPEnabled then activeFunctions = activeFunctions + 1 end
+    if aimbotEnabled then activeFunctions = activeFunctions + 1 end
+    if brainrotEspEnabled then activeFunctions = activeFunctions + 1 end
+    if basesEspEnabled then activeFunctions = activeFunctions + 1 end
+    
+    local playerStatus = isPlayerStolen and "🚨 ROBADO" or "✅ NORMAL"
+    local spawnStatus = playerSpawnPosition and "✅ SÍ" or "❌ NO"
+    
+    statusText.Text = string.format([[🎮 STEAL A BRAINROT HACK - STATUS
+
+📋 FUNCIONES:
+• Force TP: Te teleporta FORZOSAMENTE cuando eres robado
+• Brainrot Aimbot: Dispara automáticamente a brainrots (púrpuras)
+• Brainrot ESP: Muestra todos los brainrots en el mapa
+• Bases ESP: Muestra bases y su estado (abiertas/cerradas)
+
+⚡ ESTADO ACTUAL:
+• Player Status: %s
+• Spawn Saved: %s
+• Active Functions: %d
+
+⌨️ Presiona F para abrir/cerrar
+🔥 Optimizado para Steal a Brainrot]], playerStatus, spawnStatus, activeFunctions)
+end
+
+local function savePlayerSpawn()
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        -- Esperar un poco para asegurar que el jugador esté en su base
+        wait(3)
+        playerSpawnPosition = character.HumanoidRootPart.CFrame
+        print("🏠 Spawn position saved:", playerSpawnPosition.Position)
+        updateStatus()
+    end
+end
+
+local function detectIfPlayerIsStolen()
+    -- Método 1: Verificar si el jugador está en su propia base
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    
+    -- Método 2: Verificar por GUI de "STOLEN"
+    for _, gui in pairs(playerGui:GetChildren()) do
+        if gui:FindFirstChild("STOLEN") or gui.Name:lower():find("stolen") then
+            return true
+        end
+    end
+    
+    -- Método 3: Verificar por cambios en el personaje o efectos
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        -- Si la velocidad está bloqueada o hay efectos extraños
+        if humanoid.WalkSpeed <= 0 or humanoid.JumpPower <= 0 then
+            return true
+        end
+    end
+    
+    -- Método 4: Verificar distancia de la base original
+    if playerSpawnPosition then
+        local distance = (character.HumanoidRootPart.CFrame.Position - playerSpawnPosition.Position).Magnitude
+        if distance > 200 then -- Si está muy lejos de su base
+            return true
+        end
+    end
+    
+    return false
+end
+
+local function forceTeleportToBase()
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") and playerSpawnPosition then
+        local currentTime = tick()
+        if currentTime - lastTeleportTime >= 1 then -- Cooldown de 1 segundo
+            character.HumanoidRootPart.CFrame = playerSpawnPosition
+            lastTeleportTime = currentTime
+            print("🚀 FORCE TELEPORTED to base!")
+        end
+    end
+end
+
+local function getBrainrotsInWorkspace()
+    local brainrots = {}
+    
+    -- Buscar en workspace por NPCs/modelos púrpuras
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            local name = obj.Name:lower()
+            -- Detectar brainrots por nombre o características
+            if name:find("brainrot") or name:find("skibidi") or name:find("sigma") then
+                table.insert(brainrots, obj)
+            elseif obj:IsA("BasePart") then
+                -- Detectar por color púrpura
+                local color = obj.Color
+                if color.R < 0.7 and color.B > 0.4 and color.G < 0.7 then
+                    table.insert(brainrots, obj)
+                end
+            end
+        end
+    end
+    
+    return brainrots
+end
+
+local function findCloner()
+    local character = player.Character
+    local backpack = player:FindFirstChild("Backpack")
+    
+    -- Buscar en character
+    if character then
+        for _, tool in pairs(character:GetChildren()) do
+            if tool:IsA("Tool") then
+                for _, name in pairs(CLONER_NAMES) do
+                    if tool.Name:find(name) then
+                        return tool, true
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Buscar en backpack
+    if backpack then
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                for _, name in pairs(CLONER_NAMES) do
+                    if tool.Name:find(name) then
+                        return tool, false
+                    end
+                end
+            end
+        end
+    end
+    
+    return nil, false
+end
+
+local function equipCloner()
+    local character = player.Character
+    if not character then return end
+    
+    local tool, equipped = findCloner()
+    if tool and not equipped then
+        pcall(function()
+            character.Humanoid:EquipTool(tool)
+        end)
+    end
+end
+
+local function shootAtBrainrot(brainrot)
+    local tool, equipped = findCloner()
+    if not tool or not equipped then return end
+    
+    -- Intentar disparar usando diferentes métodos
+    for _, descendant in pairs(tool:GetDescendants()) do
+        if descendant:IsA("RemoteEvent") then
+            pcall(function()
+                descendant:FireServer(brainrot)
+            end)
+        end
+    end
+    
+    pcall(function()
+        tool:Activate()
+    end)
+end
+
 local function togglePanel()
     panelOpen = not panelOpen
     mainFrame.Visible = panelOpen
@@ -258,463 +429,140 @@ local function togglePanel()
         
         local tween = TweenService:Create(
             mainFrame,
-            TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-            {Size = UDim2.new(0, 380, 0, 520)}
+            TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 420, 0, 600)}
         )
         tween:Play()
     end
 end
 
-local function clearEspObjects()
-    for _, obj in pairs(espObjects) do
-        if obj and obj.Parent then
-            obj:Destroy()
-        end
+-- Main loops
+local function forceTPLoop()
+    if not forceTPEnabled then return end
+    
+    isPlayerStolen = detectIfPlayerIsStolen()
+    if isPlayerStolen then
+        forceTeleportToBase()
     end
-    espObjects = {}
+    updateStatus()
 end
 
-local function createEspBox(part, color, text, distance)
-    if not part or not part.Parent then return end
-    
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_" .. part.Name
-    billboard.Parent = part
-    billboard.Size = UDim2.new(0, 200, 0, 100)
-    billboard.StudsOffset = Vector3.new(0, 2, 0)
-    billboard.AlwaysOnTop = true
-    
-    -- Fondo del ESP
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = color
-    frame.BackgroundTransparency = 0.7
-    frame.BorderSizePixel = 0
-    frame.Parent = billboard
-    
-    local frameCorner = Instance.new("UICorner")
-    frameCorner.CornerRadius = UDim.new(0, 8)
-    frameCorner.Parent = frame
-    
-    local frameStroke = Instance.new("UIStroke")
-    frameStroke.Color = color
-    frameStroke.Thickness = 2
-    frameStroke.Parent = frame
-    
-    -- Texto principal
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 0.6, 0)
-    label.Position = UDim2.new(0, 5, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.Font = Enum.Font.GothamBold
-    label.TextWrapped = true
-    label.Parent = frame
-    
-    -- Distancia
-    if distance then
-        local distanceLabel = Instance.new("TextLabel")
-        distanceLabel.Size = UDim2.new(1, -10, 0.4, 0)
-        distanceLabel.Position = UDim2.new(0, 5, 0.6, 0)
-        distanceLabel.BackgroundTransparency = 1
-        distanceLabel.Text = distance .. " studs"
-        distanceLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        distanceLabel.TextSize = 12
-        distanceLabel.Font = Enum.Font.Gotham
-        distanceLabel.Parent = frame
-    end
-    
-    table.insert(espObjects, billboard)
-    return billboard
-end
-
-local function findPlayerBase()
-    local character = player.Character
-    if not character then return Vector3.new(0, 50, 0) end
-    
-    -- En Steal a Brainrot, las bases están en workspace.Bases
-    local basesFolder = workspace:FindFirstChild("Bases")
-    if basesFolder then
-        -- Buscar base por nombre del jugador
-        local playerBase = basesFolder:FindFirstChild(player.Name) or basesFolder:FindFirstChild(tostring(player.UserId))
-        if playerBase then
-            -- Buscar el punto de spawn en la base
-            local spawnPart = playerBase:FindFirstChild("SpawnLocation") or 
-                            playerBase:FindFirstChild("Spawn") or
-                            playerBase:FindFirstChild("Teleporter") or
-                            playerBase:FindFirstChild("Base")
-            
-            if spawnPart and spawnPart:IsA("BasePart") then
-                return spawnPart.Position + Vector3.new(0, 3, 0)
-            end
-            
-            -- Si no hay parte específica, usar el centro de la base
-            if playerBase.PrimaryPart then
-                return playerBase.PrimaryPart.Position + Vector3.new(0, 3, 0)
-            end
-            
-            -- Como último recurso, buscar cualquier parte en la base
-            for _, part in pairs(playerBase:GetChildren()) do
-                if part:IsA("BasePart") and part.Name:lower():find("floor") then
-                    return part.Position + Vector3.new(0, 3, 0)
-                end
-            end
-        end
-    end
-    
-    -- Usar la posición inicial guardada como respaldo
-    if playerInitialSpawn then
-        return playerInitialSpawn + Vector3.new(0, 3, 0)
-    end
-    
-    -- Si nada funciona, buscar SpawnLocation genérico
-    local spawn = workspace:FindFirstChild("SpawnLocation")
-    if spawn and spawn:IsA("BasePart") then
-        return spawn.Position + Vector3.new(0, 3, 0)
-    end
-    
-    print("No se pudo encontrar la base del jugador")
-    return Vector3.new(0, 50, 0)
-end
-
-local function hasBrainrotActive()
-    local character = player.Character
-    if not character then return false end
-    
-    -- Método 1: Verificar por color del personaje (púrpura)
-    local humanoid = character:FindFirstChild("Humanoid")
-    if humanoid then
-        local bodyColors = character:FindFirstChild("Body Colors")
-        if bodyColors then
-            -- Verificar si tiene colores púrpuras
-            local headColor = bodyColors.HeadColor3
-            local torsoColor = bodyColors.TorsoColor3
-            
-            if headColor.R < 0.5 and headColor.B > 0.5 and headColor.G < 0.5 then
-                return true
-            end
-            if torsoColor.R < 0.5 and torsoColor.B > 0.5 and torsoColor.G < 0.5 then
-                return true
-            end
-        end
-    end
-    
-    -- Método 2: Verificar por partes del cuerpo púrpuras
-    for _, part in pairs(character:GetChildren()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            local color = part.Color
-            if color.R < 0.5 and color.B > 0.5 and color.G < 0.5 then
-                return true
-            end
-        end
-    end
-    
-    -- Método 3: Verificar por efectos o valores
-    local brainrotValue = character:FindFirstChild("Brainrot") or character:FindFirstChild("BrainrotActive")
-    if brainrotValue then
-        return true
-    end
-    
-    return false
-end
-
-local function instantTeleport()
-    local character = player.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local basePosition = findPlayerBase()
-        character.HumanoidRootPart.CFrame = CFrame.new(basePosition)
-        print("Teleported to player base with brainrot!")
-    end
-end
-
-local function isBaseOpen(base)
-    -- Buscar puertas, barreras o indicadores de que la base está cerrada
-    local barriers = {
-        base:FindFirstChild("Barrier"),
-        base:FindFirstChild("Door"),
-        base:FindFirstChild("Wall"),
-        base:FindFirstChild("Protection")
-    }
-    
-    for _, barrier in pairs(barriers) do
-        if barrier and barrier:IsA("BasePart") then
-            -- Si la barrera es transparente o no colisionable, la base está abierta
-            if barrier.Transparency >= 0.9 or not barrier.CanCollide then
-                return true
-            else
-                return false
-            end
-        end
-    end
-    
-    -- Si no hay barreras detectables, asumir que está abierta
-    return true
-end
-
-local function updatePlayersEsp()
-    if not playersEspEnabled then return end
-    
-    local myCharacter = player.Character
-    if not myCharacter or not myCharacter:FindFirstChild("HumanoidRootPart") then return end
-    
-    for _, otherPlayer in pairs(Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local character = otherPlayer.Character
-            local humanoidRootPart = character.HumanoidRootPart
-            
-            -- Calcular distancia
-            local distance = math.floor((myCharacter.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude)
-            
-            -- Determinar color basado en si tiene brainrot
-            local color = Color3.fromRGB(0, 255, 0) -- Verde por defecto
-            local status = "Normal"
-            
-            -- Verificar si el jugador tiene brainrot
-            local hasPlayerBrainrot = false
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    local partColor = part.Color
-                    if partColor.R < 0.5 and partColor.B > 0.5 and partColor.G < 0.5 then
-                        hasPlayerBrainrot = true
-                        break
-                    end
-                end
-            end
-            
-            if hasPlayerBrainrot then
-                color = Color3.fromRGB(128, 0, 128) -- Púrpura
-                status = "HAS BRAINROT"
-            end
-            
-            -- Crear ESP si no existe
-            local existingEsp = humanoidRootPart:FindFirstChild("ESP_" .. humanoidRootPart.Name)
-            if not existingEsp then
-                createEspBox(humanoidRootPart, color, otherPlayer.Name .. "\n" .. status, distance)
-            end
-        end
-    end
-end
-
-local function updateBasesEsp()
-    if not basesEspEnabled then return end
-    
-    local basesFolder = workspace:FindFirstChild("Bases")
-    if not basesFolder then return end
-    
-    for _, base in pairs(basesFolder:GetChildren()) do
-        if base:IsA("Model") then
-            local basePart = base.PrimaryPart or base:FindFirstChildOfClass("BasePart")
-            if basePart then
-                local isOpen = isBaseOpen(base)
-                local color = isOpen and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-                local status = isOpen and "OPEN" or "CLOSED"
-                
-                local existingEsp = basePart:FindFirstChild("ESP_" .. basePart.Name)
-                if not existingEsp then
-                    createEspBox(basePart, color, "Base: " .. base.Name .. "\n" .. status, nil)
-                end
-            end
-        end
-    end
-end
-
-local function getAllPlayers()
-    local allPlayers = {}
-    
-    for _, otherPlayer in pairs(Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            table.insert(allPlayers, otherPlayer)
-        end
-    end
-    
-    return allPlayers
-end
-
-local function findQuantumCloner()
-    local character = player.Character
-    local backpack = player:FindFirstChild("Backpack")
-    
-    -- Buscar en el character primero
-    if character then
-        for _, tool in pairs(character:GetChildren()) do
-            if tool:IsA("Tool") then
-                for _, name in pairs(TOOL_NAMES) do
-                    if tool.Name:lower():find(name:lower()) or tool.Name == name then
-                        return tool, true -- tool, isEquipped
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Buscar en el backpack
-    if backpack then
-        for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                for _, name in pairs(TOOL_NAMES) do
-                    if tool.Name:lower():find(name:lower()) or tool.Name == name then
-                        return tool, false -- tool, isEquipped
-                    end
-                end
-            end
-        end
-    end
-    
-    return nil, false
-end
-
-local function equipQuantumCloner()
-    local character = player.Character
-    if not character then return false end
-    
-    local currentTime = tick()
-    if currentTime - lastEquipTime < 1 then
-        return false
-    end
-    
-    local tool, isEquipped = findQuantumCloner()
-    
-    if tool and not isEquipped then
-        pcall(function()
-            character.Humanoid:EquipTool(tool)
-        end)
-        lastEquipTime = currentTime
-        return true
-    end
-    
-    return isEquipped
-end
-
-local function hasQuantumClonerEquipped()
-    local tool, isEquipped = findQuantumCloner()
-    return isEquipped
-end
-
-local function fireQuantumCloner(targetPlayer)
-    local character = player.Character
-    if not character then return end
-    
-    local tool, isEquipped = findQuantumCloner()
-    if not tool or not isEquipped then return end
-    
-    local target = targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not target then return end
-    
-    -- Método 1: RemoteEvent más común
-    for _, child in pairs(tool:GetDescendants()) do
-        if child:IsA("RemoteEvent") and (child.Name:lower():find("fire") or child.Name:lower():find("shoot") or child.Name:lower():find("attack")) then
-            pcall(function()
-                child:FireServer(target)
-                child:FireServer(targetPlayer)
-                child:FireServer(target.Position)
-            end)
-        end
-    end
-    
-    -- Método 2: Activar tool
-    pcall(function()
-        tool:Activate()
-    end)
-end
-
-local function unlimitedAimbotLoop()
+local function aimbotLoop()
     if not aimbotEnabled then return end
     
-    local allPlayers = getAllPlayers()
+    equipCloner()
+    local brainrots = getBrainrotsInWorkspace()
     
-    if #allPlayers > 0 and not hasQuantumClonerEquipped() then
-        equipQuantumCloner()
+    for _, brainrot in pairs(brainrots) do
+        shootAtBrainrot(brainrot)
     end
+end
+
+local function brainrotEspLoop()
+    if not brainrotEspEnabled then return end
     
-    for _, targetPlayer in pairs(allPlayers) do
-        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            fireQuantumCloner(targetPlayer)
+    local brainrots = getBrainrotsInWorkspace()
+    for _, brainrot in pairs(brainrots) do
+        local mainPart = brainrot.PrimaryPart or brainrot:FindFirstChildOfClass("BasePart")
+        if mainPart then
+            local existingEsp = mainPart:FindFirstChild("ESP_" .. mainPart.Name)
+            if not existingEsp then
+                createEspBox(mainPart, Color3.fromRGB(255, 0, 255), "🧠 BRAINROT", "Click to steal!")
+            end
         end
     end
 end
 
-local function smartAutoEquip()
-    local allPlayers = getAllPlayers()
+local function basesEspLoop()
+    if not basesEspEnabled then return end
     
-    if #allPlayers > 0 and not hasQuantumClonerEquipped() then
-        local currentTime = tick()
-        if currentTime - lastEquipTime >= 2 then
-            equipQuantumCloner()
+    -- Buscar bases en workspace
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if obj.Name:find("Base") and obj:IsA("Model") then
+            local basePart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
+            if basePart then
+                local existingEsp = basePart:FindFirstChild("ESP_" .. basePart.Name)
+                if not existingEsp then
+                    -- Determinar si está abierta (simplificado)
+                    local status = "UNKNOWN"
+                    local color = Color3.fromRGB(255, 255, 0)
+                    
+                    createEspBox(basePart, color, "🏠 " .. obj.Name, status)
+                end
+            end
         end
-    end
-end
-
-local function teleportLoop()
-    if instantTeleportEnabled and hasBrainrotActive() then
-        instantTeleport()
-        wait(1)
     end
 end
 
 -- Event Connections
-teleportButton.MouseButton1Click:Connect(function()
-    instantTeleportEnabled = not instantTeleportEnabled
-    teleportButton.Text = "🚀 Instant Teleport: " .. (instantTeleportEnabled and "ON" or "OFF")
+forceTpButton.MouseButton1Click:Connect(function()
+    forceTPEnabled = not forceTPEnabled
+    forceTpButton.Text = "🚀 FORCE TELEPORT: " .. (forceTPEnabled and "ON" or "OFF")
     
-    if instantTeleportEnabled then
-        teleportConnection = RunService.Heartbeat:Connect(teleportLoop)
+    if forceTPEnabled then
+        connections.forceTP = RunService.Heartbeat:Connect(forceTPLoop)
+        print("🚀 Force Teleport activated!")
     else
-        if teleportConnection then
-            teleportConnection:Disconnect()
-            teleportConnection = nil
+        if connections.forceTP then
+            connections.forceTP:Disconnect()
+            connections.forceTP = nil
         end
+        print("🚀 Force Teleport deactivated!")
     end
+    updateStatus()
 end)
 
 aimbotButton.MouseButton1Click:Connect(function()
     aimbotEnabled = not aimbotEnabled
-    aimbotButton.Text = "🎯 Unlimited Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
+    aimbotButton.Text = "🎯 BRAINROT AIMBOT: " .. (aimbotEnabled and "ON" or "OFF")
     
     if aimbotEnabled then
-        aimbotConnection = RunService.Heartbeat:Connect(unlimitedAimbotLoop)
-        autoEquipConnection = RunService.Heartbeat:Connect(smartAutoEquip)
+        connections.aimbot = RunService.Heartbeat:Connect(aimbotLoop)
+        print("🎯 Brainrot Aimbot activated!")
     else
-        if aimbotConnection then
-            aimbotConnection:Disconnect()
-            aimbotConnection = nil
+        if connections.aimbot then
+            connections.aimbot:Disconnect()
+            connections.aimbot = nil
         end
-        if autoEquipConnection then
-            autoEquipConnection:Disconnect()
-            autoEquipConnection = nil
-        end
+        print("🎯 Brainrot Aimbot deactivated!")
     end
+    updateStatus()
 end)
 
-playersEspButton.MouseButton1Click:Connect(function()
-    playersEspEnabled = not playersEspEnabled
-    playersEspButton.Text = "👥 Players ESP: " .. (playersEspEnabled and "ON" or "OFF")
+brainrotEspButton.MouseButton1Click:Connect(function()
+    brainrotEspEnabled = not brainrotEspEnabled
+    brainrotEspButton.Text = "🧠 BRAINROT ESP: " .. (brainrotEspEnabled and "ON" or "OFF")
     
-    if playersEspEnabled then
-        playersEspConnection = RunService.Heartbeat:Connect(updatePlayersEsp)
+    if brainrotEspEnabled then
+        connections.brainrotEsp = RunService.Heartbeat:Connect(brainrotEspLoop)
+        print("🧠 Brainrot ESP activated!")
     else
-        if playersEspConnection then
-            playersEspConnection:Disconnect()
-            playersEspConnection = nil
+        if connections.brainrotEsp then
+            connections.brainrotEsp:Disconnect()
+            connections.brainrotEsp = nil
         end
-        clearEspObjects()
+        clearEsp()
+        print("🧠 Brainrot ESP deactivated!")
     end
+    updateStatus()
 end)
 
 basesEspButton.MouseButton1Click:Connect(function()
     basesEspEnabled = not basesEspEnabled
-    basesEspButton.Text = "🏠 Bases ESP: " .. (basesEspEnabled and "ON" or "OFF")
+    basesEspButton.Text = "🏠 BASES ESP: " .. (basesEspEnabled and "ON" or "OFF")
     
     if basesEspEnabled then
-        basesEspConnection = RunService.Heartbeat:Connect(updateBasesEsp)
+        connections.basesEsp = RunService.Heartbeat:Connect(basesEspLoop)
+        print("🏠 Bases ESP activated!")
     else
-        if basesEspConnection then
-            basesEspConnection:Disconnect()
-            basesEspConnection = nil
+        if connections.basesEsp then
+            connections.basesEsp:Disconnect()
+            connections.basesEsp = nil
         end
-        clearEspObjects()
+        clearEsp()
+        print("🏠 Bases ESP deactivated!")
     end
+    updateStatus()
 end)
 
 closeButton.MouseButton1Click:Connect(function()
@@ -740,54 +588,26 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Guardar posición inicial del jugador para teleport
-player.CharacterAdded:Connect(function(character)
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    wait(3)
-    
-    if humanoidRootPart then
-        playerInitialSpawn = humanoidRootPart.Position
-        print("Base position saved:", playerInitialSpawn)
-    end
-end)
-
--- Si ya hay un character al cargar el script
-if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-    spawn(function()
-        wait(3)
-        playerInitialSpawn = player.Character.HumanoidRootPart.Position
-        print("Initial base position saved:", playerInitialSpawn)
-    end)
+-- Initialize spawn position
+player.CharacterAdded:Connect(savePlayerSpawn)
+if player.Character then
+    spawn(savePlayerSpawn)
 end
 
--- Cleanup function
+-- Cleanup
 game.Players.PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
-        if aimbotConnection then aimbotConnection:Disconnect() end
-        if autoEquipConnection then autoEquipConnection:Disconnect() end
-        if teleportConnection then teleportConnection:Disconnect() end
-        if playersEspConnection then playersEspConnection:Disconnect() end
-        if basesEspConnection then basesEspConnection:Disconnect() end
-        clearEspObjects()
-    end
-end)
-
--- Debug function
-spawn(function()
-    while true do
-        wait(2)
-        if hasBrainrotActive() then
-            print("🧠 Brainrot detected! Character is purple/stolen")
+        for _, connection in pairs(connections) do
+            if connection then connection:Disconnect() end
         end
+        clearEsp()
     end
 end)
 
-print("🎮 Instant Chilli v3 Advanced loaded!")
-print("✨ FEATURES:")
-print("🚀 - Instant Teleport cuando tienes brainrot")
-print("🎯 - Smart Aimbot que dispara al más cercano con capa")
-print("👥 - Players ESP con detección de brainrot y distancia")
-print("🏠 - Bases ESP con estado abierto/cerrado")
-print("🧠 - Detección avanzada de brainrot/capa por colores")
-print("⌨️ - Press F to open the advanced panel")
-print("🎯 Made specifically for Steal a Brainrot!")
+print("🎮 STEAL A BRAINROT HACK v4 LOADED!")
+print("🚀 Force Teleport - Te teleporta cuando eres robado")
+print("🎯 Brainrot Aimbot - Dispara a brainrots automáticamente") 
+print("🧠 Brainrot ESP - Muestra brainrots en el mapa")
+print("🏠 Bases ESP - Muestra bases y estados")
+print("⌨️ Presiona F para abrir el panel")
+print("🔥 ¡Optimizado específicamente para Steal a Brainrot!")
