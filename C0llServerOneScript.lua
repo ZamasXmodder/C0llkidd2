@@ -13,51 +13,6 @@ local floorPart = nil
 local rainbowConnection = nil
 local followConnection = nil
 
--- Create single rainbow floor that follows player
-local function createFollowingFloor()
-    -- Clean up existing floor
-    if floorPart then
-        floorPart:Destroy()
-    end
-
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return
-    end
-
-    local rootPart = character.HumanoidRootPart
-
-    -- Create single rainbow floor
-    floorPart = Instance.new("Part")
-    floorPart.Name = "RainbowAirWalkFloor"
-    floorPart.Size = Vector3.new(12, 1, 12)
-    floorPart.Position = rootPart.Position - Vector3.new(0, 4, 0)
-    floorPart.Anchored = true
-    floorPart.CanCollide = true
-    floorPart.Transparency = 0.2
-    floorPart.Material = Enum.Material.ForceField
-    floorPart.Shape = Enum.PartType.Block
-    floorPart.TopSurface = Enum.SurfaceType.Smooth
-    floorPart.BottomSurface = Enum.SurfaceType.Smooth
-    floorPart.Parent = workspace
-
-    -- Add highlight effect
-    local highlight = Instance.new("Highlight")
-    highlight.Parent = floorPart
-    highlight.FillTransparency = 0.3
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-
-    -- Start rainbow effect
-    startRainbowEffect()
-
-    -- Start following player
-    startFollowingPlayer()
-    
-    -- Make player float
-    makePlayerFloat()
-end
-
 -- Rainbow color effect
 local function startRainbowEffect()
     if rainbowConnection then
@@ -82,31 +37,6 @@ local function startRainbowEffect()
     end)
 end
 
--- Make player float
-local function makePlayerFloat()
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    
-    if humanoid and rootPart then
-        -- Create BodyVelocity to control floating
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
-        
-        -- Create BodyPosition to maintain height
-        local bodyPosition = Instance.new("BodyPosition")
-        bodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
-        bodyPosition.Position = rootPart.Position
-        bodyPosition.D = 2000
-        bodyPosition.P = 10000
-        bodyPosition.Parent = rootPart
-    end
-end
-
 -- Make floor follow player
 local function startFollowingPlayer()
     if followConnection then
@@ -120,16 +50,64 @@ local function startFollowingPlayer()
 
             if rootPart then
                 -- Update floor position to follow player
-                floorPart.Position = rootPart.Position - Vector3.new(0, 4, 0)
-                
-                -- Update body position to maintain floating
-                local bodyPosition = rootPart:FindFirstChild("BodyPosition")
-                if bodyPosition then
-                    bodyPosition.Position = Vector3.new(rootPart.Position.X, rootPart.Position.Y, rootPart.Position.Z)
-                end
+                floorPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
             end
         end
     end)
+end
+
+-- Create single rainbow floor that follows player
+local function createFollowingFloor()
+    -- Clean up existing floor
+    if floorPart then
+        floorPart:Destroy()
+    end
+
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+
+    local rootPart = character.HumanoidRootPart
+
+    -- Create single rainbow floor
+    floorPart = Instance.new("Part")
+    floorPart.Name = "RainbowAirWalkFloor"
+    floorPart.Size = Vector3.new(12, 1, 12)
+    floorPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
+    floorPart.Anchored = true
+    floorPart.CanCollide = true
+    floorPart.Transparency = 0.2
+    floorPart.Material = Enum.Material.Neon
+    floorPart.Shape = Enum.PartType.Block
+    floorPart.Parent = workspace
+
+    -- Add highlight effect
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = floorPart
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+    -- Start rainbow effect
+    startRainbowEffect()
+
+    -- Start following player
+    startFollowingPlayer()
+    
+    -- Add floating effect
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+    bodyVelocity.Velocity = Vector3.new(0, 16, 0)
+    bodyVelocity.Parent = rootPart
+    
+    -- Remove gravity effect
+    local bodyPosition = Instance.new("BodyPosition")
+    bodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
+    bodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
+    bodyPosition.D = 1000
+    bodyPosition.P = 10000
+    bodyPosition.Parent = rootPart
 end
 
 -- Clean up floating effects
@@ -138,11 +116,11 @@ local function cleanupFloating()
         local rootPart = player.Character.HumanoidRootPart
         
         -- Remove floating objects
-        local bodyVelocity = rootPart:FindFirstChild("BodyVelocity")
-        local bodyPosition = rootPart:FindFirstChild("BodyPosition")
-        
-        if bodyVelocity then bodyVelocity:Destroy() end
-        if bodyPosition then bodyPosition:Destroy() end
+        for _, obj in pairs(rootPart:GetChildren()) do
+            if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") then
+                obj:Destroy()
+            end
+        end
     end
 end
 
@@ -177,7 +155,7 @@ local function toggleRainbowAirWalk()
         -- Enable air walk
         airWalkEnabled = true
         createFollowingFloor()
-        print("🌈 Rainbow Air Walk: ENABLED - ¡Ahora estás volando!")
+        print("🌈 Rainbow Air Walk: ENABLED - ¡Ahora puedes volar!")
     end
 end
 
@@ -212,8 +190,8 @@ end)
 
 -- Clean up when character respawns
 player.CharacterAdded:Connect(function()
+    wait(2) -- Esperar a que el personaje cargue completamente
     if airWalkEnabled then
-        wait(1) -- Wait for character to load
         createFollowingFloor()
     end
 end)
