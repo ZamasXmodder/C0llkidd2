@@ -12,6 +12,7 @@ local airWalkEnabled = false
 local floorPart = nil
 local rainbowConnection = nil
 local followConnection = nil
+local flyConnection = nil
 
 -- Rainbow color effect
 local function startRainbowEffect()
@@ -22,7 +23,7 @@ local function startRainbowEffect()
     local hue = 0
     rainbowConnection = RunService.Heartbeat:Connect(function()
         if floorPart and floorPart.Parent then
-            hue = (hue + 3) % 360
+            hue = (hue + 5) % 360
             local color = Color3.fromHSV(hue / 360, 1, 1)
 
             floorPart.Color = color
@@ -56,6 +57,70 @@ local function startFollowingPlayer()
     end)
 end
 
+-- Flying system
+local function startFlying()
+    if flyConnection then
+        flyConnection:Disconnect()
+    end
+
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if not rootPart or not humanoid then return end
+
+    -- Create BodyVelocity for movement
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+
+    -- Create BodyAngularVelocity for rotation control
+    local bodyAngularVelocity = Instance.new("BodyAngularVelocity")
+    bodyAngularVelocity.MaxTorque = Vector3.new(0, math.huge, 0)
+    bodyAngularVelocity.AngularVelocity = Vector3.new(0, 0, 0)
+    bodyAngularVelocity.Parent = rootPart
+
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not rootPart.Parent then return end
+        
+        local camera = workspace.CurrentCamera
+        local moveVector = humanoid.MoveDirection
+        local speed = 50
+
+        if moveVector.Magnitude > 0 then
+            -- Move in the direction the player is walking, but relative to camera
+            local cameraCFrame = camera.CFrame
+            local direction = (cameraCFrame.LookVector * moveVector.Z + cameraCFrame.RightVector * moveVector.X)
+            bodyVelocity.Velocity = direction * speed + Vector3.new(0, 16, 0)
+        else
+            -- Just hover
+            bodyVelocity.Velocity = Vector3.new(0, 16, 0)
+        end
+    end)
+end
+
+-- Stop flying
+local function stopFlying()
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+    
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = player.Character.HumanoidRootPart
+        
+        -- Remove all body movers
+        for _, obj in pairs(rootPart:GetChildren()) do
+            if obj:IsA("BodyVelocity") or obj:IsA("BodyAngularVelocity") or obj:IsA("BodyPosition") then
+                obj:Destroy()
+            end
+        end
+    end
+end
+
 -- Create single rainbow floor that follows player
 local function createFollowingFloor()
     -- Clean up existing floor
@@ -76,18 +141,33 @@ local function createFollowingFloor()
     floorPart.Size = Vector3.new(12, 1, 12)
     floorPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
     floorPart.Anchored = true
-    floorPart.CanCollide = true
-    floorPart.Transparency = 0.2
-    floorPart.Material = Enum.Material.Neon
+    floorPart.CanCollide = false  -- No collision so it doesn't interfere
+    floorPart.Transparency = 0.1
+    floorPart.Material = Enum.Material.ForceField
     floorPart.Shape = Enum.PartType.Block
+    floorPart.Color = Color3.fromRGB(255, 0, 0)  -- Start with red
     floorPart.Parent = workspace
 
-    -- Add highlight effect
+    -- Add highlight effect for extra glow
     local highlight = Instance.new("Highlight")
     highlight.Parent = floorPart
-    highlight.FillTransparency = 0.3
+    highlight.FillTransparency = 0.2
     highlight.OutlineTransparency = 0
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+
+    -- Add particle effect for extra rainbow effect
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = floorPart
+    
+    local particles = Instance.new("ParticleEmitter")
+    particles.Parent = attachment
+    particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    particles.Lifetime = NumberRange.new(1, 2)
+    particles.Rate = 50
+    particles.SpreadAngle = Vector2.new(45, 45)
+    particles.Speed = NumberRange.new(5, 10)
 
     -- Start rainbow effect
     startRainbowEffect()
@@ -95,33 +175,8 @@ local function createFollowingFloor()
     -- Start following player
     startFollowingPlayer()
     
-    -- Add floating effect
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-    bodyVelocity.Velocity = Vector3.new(0, 16, 0)
-    bodyVelocity.Parent = rootPart
-    
-    -- Remove gravity effect
-    local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
-    bodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
-    bodyPosition.D = 1000
-    bodyPosition.P = 10000
-    bodyPosition.Parent = rootPart
-end
-
--- Clean up floating effects
-local function cleanupFloating()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local rootPart = player.Character.HumanoidRootPart
-        
-        -- Remove floating objects
-        for _, obj in pairs(rootPart:GetChildren()) do
-            if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") then
-                obj:Destroy()
-            end
-        end
-    end
+    -- Start flying
+    startFlying()
 end
 
 -- Toggle rainbow air walk
@@ -147,15 +202,15 @@ local function toggleRainbowAirWalk()
             followConnection = nil
         end
         
-        -- Clean up floating
-        cleanupFloating()
+        -- Stop flying
+        stopFlying()
 
         print("🌈 Rainbow Air Walk: DISABLED")
     else
         -- Enable air walk
         airWalkEnabled = true
         createFollowingFloor()
-        print("🌈 Rainbow Air Walk: ENABLED - ¡Ahora puedes volar!")
+        print("🌈 Rainbow Air Walk: ENABLED - ¡Usa WASD para volar en cualquier dirección!")
     end
 end
 
@@ -185,12 +240,12 @@ player.CharacterRemoving:Connect(function()
         followConnection = nil
     end
     
-    cleanupFloating()
+    stopFlying()
 end)
 
 -- Clean up when character respawns
 player.CharacterAdded:Connect(function()
-    wait(2) -- Esperar a que el personaje cargue completamente
+    wait(2)
     if airWalkEnabled then
         createFollowingFloor()
     end
