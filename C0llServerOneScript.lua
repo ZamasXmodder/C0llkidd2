@@ -1,33 +1,24 @@
 -- Rainbow Air Walk Script for Roblox
--- Press F to toggle air walk with visible rainbow floor
+-- Press F to toggle floating with a single rainbow floor that follows you
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 
 -- Variables
 local airWalkEnabled = false
-local floorParts = {}
+local floorPart = nil
 local rainbowConnection = nil
-local highlightConnections = {}
+local followConnection = nil
 
--- Configuration
-local FLOOR_COUNT = 10 -- Number of floors to create
-local FLOOR_SPACING = 8 -- Distance between each floor (studs)
-local FLOOR_SIZE = Vector3.new(15, 0.8, 15) -- Size of each floor
-
--- Create multiple rainbow floors stacked upward
-local function createRainbowFloors()
-    -- Clean up existing floors
-    for _, part in pairs(floorParts) do
-        if part and part.Parent then
-            part:Destroy()
-        end
+-- Create single rainbow floor that follows player
+local function createFollowingFloor()
+    -- Clean up existing floor
+    if floorPart then
+        floorPart:Destroy()
     end
-    floorParts = {}
 
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then
@@ -35,36 +26,34 @@ local function createRainbowFloors()
     end
 
     local rootPart = character.HumanoidRootPart
-    local basePosition = rootPart.Position
 
-    -- Create multiple floors going upward
-    for i = 1, FLOOR_COUNT do
-        local floorPart = Instance.new("Part")
-        floorPart.Name = "RainbowFloor_" .. i
-        floorPart.Size = FLOOR_SIZE
-        floorPart.Position = basePosition + Vector3.new(0, (i - 1) * FLOOR_SPACING - 3, 0)
-        floorPart.Anchored = true
-        floorPart.CanCollide = true
-        floorPart.Transparency = 0.2
-        floorPart.Material = Enum.Material.Neon
-        floorPart.Shape = Enum.PartType.Block
-        floorPart.Parent = workspace
+    -- Create single rainbow floor
+    floorPart = Instance.new("Part")
+    floorPart.Name = "RainbowAirWalkFloor"
+    floorPart.Size = Vector3.new(12, 0.8, 12)
+    floorPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
+    floorPart.Anchored = true
+    floorPart.CanCollide = true
+    floorPart.Transparency = 0.3
+    floorPart.Material = Enum.Material.Neon
+    floorPart.Shape = Enum.PartType.Block
+    floorPart.Parent = workspace
 
-        -- Add highlight effect
-        local highlight = Instance.new("Highlight")
-        highlight.Parent = floorPart
-        highlight.FillTransparency = 0.5
-        highlight.OutlineTransparency = 0
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    -- Add highlight effect
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = floorPart
+    highlight.FillTransparency = 0.4
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 
-        table.insert(floorParts, floorPart)
-    end
-
-    -- Start rainbow effects
+    -- Start rainbow effect
     startRainbowEffect()
+
+    -- Start following player
+    startFollowingPlayer()
 end
 
--- Rainbow color and highlight effect
+-- Rainbow color effect
 local function startRainbowEffect()
     if rainbowConnection then
         rainbowConnection:Disconnect()
@@ -72,80 +61,98 @@ local function startRainbowEffect()
 
     local hue = 0
     rainbowConnection = RunService.Heartbeat:Connect(function()
-        hue = (hue + 1.5) % 360
+        if floorPart and floorPart.Parent then
+            hue = (hue + 2) % 360
+            local color = Color3.fromHSV(hue / 360, 1, 1)
 
-        for i, floorPart in pairs(floorParts) do
-            if floorPart and floorPart.Parent then
-                -- Different hue offset for each floor to create wave effect
-                local floorHue = (hue + (i * 30)) % 360
-                local color = Color3.fromHSV(floorHue / 360, 1, 1)
+            floorPart.Color = color
 
-                floorPart.Color = color
-
-                -- Update highlight color
-                local highlight = floorPart:FindFirstChild("Highlight")
-                if highlight then
-                    highlight.FillColor = color
-                    highlight.OutlineColor = color
-                end
+            -- Update highlight color
+            local highlight = floorPart:FindFirstChild("Highlight")
+            if highlight then
+                highlight.FillColor = color
+                highlight.OutlineColor = color
             end
         end
     end)
 end
 
--- Toggle rainbow floors
-local function toggleRainbowFloors()
-    if airWalkEnabled then
-        -- Disable rainbow floors
-        airWalkEnabled = false
+-- Make floor follow player
+local function startFollowingPlayer()
+    if followConnection then
+        followConnection:Disconnect()
+    end
 
-        -- Clean up all floors
-        for _, part in pairs(floorParts) do
-            if part and part.Parent then
-                part:Destroy()
+    followConnection = RunService.Heartbeat:Connect(function()
+        if floorPart and floorPart.Parent and player.Character then
+            local character = player.Character
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+
+            if rootPart then
+                -- Update floor position to follow player
+                floorPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
             end
         end
-        floorParts = {}
+    end)
+end
 
-        -- Stop rainbow effect
+-- Toggle rainbow air walk
+local function toggleRainbowAirWalk()
+    if airWalkEnabled then
+        -- Disable air walk
+        airWalkEnabled = false
+
+        -- Clean up floor
+        if floorPart then
+            floorPart:Destroy()
+            floorPart = nil
+        end
+
+        -- Stop effects
         if rainbowConnection then
             rainbowConnection:Disconnect()
             rainbowConnection = nil
         end
 
-        print("🌈 Rainbow Floors: DISABLED")
+        if followConnection then
+            followConnection:Disconnect()
+            followConnection = nil
+        end
+
+        print("🌈 Rainbow Air Walk: DISABLED")
     else
-        -- Enable rainbow floors
+        -- Enable air walk
         airWalkEnabled = true
-        createRainbowFloors()
-        print("🌈 Rainbow Floors: ENABLED - " .. FLOOR_COUNT .. " floors created!")
+        createFollowingFloor()
+        print("🌈 Rainbow Air Walk: ENABLED - Floor will follow you!")
     end
 end
 
--- Connect F key press to toggle rainbow floors
+-- Connect F key press to toggle air walk
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
     if input.KeyCode == Enum.KeyCode.F then
-        toggleRainbowFloors()
+        toggleRainbowAirWalk()
     end
 end)
 
 -- Clean up when player leaves
 player.CharacterRemoving:Connect(function()
-    -- Clean up all floors
-    for _, part in pairs(floorParts) do
-        if part and part.Parent then
-            part:Destroy()
-        end
+    if floorPart then
+        floorPart:Destroy()
+        floorPart = nil
     end
-    floorParts = {}
 
-    -- Stop rainbow effect
     if rainbowConnection then
         rainbowConnection:Disconnect()
         rainbowConnection = nil
     end
+
+    if followConnection then
+        followConnection:Disconnect()
+        followConnection = nil
+    end
 end)
 
-print("🌈 Rainbow Floors loaded! Press F to create " .. FLOOR_COUNT .. " rainbow floors!")
+print("🌈 Rainbow Air Walk loaded! Press F to toggle floating with rainbow floor!")
