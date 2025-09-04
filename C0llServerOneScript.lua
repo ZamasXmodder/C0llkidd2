@@ -11,15 +11,18 @@ local flying = false
 local flySpeed = 50
 local bodyVelocity = nil
 local bodyAngularVelocity = nil
+local autoEquipSword = false
+local infiniteReach = false
+local originalReach = {}
 
 -- Crear GUI principal
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "CrazyPanel"
 screenGui.Parent = playerGui
 
--- Frame principal
+-- Frame principal (aumentado el tamaño)
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Size = UDim2.new(0, 300, 0, 500)
 mainFrame.Position = UDim2.new(0, 50, 0, 50)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
@@ -201,13 +204,189 @@ local function toggleNoclip()
     end
 end
 
--- Crear botones
+-- Función para encontrar espadas
+local function findSword()
+    if not player.Character then return nil end
+    
+    -- Buscar en el inventario del jugador
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and (string.find(tool.Name:lower(), "sword") or 
+                                   string.find(tool.Name:lower(), "blade") or
+                                   string.find(tool.Name:lower(), "katana") or
+                                   tool:FindFirstChild("Handle")) then
+                return tool
+            end
+        end
+    end
+    
+    -- Buscar en las manos del jugador
+    for _, tool in pairs(player.Character:GetChildren()) do
+        if tool:IsA("Tool") and (string.find(tool.Name:lower(), "sword") or 
+                               string.find(tool.Name:lower(), "blade") or
+                               string.find(tool.Name:lower(), "katana") or
+                               tool:FindFirstChild("Handle")) then
+            return tool
+        end
+    end
+    
+    return nil
+end
+
+-- Función de auto-equip sword
+local function toggleAutoEquipSword()
+    autoEquipSword = not autoEquipSword
+    
+    if autoEquipSword then
+        spawn(function()
+            while autoEquipSword do
+                wait(0.1)
+                if player.Character and player.Character:FindFirstChild("Humanoid") then
+                    local sword = findSword()
+                    if sword and sword.Parent ~= player.Character then
+                        player.Character.Humanoid:EquipTool(sword)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- Función de rango infinito para espadas
+local function toggleInfiniteReach()
+    infiniteReach = not infiniteReach
+    
+    if infiniteReach then
+        -- Modificar todas las espadas existentes
+        local function modifySword(tool)
+            if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
+                local handle = tool.Handle
+                
+                -- Guardar el tamaño original
+                if not originalReach[tool] then
+                    originalReach[tool] = handle.Size
+                end
+                
+                -- Hacer el handle gigante para alcance infinito
+                handle.Size = Vector3.new(2048, 2048, 2048)
+                handle.Transparency = 1
+                handle.CanCollide = false
+                
+                -- Modificar scripts de daño si existen
+                for _, script in pairs(tool:GetDescendants()) do
+                    if script:IsA("LocalScript") or script:IsA("Script") then
+                        if script.Source and string.find(script.Source:lower(), "damage") then
+                            -- Intentar modificar el daño
+                            script.Source = script.Source:gsub("damage%s*=%s*%d+", "damage = 100")
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Modificar espadas en backpack
+        if player:FindFirstChild("Backpack") then
+            for _, tool in pairs(player.Backpack:GetChildren()) do
+                modifySword(tool)
+            end
+        end
+        
+        -- Modificar espadas equipadas
+        if player.Character then
+            for _, tool in pairs(player.Character:GetChildren()) do
+                modifySword(tool)
+            end
+        end
+        
+        -- Conectar para nuevas espadas
+        player.CharacterAdded:Connect(function(character)
+            if infiniteReach then
+                character.ChildAdded:Connect(function(child)
+                    if infiniteReach then
+                        wait(0.1)
+                        modifySword(child)
+                    end
+                end)
+            end
+        end)
+        
+        if player:FindFirstChild("Backpack") then
+            player.Backpack.ChildAdded:Connect(function(child)
+                if infiniteReach then
+                    wait(0.1)
+                    modifySword(child)
+                end
+            end)
+        end
+        
+    else
+        -- Restaurar tamaños originales
+        for tool, originalSize in pairs(originalReach) do
+            if tool and tool:FindFirstChild("Handle") then
+                tool.Handle.Size = originalSize
+                tool.Handle.Transparency = 0
+            end
+        end
+        originalReach = {}
+    end
+end
+
+-- Función para matar a todos los jugadores
+local function killAllPlayers()
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    local sword = findSword()
+    if not sword then
+        print("No se encontró espada para usar")
+        return
+    end
+    
+    -- Equipar la espada si no está equipada
+    if sword.Parent ~= player.Character then
+        player.Character.Humanoid:EquipTool(sword)
+        wait(0.5)
+    end
+    
+    -- Atacar a todos los jugadores
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- Teletransportarse cerca del jugador
+            local originalPos = player.Character.HumanoidRootPart.CFrame
+            player.Character.HumanoidRootPart.CFrame = otherPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+            
+            wait(0.1)
+            
+            -- Simular ataque
+            if sword:FindFirstChild("Handle") then
+                sword:Activate()
+                
+                -- Intentar dañar directamente
+                if otherPlayer.Character:FindFirstChild("Humanoid") then
+                    otherPlayer.Character.Humanoid.Health = 0
+                end
+            end
+            
+            wait(0.1)
+            
+            -- Volver a la posición original
+            player.Character.HumanoidRootPart.CFrame = originalPos
+        end
+    end
+end
+
+-- Crear botones (posiciones actualizadas)
 createButton("✈️ Toggle Fly", UDim2.new(0.05, 0, 0, 60), toggleFly)
 createButton("💥 Fling Players", UDim2.new(0.05, 0, 0, 105), flingPlayers)
 createButton("⚡ Toggle Speed", UDim2.new(0.05, 0, 0, 150), toggleSpeed)
 createButton("🦘 Super Jump", UDim2.new(0.05, 0, 0, 195), toggleJump)
 createButton("👻 Invisibility", UDim2.new(0.05, 0, 0, 240), toggleInvisibility)
 createButton("🚪 Noclip", UDim2.new(0.05, 0, 0, 285), toggleNoclip)
+createButton("⚔️ Auto Equip Sword", UDim2.new(0.05, 0, 0, 330), toggleAutoEquipSword)
+createButton("🌟 Infinite Reach", UDim2.new(0.05, 0, 0, 375), toggleInfiniteReach)
+createButton("💀 Kill All Players", UDim2.new(0.05, 0, 0, 420), killAllPlayers)
 
 -- Botón de cerrar
 local closeButton = Instance.new("TextButton")
@@ -283,4 +462,109 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("Crazy Panel cargado! Usa los botones para activar las funciones.")
+-- Sistema de notificaciones
+local function createNotification(text, color)
+    local notification = Instance.new("Frame")
+    notification.Size = UDim2.new(0, 250, 0, 50)
+    notification.Position = UDim2.new(1, -270, 0, 20)
+    notification.BackgroundColor3 = color or Color3.fromRGB(50, 50, 50)
+    notification.BorderSizePixel = 0
+    notification.Parent = screenGui
+    
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 8)
+    notifCorner.Parent = notification
+    
+    local notifText = Instance.new("TextLabel")
+    notifText.Size = UDim2.new(1, -10, 1, 0)
+    notifText.Position = UDim2.new(0, 5, 0, 0)
+    notifText.BackgroundTransparency = 1
+    notifText.Text = text
+    notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notifText.TextScaled = true
+    notifText.Font = Enum.Font.Gotham
+    notifText.Parent = notification
+    
+    -- Animación de entrada
+    notification:TweenPosition(UDim2.new(1, -270, 0, 20), "Out", "Quad", 0.3, true)
+    
+    -- Desaparecer después de 3 segundos
+    wait(3)
+    notification:TweenPosition(UDim2.new(1, 0, 0, 20), "In", "Quad", 0.3, true)
+    wait(0.3)
+    notification:Destroy()
+end
+
+-- Conectar eventos para notificaciones
+player.CharacterAdded:Connect(function()
+    wait(1)
+    if autoEquipSword then
+        spawn(function()
+            createNotification("🗡️ Auto-equip activado", Color3.fromRGB(0, 255, 0))
+        end)
+    end
+end)
+
+-- Función mejorada de detección de espadas
+local function getSwordTools()
+    local swords = {}
+    local backpack = player:FindFirstChild("Backpack")
+    
+    if backpack then
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                local toolName = tool.Name:lower()
+                if string.find(toolName, "sword") or 
+                   string.find(toolName, "blade") or
+                   string.find(toolName, "katana") or
+                   string.find(toolName, "knife") or
+                   string.find(toolName, "dagger") or
+                   tool:FindFirstChild("Handle") then
+                    table.insert(swords, tool)
+                end
+            end
+        end
+    end
+    
+    return swords
+end
+
+-- Función de auto-ataque mejorada
+local autoAttack = false
+local function toggleAutoAttack()
+    autoAttack = not autoAttack
+    
+    if autoAttack then
+        spawn(function()
+            while autoAttack do
+                wait(0.1)
+                if player.Character then
+                    for _, tool in pairs(player.Character:GetChildren()) do
+                        if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
+                            tool:Activate()
+                        end
+                    end
+                end
+            end
+        end)
+        createNotification("⚔️ Auto-ataque activado", Color3.fromRGB(255, 100, 0))
+    else
+        createNotification("⚔️ Auto-ataque desactivado", Color3.fromRGB(255, 0, 0))
+    end
+end
+
+-- Agregar botón de auto-ataque
+createButton("⚔️ Auto Attack", UDim2.new(0.05, 0, 0, 465), toggleAutoAttack)
+
+print("🚀 Crazy Panel cargado completamente!")
+print("📋 Funciones disponibles:")
+print("✈️ Vuelo - Usa WASD + Espacio/Shift")
+print("💥 Fling Players - Lanza jugadores cercanos")
+print("⚡ Super Velocidad - Velocidad aumentada")
+print("🦘 Super Salto - Salto mejorado")
+print("👻 Invisibilidad - Hazte invisible")
+print("🚪 Noclip - Atraviesa paredes")
+print("⚔️ Auto Equip Sword - Equipa espadas automáticamente")
+print("🌟 Infinite Reach - Rango infinito de espada")
+print("💀 Kill All Players - Elimina a todos los jugadores")
+print("⚔️ Auto Attack - Ataque automático continuo")
