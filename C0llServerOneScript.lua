@@ -222,7 +222,7 @@ local function toggleESP()
         
     else
         espButton.Text = "ESP Secrets: OFF"
-        espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         
         -- Limpiar ESP
         for obj, esp in pairs(espObjects) do
@@ -295,43 +295,65 @@ local function toggleAutoLaser()
     end
 end
 
--- Función para crear part que arrastra al jugador
+-- Función para crear part que arrastra al jugador SÚPER RÁPIDO
 local function createDragPart(targetPosition)
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
     
     local humanoidRootPart = player.Character.HumanoidRootPart
+    local humanoid = player.Character:FindFirstChild("Humanoid")
     
-    -- Crear part invisible
+    -- Deshabilitar controles del jugador
+    if humanoid then
+        humanoid.PlatformStand = true
+    end
+    
+    -- Crear part invisible pero visible para debug
     local dragPart = Instance.new("Part")
     dragPart.Name = "DragPart"
-    dragPart.Size = Vector3.new(1, 1, 1)
-    dragPart.Material = Enum.Material.ForceField
-        dragPart.BrickColor = BrickColor.new("Bright blue")
-    dragPart.Transparency = 0.8
+    dragPart.Size = Vector3.new(2, 2, 2)
+    dragPart.Material = Enum.Material.Neon
+    dragPart.BrickColor = BrickColor.new("Bright blue")
+    dragPart.Transparency = 0.5
     dragPart.CanCollide = false
     dragPart.Anchored = true
     dragPart.Position = humanoidRootPart.Position
     dragPart.Parent = workspace
     
-    -- Crear BodyVelocity para arrastrar al jugador
+    -- Crear WeldConstraint para forzar al jugador a seguir la part
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = dragPart
+    weld.Part1 = humanoidRootPart
+    weld.Parent = dragPart
+    
+    -- Hacer la part no anclada para que se mueva
+    dragPart.Anchored = false
+    
+    -- Crear BodyVelocity SÚPER POTENTE
     local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.Parent = humanoidRootPart
+    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVelocity.Parent = dragPart
     
-    -- Crear BodyPosition para mayor control
+    -- Calcular dirección y velocidad súper rápida
+    local direction = (targetPosition - humanoidRootPart.Position).Unit
+    local distance = (targetPosition - humanoidRootPart.Position).Magnitude
+    
+    -- Velocidad súper alta
+    local speed = math.max(500, distance * 10) -- Mínimo 500 studs/segundo
+    bodyVelocity.Velocity = direction * speed
+    
+    -- Crear BodyPosition para asegurar que llegue al destino
     local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyPosition.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bodyPosition.Position = targetPosition
-    bodyPosition.D = 2000 -- Damping
-    bodyPosition.P = 10000 -- Power
-    bodyPosition.Parent = humanoidRootPart
+    bodyPosition.D = 5000 -- Damping alto
+    bodyPosition.P = 50000 -- Power súper alto
+    bodyPosition.Parent = dragPart
     
-    -- Animar la part hacia el destino
+    -- Tween súper rápido para la part
     local tweenInfo = TweenInfo.new(
-        2, -- Duración
+        0.5, -- Solo 0.5 segundos
         Enum.EasingStyle.Quart,
         Enum.EasingDirection.Out,
         0,
@@ -339,29 +361,68 @@ local function createDragPart(targetPosition)
         0
     )
     
+    -- Forzar teletransporte si está muy lejos
+    if distance > 1000 then
+        humanoidRootPart.CFrame = CFrame.new(targetPosition)
+        dragPart:Destroy()
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+        return
+    end
+    
     local tween = TweenService:Create(dragPart, tweenInfo, {Position = targetPosition})
     tween:Play()
     
-    -- Limpiar después de llegar
-    tween.Completed:Connect(function()
-        bodyVelocity:Destroy()
-        bodyPosition:Destroy()
-        dragPart:Destroy()
+    -- Verificar constantemente si llegó
+    local checkConnection
+    checkConnection = RunService.Heartbeat:Connect(function()
+        if dragPart.Parent and humanoidRootPart.Parent then
+            local currentDistance = (dragPart.Position - targetPosition).Magnitude
+            
+            -- Si está cerca del destino, terminar
+            if currentDistance < 10 then
+                checkConnection:Disconnect()
+                
+                -- Restaurar controles
+                if humanoid then
+                    humanoid.PlatformStand = false
+                end
+                
+                -- Limpiar
+                dragPart:Destroy()
+            end
+        else
+            checkConnection:Disconnect()
+        end
     end)
     
-    -- Limpiar si algo sale mal
+    -- Limpiar después de tiempo máximo
+    tween.Completed:Connect(function()
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+        dragPart:Destroy()
+        if checkConnection then
+            checkConnection:Disconnect()
+        end
+    end)
+    
+    -- Limpiar de emergencia
     spawn(function()
-        wait(3)
+        wait(2) -- Máximo 2 segundos
         if dragPart.Parent then
             dragPart:Destroy()
         end
-        if bodyVelocity.Parent then
-            bodyVelocity:Destroy()
+        if humanoid then
+            humanoid.PlatformStand = false
         end
-        if bodyPosition.Parent then
-            bodyPosition:Destroy()
+        if checkConnection then
+            checkConnection:Disconnect()
         end
     end)
+    
+    print("¡Arrastrando súper rápido hacia el punto inicial!")
 end
 
 -- Función para auto steal
@@ -474,4 +535,4 @@ end)
 print("Brainrot Panel cargado exitosamente!")
 print("ESP: Resalta brainrots secrets con highlight")
 print("Auto Laser: Dispara automáticamente a jugadores cercanos (requiere LaserCape equipado)")
-print("Auto Steal: Te arrastra de vuelta al punto inicial cuando robas un brainrot")
+print("Auto Steal: Te arrastra súper rápido de vuelta al punto inicial cuando robas un brainrot")
