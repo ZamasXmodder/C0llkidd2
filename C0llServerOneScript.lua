@@ -64,7 +64,7 @@ local laserAimbotEnabled = false
 local espEnabled = false
 local secretEspEnabled = false
 local laserAimbotConnection = nil
-local basePosition = nil
+local spawnPosition = nil
 local deliveryHitbox = nil
 local isTeleporting = false
 
@@ -190,60 +190,53 @@ local allBrainrots = {
     "Sammyini Spyderini"
 }
 
--- Función para detectar DeliveryHitbox en tu base
-local function detectDeliveryHitbox()
-    -- Buscar DeliveryHitbox específicamente en tu base
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "DeliveryHitbox" or obj.Name:find("Delivery") then
-            -- Verificar si está cerca de tu base
-            if basePosition then
-                local distance = (obj.Position - basePosition).Magnitude
-                if distance <= 100 then -- Dentro de 100 studs de tu base
-                    deliveryHitbox = obj
-                    print("📦 DeliveryHitbox encontrado en tu base: " .. tostring(obj.Position))
-                    return obj
-                end
-            else
-                -- Si no tenemos basePosition, tomar el primer DeliveryHitbox encontrado
-                deliveryHitbox = obj
-                print("📦 DeliveryHitbox encontrado: " .. tostring(obj.Position))
-                return obj
-            end
-        end
+-- Lista SOLO de secrets para ESP específico
+local secretBrainrots = {
+    "La Vacca Saturno Saturnita",
+    "Torrtuginni Dragonfrutini",
+    "Agarrini La Palini",
+    "Los Tralaleritos",
+    "Las Tralaleritas",
+    "Job Job Job Sahur",
+    "Las Vaquitas Saturnitas",
+    "Ketupat Kepat",
+    "Graipuss Medussi",
+    "Pot Hotspot",
+    "Chicleteira Bicicleteira",
+    "La Grande Combinasion",
+    "Los Combinasionas",
+    "Nuclearo Dinossauro",
+    "Los Hotspotsitos",
+    "Esok Sekolah",
+    "Garama and Madundung",
+    "Los Matteos",
+    "Dragon Cannelloni",
+    "Los Spyderinis",
+    "La Supreme Combinasion",
+    "Spaghetti Tualetti",
+    "Secret Lucky Block"
+}
+
+-- Función para guardar posición de spawn
+local function saveSpawnPosition()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        spawnPosition = player.Character.HumanoidRootPart.Position
+        print("🏠 Posición de spawn guardada: " .. tostring(spawnPosition))
     end
-    
-    print("❌ DeliveryHitbox no encontrado en tu base")
-    return nil
 end
 
--- Función para detectar automáticamente tu base
-local function detectMyBase()
+-- Función para detectar DeliveryHitbox
+local function detectDeliveryHitbox()
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("TextLabel") or obj:IsA("SurfaceGui") then
-            if obj.Text and (string.find(obj.Text:upper(), "TU BASE") or 
-                           string.find(obj.Text:upper(), player.Name:upper()) or
-                           string.find(obj.Text:upper(), "BASE DE " .. player.Name:upper())) then
-                if obj.Parent and obj.Parent.Parent then
-                    basePosition = obj.Parent.Parent.Position
-                    print("🏠 Base detectada automáticamente en: " .. tostring(basePosition))
-                    detectDeliveryHitbox() -- Buscar DeliveryHitbox después de encontrar la base
-                    return basePosition
-                end
-            end
-        end
-        
-        if obj:IsA("BasePart") and obj.Name:find(player.Name) then
-            basePosition = obj.Position
-            print("🏠 Base detectada por nombre en: " .. tostring(basePosition))
-            detectDeliveryHitbox()
-            return basePosition
+        if obj.Name == "DeliveryHitbox" or obj.Name:find("Delivery") then
+            deliveryHitbox = obj
+            print("📦 DeliveryHitbox encontrado: " .. tostring(obj.Position))
+            return obj
         end
     end
     
-    basePosition = Vector3.new(200, 50, 0)
-    print("🏠 Usando coordenadas estimadas para tu base: " .. tostring(basePosition))
-    detectDeliveryHitbox()
-    return basePosition
+    print("❌ DeliveryHitbox no encontrado")
+    return nil
 end
 
 -- Función MEJORADA para verificar si tenemos CUALQUIER brainrot
@@ -271,7 +264,7 @@ local function hasStolenBrainrot()
                    string.find(itemNameLower, "los") or
                    string.find(itemNameLower, "las") or
                    string.find(itemNameLower, "la ") then
-                    return true, item.Name
+                                        return true, item.Name
                 end
             end
         end
@@ -351,7 +344,7 @@ local function setupLaserRedirection()
                     if laserAimbotEnabled then
                         local target = getClosestPlayer()
                         if target and target.Character and target.Character:FindFirstChild("Head") then
-                                                        args[1] = target.Character.Head.Position
+                            args[1] = target.Character.Head.Position
                             args[2] = target.Character
                             print("🎯 Láser redirigido hacia: " .. target.Name)
                         end
@@ -376,7 +369,7 @@ local function toggleLaserAimbot()
     end
 end
 
--- Función TP Flotante a DeliveryHitbox (MEJORADA)
+-- Función TP Flotante a DeliveryHitbox (CORREGIDA)
 local function floatingTpToDelivery()
     local hasItem, itemName = hasStolenBrainrot()
     
@@ -398,7 +391,7 @@ local function floatingTpToDelivery()
     if not deliveryHitbox then
         detectDeliveryHitbox()
         if not deliveryHitbox then
-            print("❌ DeliveryHitbox no encontrado en tu base")
+            print("❌ DeliveryHitbox no encontrado")
             return
         end
     end
@@ -411,117 +404,46 @@ local function floatingTpToDelivery()
     print("📦 Brainrot detectado: " .. itemName)
     print("🎯 Destino: " .. tostring(targetPosition))
     
-    -- Altura de vuelo (flotando)
-    local flyHeight = 15 -- 15 studs por encima del suelo
+    -- Vuelo directo sin PathfindingService para evitar errores
+    local direction = (targetPosition - startPosition).Unit
+    local totalDistance = (targetPosition - startPosition).Magnitude
+    local stepSize = 12
+    local steps = math.ceil(totalDistance / stepSize)
+    local flyHeight = 15
     
-    -- Crear path usando PathfindingService con configuración para vuelo
-    local path = PathfindingService:CreatePath({
-        AgentRadius = 3,
-        AgentHeight = 6,
-        AgentCanJump = true,
-        AgentMaxSlope = 89,
-        WaypointSpacing = 8,
-        Costs = {
-            Water = 1,
-            DangerousLava = math.huge,
-            Grass = 1,
-            Concrete = 1
-        }
-    })
+    print("📏 Distancia de vuelo: " .. math.floor(totalDistance) .. " studs")
+    print("👣 Pasos de vuelo: " .. steps)
     
-    -- Ajustar posiciones para vuelo
-    local elevatedStart = Vector3.new(startPosition.X, startPosition.Y + flyHeight, startPosition.Z)
-    local elevatedTarget = Vector3.new(targetPosition.X, targetPosition.Y + flyHeight, targetPosition.Z)
-    
-    local success, errorMessage = pcall(function()
-        path:ComputeAsync(elevatedStart, elevatedTarget)
-    end)
-    
-    if success and path.Status == Enum.PathStatus.Success then
-        local waypoints = path:GetWaypoints()
-        print("✅ Ruta calculada - " .. #waypoints .. " waypoints encontrados")
-        
-        -- Elevar todos los waypoints para vuelo
-        for i, waypoint in pairs(waypoints) do
-            waypoint.Position = Vector3.new(waypoint.Position.X, waypoint.Position.Y + flyHeight, waypoint.Position.Z)
+    for i = 1, steps do
+        local hasItemNow = hasStolenBrainrot()
+        if not hasItemNow then
+            print("❌ Brainrot perdido durante el vuelo en paso " .. i .. ". TP detenido.")
+            break
         end
         
-        -- Seguir waypoints flotando
-        for i, waypoint in pairs(waypoints) do
-            local hasItemNow = hasStolenBrainrot()
-            if not hasItemNow then
-                print("❌ Brainrot perdido durante el vuelo en waypoint " .. i .. ". TP detenido.")
-                break
-            end
-            
-            -- Verificar que no hay obstáculos en el camino
-            local rayOrigin = humanoidRootPart.Position
-            local rayDirection = waypoint.Position - rayOrigin
-            local raycastParams = RaycastParams.new()
-            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-            raycastParams.FilterDescendantsInstances = {player.Character}
-            
-            local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-            
-            if raycastResult and raycastResult.Instance.CanCollide then
-                -- Hay obstáculo, subir más
-                waypoint.Position = waypoint.Position + Vector3.new(0, 5, 0)
-                print("⚠️ Obstáculo detectado en waypoint " .. i .. ", subiendo altura...")
-            end
-            
-            -- Teleportarse al waypoint flotando
-            humanoidRootPart.CFrame = CFrame.new(waypoint.Position)
-            
-            -- Pausa corta para movimiento fluido
-            wait(0.08)
-            
-            print("🚁 Waypoint " .. i .. "/" .. #waypoints .. " - Flotando hacia destino...")
+        local stepDistance = math.min(stepSize, totalDistance - (i-1) * stepSize)
+        local currentTarget = startPosition + direction * (i * stepSize)
+        currentTarget = currentTarget + Vector3.new(0, flyHeight, 0)
+        
+        -- Verificar obstáculos y ajustar altura si es necesario
+        local rayOrigin = humanoidRootPart.Position
+        local rayDirection = currentTarget - rayOrigin
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {player.Character}
+        
+        local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+        
+        if raycastResult and raycastResult.Instance.CanCollide then
+            currentTarget = currentTarget + Vector3.new(0, 8, 0)
+            print("⚠️ Evitando obstáculo en paso " .. i .. "...")
         end
         
-    else
-        -- Fallback: Vuelo directo en línea recta
-        print("⚠️ Pathfinding falló, usando vuelo directo...")
+        -- Teleportarse flotando
+        humanoidRootPart.CFrame = CFrame.new(currentTarget)
         
-        local direction = (elevatedTarget - elevatedStart).Unit
-        local totalDistance = (elevatedTarget - elevatedStart).Magnitude
-        local stepSize = 12 -- Pasos más pequeños para vuelo suave
-        local steps = math.ceil(totalDistance / stepSize)
-        
-        print("📏 Distancia de vuelo: " .. math.floor(totalDistance) .. " studs")
-        print("👣 Pasos de vuelo: " .. steps)
-        
-        for i = 1, steps do
-            local hasItemNow = hasStolenBrainrot()
-            if not hasItemNow then
-                print("❌ Brainrot perdido durante el vuelo en paso " .. i .. ". TP detenido.")
-                break
-            end
-            
-            local stepDistance = math.min(stepSize, totalDistance - (i-1) * stepSize)
-            local currentTarget = elevatedStart + direction * (i * stepSize)
-            
-            -- Verificar obstáculos y ajustar altura si es necesario
-            local rayOrigin = humanoidRootPart.Position
-            local rayDirection = currentTarget - rayOrigin
-            local raycastParams = RaycastParams.new()
-            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-            raycastParams.FilterDescendantsInstances = {player.Character}
-            
-            local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-            
-            if raycastResult and raycastResult.Instance.CanCollide then
-                -- Subir para evitar obstáculo
-                currentTarget = currentTarget + Vector3.new(0, 8, 0)
-                print("⚠️ Evitando obstáculo en paso " .. i .. "...")
-            end
-            
-            -- Teleportarse flotando
-            humanoidRootPart.CFrame = CFrame.new(currentTarget)
-            
-            wait(0.08) -- Vuelo suave
-            
-            print("🚁 Paso " .. i .. "/" .. steps .. " - Volando...")
-        end
+        wait(0.08)
+        print("🚁 Paso " .. i .. "/" .. steps .. " - Volando...")
     end
     
     -- Aterrizaje final en DeliveryHitbox
@@ -529,14 +451,11 @@ local function floatingTpToDelivery()
     humanoidRootPart.CFrame = CFrame.new(finalPosition)
     
     isTeleporting = false
-    
     print("✅ ¡LLEGASTE AL DELIVERYHITBOX! Vuelo completado")
-    print("📦 Posición final: " .. tostring(finalPosition))
-    print("🎯 Listo para entregar el brainrot!")
 end
 
--- Función Ultra Fast TP to Base (CORREGIDA - SIN REQUISITO DE BRAINROT)
-local function ultraFastTpToBase()
+-- Función Ultra Fast TP to Spawn (CORREGIDA)
+local function ultraFastTpToSpawn()
     if isTeleporting then
         print("⚠️ Ya hay un TP en progreso...")
         return
@@ -547,19 +466,25 @@ local function ultraFastTpToBase()
         return
     end
     
-    if not basePosition then
-        detectMyBase()
+    if not spawnPosition then
+        print("❌ Posición de spawn no detectada. Reintentando...")
+        saveSpawnPosition()
+        if not spawnPosition then
+            -- Usar posición por defecto si no se puede detectar
+            spawnPosition = Vector3.new(0, 50, 0)
+            print("🏠 Usando posición por defecto: " .. tostring(spawnPosition))
+        end
     end
     
     isTeleporting = true
     local humanoidRootPart = player.Character.HumanoidRootPart
     local startPosition = humanoidRootPart.Position
     
-    print("🚀 Iniciando Ultra Fast TP hacia TU BASE...")
+    print("🚀 Iniciando Ultra Fast TP hacia SPAWN...")
     
-    local direction = (basePosition - startPosition).Unit
-    local totalDistance = (basePosition - startPosition).Magnitude
-    local stepSize = 15 -- Pasos de 15 studs como solicitaste
+    local direction = (spawnPosition - startPosition).Unit
+    local totalDistance = (spawnPosition - startPosition).Magnitude
+    local stepSize = 15 -- Pasos de 15 studs
     local steps = math.ceil(totalDistance / stepSize)
     
     print("📏 Distancia total: " .. math.floor(totalDistance) .. " studs")
@@ -580,7 +505,6 @@ local function ultraFastTpToBase()
         local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
         
         if raycastResult and raycastResult.Instance.CanCollide then
-            -- Subir más para evitar obstáculo
             targetPos = targetPos + Vector3.new(0, 10, 0)
             print("⚠️ Obstáculo detectado en paso " .. i .. ", subiendo altura...")
         end
@@ -592,11 +516,11 @@ local function ultraFastTpToBase()
         print("⚡ Paso " .. i .. "/" .. steps .. " - Posición: " .. tostring(targetPos))
     end
     
-    -- Aterrizaje final en la base
-    humanoidRootPart.CFrame = CFrame.new(basePosition + Vector3.new(0, 5, 0))
+    -- Aterrizaje final en spawn
+    humanoidRootPart.CFrame = CFrame.new(spawnPosition + Vector3.new(0, 5, 0))
     
     isTeleporting = false
-    print("✅ ¡LLEGASTE A TU BASE! TP completado exitosamente")
+    print("✅ ¡LLEGASTE AL SPAWN! TP completado exitosamente")
 end
 
 -- Función ESP Players
@@ -624,43 +548,89 @@ local function togglePlayerEsp()
     end
 end
 
--- Función ESP Brainrots (MEJORADA)
+-- Función ESP SOLO Secrets (CORREGIDA)
 local function toggleSecretEsp()
     secretEspEnabled = not secretEspEnabled
     
     if secretEspEnabled then
         for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                for _, brainrotName in pairs(allBrainrots) do
-                    if string.find(obj.Name:lower(), brainrotName:lower()) or 
-                       (obj.Parent and string.find(obj.Parent.Name:lower(), brainrotName:lower())) then
+            if obj:IsA("BasePart") or obj:IsA("Model") then
+                -- Buscar SOLO en la lista de secrets
+                for _, secretName in pairs(secretBrainrots) do
+                    if string.find(obj.Name:lower(), secretName:lower()) or 
+                       (obj.Parent and string.find(obj.Parent.Name:lower(), secretName:lower())) then
                         local highlight = Instance.new("Highlight")
                         highlight.Name = "SecretESP"
-                        highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                        highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                        highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Dorado para secrets
+                        highlight.OutlineColor = Color3.fromRGB(255, 0, 255) -- Magenta para destacar
                         highlight.Parent = obj
+                        print("✨ Secret detectado: " .. obj.Name)
                         break
                     end
                 end
             end
         end
-        print("👁️ ESP Brainrots activado (TODOS los brainrots)")
+        print("👁️ ESP Secrets activado (SOLO brainrots secretos)")
     else
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:FindFirstChild("SecretESP") then
                 obj.SecretESP:Destroy()
             end
         end
-        print("❌ ESP Brainrots desactivado")
+        print("❌ ESP Secrets desactivado")
+    end
+end
+
+-- Función ESP TODOS los Brainrots
+local function toggleAllBrainrotsEsp()
+    local allEspEnabled = not (workspace:FindFirstChild("AllBrainrotsESP") ~= nil)
+    
+    if allEspEnabled then
+        -- Crear marcador para saber que está activado
+        local marker = Instance.new("BoolValue")
+        marker.Name = "AllBrainrotsESP"
+        marker.Parent = workspace
+        
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") or obj:IsA("Model") then
+                -- Buscar en TODA la lista de brainrots
+                for _, brainrotName in pairs(allBrainrots) do
+                    if string.find(obj.Name:lower(), brainrotName:lower()) or 
+                       (obj.Parent and string.find(obj.Parent.Name:lower(), brainrotName:lower())) then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "AllBrainrotESP"
+                        highlight.FillColor = Color3.fromRGB(0, 255, 0) -- Verde para todos
+                        highlight.OutlineColor = Color3.fromRGB(255, 255, 0) -- Amarillo
+                        highlight.Parent = obj
+                        print("🎯 Brainrot detectado: " .. obj.Name)
+                        break
+                    end
+                end
+            end
+        end
+        print("👁️ ESP ALL Brainrots activado (TODOS los brainrots)")
+    else
+        -- Remover marcador
+        if workspace:FindFirstChild("AllBrainrotsESP") then
+            workspace.AllBrainrotsESP:Destroy()
+        end
+        
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:FindFirstChild("AllBrainrotESP") then
+                obj.AllBrainrotESP:Destroy()
+            end
+        end
+        print("❌ ESP ALL Brainrots desactivado")
     end
 end
 
 -- Crear botones
 createButton("Laser Aimbot (Auto-Redirect)", toggleLaserAimbot)
 createButton("🚁 Fly to DeliveryHitbox", floatingTpToDelivery)
-createButton("🚀 Ultra Fast TP to Base", ultraFastTpToBase)
+createButton("🚀 Ultra Fast TP to Spawn", ultraFastTpToSpawn)
 createButton("ESP Players", togglePlayerEsp)
-createButton("ESP All Brainrots", toggleSecretEsp)
+createButton("ESP Secrets ONLY", toggleSecretEsp)
+createButton("ESP ALL Brainrots", toggleAllBrainrotsEsp)
 
 -- Botón para abrir/cerrar panel
 local toggleButton = Instance.new("TextButton")
@@ -702,16 +672,16 @@ end)
 
 -- Actualizar canvas size del scroll frame
 local function updateScrollSize()
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
 end
 
 listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
 updateScrollSize()
 
--- Detectar base y DeliveryHitbox automáticamente al cargar
+-- Guardar posición de spawn al cargar
 spawn(function()
-    wait(3)
-    detectMyBase()
+    wait(2) -- Esperar a que el character se cargue
+    saveSpawnPosition()
     wait(1)
     detectDeliveryHitbox()
 end)
@@ -733,7 +703,7 @@ spawn(function()
                         button.Text = "🚁 Fly to DeliveryHitbox"
                     end
                 elseif button.Text:find("Ultra Fast TP") then
-                    -- Ultra Fast TP ya no requiere brainrot, siempre disponible
+                    -- Ultra Fast TP siempre disponible
                     button.BackgroundColor3 = Color3.fromRGB(0, 200, 0) -- Verde siempre
                     button.Text = "🚀 FAST TP (ALWAYS READY!)"
                 end
@@ -834,12 +804,12 @@ end)
 local function showSystemInfo()
     spawn(function()
         local info = "📊 INFORMACIÓN DEL SISTEMA:\n"
-        info = info .. "🏠 Base: " .. (basePosition and "✅ Detectada" or "❌ No detectada") .. "\n"
+        info = info .. "🏠 Spawn: " .. (spawnPosition and "✅ Detectado" or "❌ No detectado") .. "\n"
         info = info .. "📦 DeliveryHitbox: " .. (deliveryHitbox and "✅ Encontrado" or "❌ No encontrado") .. "\n"
         local hasItem, itemName = hasStolenBrainrot()
         info = info .. "🎯 Brainrot: " .. (hasItem and ("✅ " .. itemName) or "❌ Ninguno")
         
-        createNotification(info, Color3.fromRGB(50, 50, 150), 6)
+                createNotification(info, Color3.fromRGB(50, 50, 150), 6)
     end)
 end
 
@@ -864,35 +834,100 @@ end)
 
 -- Función para actualizar ESP cuando aparezcan nuevos brainrots
 workspace.DescendantAdded:Connect(function(descendant)
-    if secretEspEnabled and descendant:IsA("BasePart") then
-        wait(0.1) -- Pequeña espera para asegurar que el objeto esté completamente cargado
+    wait(0.1) -- Pequeña espera para asegurar que el objeto esté completamente cargado
+    
+    -- ESP para secrets si está activado
+    if secretEspEnabled and (descendant:IsA("BasePart") or descendant:IsA("Model")) then
+        for _, secretName in pairs(secretBrainrots) do
+            if string.find(descendant.Name:lower(), secretName:lower()) or 
+               (descendant.Parent and string.find(descendant.Parent.Name:lower(), secretName:lower())) then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "SecretESP"
+                highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Dorado para secrets
+                highlight.OutlineColor = Color3.fromRGB(255, 0, 255) -- Magenta
+                highlight.Parent = descendant
+                print("✨ Nuevo secret detectado: " .. descendant.Name)
+                break
+            end
+        end
+    end
+    
+    -- ESP para todos los brainrots si está activado
+    if workspace:FindFirstChild("AllBrainrotsESP") and (descendant:IsA("BasePart") or descendant:IsA("Model")) then
         for _, brainrotName in pairs(allBrainrots) do
             if string.find(descendant.Name:lower(), brainrotName:lower()) or 
                (descendant.Parent and string.find(descendant.Parent.Name:lower(), brainrotName:lower())) then
                 local highlight = Instance.new("Highlight")
-                highlight.Name = "SecretESP"
-                highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                highlight.Name = "AllBrainrotESP"
+                highlight.FillColor = Color3.fromRGB(0, 255, 0) -- Verde
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 0) -- Amarillo
                 highlight.Parent = descendant
-                print("🎯 Nuevo brainrot detectado y resaltado: " .. descendant.Name)
+                print("🎯 Nuevo brainrot detectado: " .. descendant.Name)
                 break
             end
         end
     end
 end)
 
-print("🎮 Panel Flotante MEJORADO cargado exitosamente!")
+-- Función para guardar nueva posición de spawn cuando el jugador respawnea
+player.CharacterAdded:Connect(function(character)
+    wait(2) -- Esperar a que se cargue completamente
+    saveSpawnPosition()
+end)
+
+-- Función de limpieza cuando el jugador se va
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        -- Limpiar ESP y conexiones
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:FindFirstChild("PlayerESP") or obj:FindFirstChild("SecretESP") or obj:FindFirstChild("AllBrainrotESP") then
+                obj:FindFirstChild("PlayerESP"):Destroy()
+                obj:FindFirstChild("SecretESP"):Destroy()
+                obj:FindFirstChild("AllBrainrotESP"):Destroy()
+            end
+        end
+    end
+end)
+
+-- Función para detectar automáticamente cuando aparece un DeliveryHitbox
+workspace.ChildAdded:Connect(function(child)
+    if child.Name == "DeliveryHitbox" or child.Name:find("Delivery") then
+        deliveryHitbox = child
+        print("📦 Nuevo DeliveryHitbox detectado automáticamente: " .. tostring(child.Position))
+    end
+end)
+
+-- Sistema de auto-detección mejorado
+spawn(function()
+    while true do
+        wait(10) -- Verificar cada 10 segundos
+        
+        -- Re-detectar spawn si no está guardado
+        if not spawnPosition then
+            saveSpawnPosition()
+        end
+        
+        -- Re-detectar DeliveryHitbox si se perdió
+        if not deliveryHitbox or not deliveryHitbox.Parent then
+            detectDeliveryHitbox()
+        end
+    end
+end)
+
+print("🎮 Panel CORREGIDO cargado exitosamente!")
 print("🔧 Funciones disponibles:")
 print("   🎯 Laser Aimbot: Redirige TODOS los disparos hacia jugadores")
 print("   🚁 Fly to DeliveryHitbox: Vuelo flotante hacia el punto de entrega (REQUIERE BRAINROT)")
-print("   🚀 Ultra Fast TP: TP súper rápido hacia tu base (SIN REQUISITOS)")
+print("   🚀 Ultra Fast TP to Spawn: TP súper rápido hacia tu SPAWN (SIN REQUISITOS)")
 print("   👁️ ESP Players: Resalta jugadores")
-print("   👁️ ESP All Brainrots: Resalta TODOS los brainrots (secrets + normales)")
+print("   👁️ ESP Secrets ONLY: Resalta SOLO brainrots secretos (dorado/magenta)")
+print("   👁️ ESP ALL Brainrots: Resalta TODOS los brainrots (verde/amarillo)")
 print("   📊 System Info: Muestra estado del sistema")
 print("⌨️ Presiona Insert o el botón 'Panel' para abrir/cerrar")
-print("🚁 Sistema de vuelo inteligente - Evita paredes automáticamente!")
 print("✅ CORRECCIONES APLICADAS:")
-print("   - Ultra Fast TP ya NO requiere brainrot")
-print("   - Detección mejorada de TODOS los brainrots")
-print("   - Lista completa de " .. #allBrainrots .. " brainrots incluida")
-print("   - ESP actualizado para detectar nuevos brainrots automáticamente")
+print("   - TP ahora va al SPAWN en lugar de 'base'")
+print("   - ESP Secrets separado del ESP All Brainrots")
+print("   - Eliminados errores de PathfindingService")
+print("   - Auto-detección mejorada de spawn y DeliveryHitbox")
+print("   - Sistema de notificaciones funcional")
+print("   - " .. #secretBrainrots .. " secrets y " .. #allBrainrots .. " brainrots totales en las listas")
