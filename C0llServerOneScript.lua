@@ -66,8 +66,8 @@ local function hasGroundBelow(maxDistance)
     return raycastResult ~= nil
 end
 
--- Función para crear piso invisible
-local function createInvisibleFloor()
+-- Función para crear piso rainbow
+local function createRainbowFloor()
     local character = player.Character
     if not character then return end
     
@@ -79,48 +79,60 @@ local function createInvisibleFloor()
         invisibleFloor:Destroy()
     end
     
-    -- Crear nuevo piso invisible
+    -- Crear nuevo piso rainbow
     local floor = Instance.new("Part")
-    floor.Name = "InvisibleFloor_" .. player.Name
+    floor.Name = "RainbowFloor_" .. player.Name
     floor.Size = FLOOR_SIZE
     floor.Position = rootPart.Position + Vector3.new(0, FLOOR_OFFSET, 0)
     floor.Anchored = true
     floor.CanCollide = true
-    floor.Transparency = 1 -- Completamente invisible
-    floor.Material = Enum.Material.ForceField
-    floor.BrickColor = BrickColor.new("Bright blue")
+    floor.Transparency = 0.3 -- Semi-transparente para ver el efecto rainbow
+    floor.Material = Enum.Material.Neon
+    floor.Shape = Enum.PartType.Block
     
-    -- Opcional: Agregar un efecto visual sutil (comentar si no se desea)
-    --floor.Transparency = 0.8
+    -- Agregar esquinas redondeadas al piso
+    local corner = Instance.new("SpecialMesh")
+    corner.MeshType = Enum.MeshType.Brick
+    corner.Parent = floor
     
     floor.Parent = Workspace
     invisibleFloor = floor
     
-    print("Piso invisible creado")
-    
-    -- Eliminar el piso después de un tiempo si el jugador ya no lo necesita
+    -- Efecto rainbow animado
     spawn(function()
-        wait(2) -- Esperar 2 segundos
-        if invisibleFloor == floor then
-            -- Verificar si el jugador ya está en suelo firme
-            if not isPlayerInAir() or hasGroundBelow(FALL_DETECTION_HEIGHT) then
-                floor:Destroy()
-                if invisibleFloor == floor then
-                    invisibleFloor = nil
-                end
-                print("Piso invisible removido")
-            end
+        local hue = 0
+        while invisibleFloor == floor and floor.Parent do
+            hue = (hue + 2) % 360
+            local color = Color3.fromHSV(hue / 360, 1, 1)
+            floor.Color = color
+            wait(0.1)
         end
     end)
+    
+    print("🌈 Piso rainbow creado")
 end
 
--- Función para eliminar piso invisible
-local function removeInvisibleFloor()
+-- Función para eliminar piso rainbow
+local function removeRainbowFloor()
     if invisibleFloor then
         invisibleFloor:Destroy()
         invisibleFloor = nil
-        print("Piso invisible removido")
+        print("🌈 Piso rainbow removido")
     end
+end
+
+-- Función para actualizar posición del piso
+local function updateFloorPosition()
+    if not invisibleFloor or not systemEnabled then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    -- Actualizar posición del piso para que siga al jugador
+    invisibleFloor.Position = rootPart.Position + Vector3.new(0, FLOOR_OFFSET, 0)
 end
 
 -- Función principal de verificación
@@ -129,7 +141,7 @@ local function checkPlayer()
     if not systemEnabled then
         -- Si el sistema está desactivado, remover cualquier piso existente
         if invisibleFloor then
-            removeInvisibleFloor()
+            removeRainbowFloor()
         end
         return
     end
@@ -140,17 +152,12 @@ local function checkPlayer()
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
     
-    -- Verificar si el jugador está en el aire y no hay suelo debajo
-    if isPlayerInAir() and not hasGroundBelow(FALL_DETECTION_HEIGHT) then
-        -- Crear piso invisible si no existe
-        if not invisibleFloor then
-            createInvisibleFloor()
-        end
+    -- SIEMPRE crear/mantener el piso rainbow cuando el sistema está activado
+    if not invisibleFloor then
+        createRainbowFloor()
     else
-        -- Remover piso invisible si existe y el jugador ya no lo necesita
-        if invisibleFloor then
-            removeInvisibleFloor()
-        end
+        -- Actualizar posición del piso para que siga al jugador
+        updateFloorPosition()
     end
 end
 
@@ -159,15 +166,17 @@ local function toggleSystem(enabled)
     systemEnabled = enabled
     
     if enabled then
-        print("✅ Sistema de piso invisible ACTIVADO")
+        print("✅ Sistema de piso rainbow ACTIVADO")
         -- Iniciar el bucle de verificación
         if not isLooping then
             startPlayerLoop()
         end
+        -- Crear piso inmediatamente
+        createRainbowFloor()
     else
-        print("❌ Sistema de piso invisible DESACTIVADO")
-        -- Remover el piso invisible
-        removeInvisibleFloor()
+        print("❌ Sistema de piso rainbow DESACTIVADO")
+        -- Remover el piso rainbow
+        removeRainbowFloor()
         -- Detener el bucle
         isLooping = false
     end
@@ -294,7 +303,7 @@ local function createGUI()
     toggleButton.Position = UDim2.new(0, 10, 0, 65)
     toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
     toggleButton.BorderSizePixel = 0
-    toggleButton.Text = "ACTIVAR SISTEMA"
+    toggleButton.Text = "ACTIVAR PISO RAINBOW"
     toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     toggleButton.TextTransparency = 1 -- Inicialmente invisible
     toggleButton.TextScaled = true
@@ -308,14 +317,14 @@ local function createGUI()
     -- Función para actualizar la GUI
     local function updateGUI(enabled)
         if enabled then
-            statusLabel.Text = "✅ ACTIVADO"
+            statusLabel.Text = "🌈 ACTIVADO"
             statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            toggleButton.Text = "DESACTIVAR SISTEMA"
+            toggleButton.Text = "DESACTIVAR PISO RAINBOW"
             toggleButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
         else
             statusLabel.Text = "❌ DESACTIVADO"
             statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            toggleButton.Text = "ACTIVAR SISTEMA"
+            toggleButton.Text = "ACTIVAR PISO RAINBOW"
             toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
         end
     end
@@ -376,6 +385,7 @@ player.CharacterAdded:Connect(function(character)
     end
 end)
 
-print("🚀 Sistema de piso invisible con panel controlado por tecla F cargado")
+print("🚀 Sistema de piso rainbow con panel controlado por tecla F cargado")
 print("💡 Estado inicial: DESACTIVADO")
 print("🎮 Presiona F para mostrar/ocultar el panel de control")
+print("🌈 Cuando esté activado, aparecerá un piso rainbow debajo de ti SIEMPRE")
