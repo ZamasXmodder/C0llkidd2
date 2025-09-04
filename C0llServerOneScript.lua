@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PathfindingService = game:GetService("PathfindingService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -72,7 +73,10 @@ local autoLaserConnection = nil
 local autoStealConnection = nil
 local initialPosition = nil
 local espObjects = {}
-local teleportCooldown = false -- Para evitar teletransportes múltiples
+local isAutoRunning = false
+local autoRunConnection = nil
+local currentPath = nil
+local currentWaypointIndex = 1
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -296,84 +300,147 @@ local function toggleAutoLaser()
     end
 end
 
--- FUNCIÓN DE TELETRANSPORTE MEJORADA - SIN RETROCESO
-local function safeTeleport(targetPosition)
-    if teleportCooldown or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+-- NUEVA FUNCIÓN: AUTO-RUN VISUAL CON PATHFINDING (SIN TELETRANSPORTE)
+local function startAutoRun(targetPosition)
+    if isAutoRunning or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") or not player.Character:FindFirstChild("Humanoid") then
         return
     end
     
-    teleportCooldown = true -- Activar cooldown
-    
+    isAutoRunning = true
     local character = player.Character
+    local humanoid = character.Humanoid
     local humanoidRootPart = character.HumanoidRootPart
-    local humanoid = character:FindFirstChild("Humanoid")
     
-    -- PASO 1: Detener completamente al personaje
-    pcall(function()
-        if humanoid then
-            humanoid.PlatformStand = true -- Prevenir movimiento
-            humanoid:ChangeState(Enum.HumanoidStateType.Physics) -- Cambiar estado
-        end
-        
-        -- Detener toda velocidad
-        local bodyVelocity = humanoidRootPart:FindFirstChild("BodyVelocity")
-        if not bodyVelocity then
-            bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.Parent = humanoidRootPart
-        end
-        
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0) -- Velocidad cero
-        
-        -- Asegurar que no haya rotación
-        humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        humanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    print("🏃‍♂️ INICIANDO AUTO-RUN VISUAL hacia la base!")
+    print("📍 Destino: " .. tostring(targetPosition))
+    
+    -- Crear path con Pathfinding para evitar obstáculos
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 3,
+        AgentHeight = 6,
+        AgentCanJump = true,
+        WaypointSpacing = 4,
+        Costs = {
+            Water = math.huge, -- Evitar agua
+            DangerousLava = math.huge -- Evitar lava si existe
+        }
+    })
+    
+    -- Calcular el camino
+    local success, errorMessage = pcall(function()
+        path:ComputeAsync(humanoidRootPart.Position, targetPosition)
     end)
     
-    -- PASO 2: Esperar un frame para que se apliquen los cambios
-    wait(0.1)
+    if not success then
+        print("❌ Error calculando camino: " .. tostring(errorMessage))
+        isAutoRunning = false
+        return
+    end
     
-    -- PASO 3: Teletransporte suave y controlado
-    pcall(function()
-        -- Crear un CFrame con rotación Y mantenida para evitar mareos
-        local currentRotation = humanoidRootPart.CFrame.Rotation
-        local newCFrame = CFrame.new(targetPosition) * currentRotation
-        
-        -- Teletransporte directo
-        humanoidRootPart.CFrame = newCFrame
-    end)
+    local waypoints = path:GetWaypoints()
     
-    -- PASO 4: Limpiar efectos y restaurar control después de un momento
-    wait(0.2)
+    if #waypoints < 2 then
+        print("❌ No se pudo crear un camino válido")
+        isAutoRunning = false
+        return
+    end
     
-    pcall(function()
-        -- Restaurar control del personaje
-        if humanoid then
-            humanoid.PlatformStand = false
-            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    print("✅ Camino calculado con " .. #waypoints .. " puntos")
+    
+    -- Aumentar velocidad de corrida
+    humanoid.WalkSpeed = 50 -- Velocidad rápida pero natural
+    
+    -- Variables para el seguimiento del camino
+    local waypointIndex = 1
+    local startTime = tick()
+    
+    -- Función para seguir el camino
+    local function followPath()
+        if waypointIndex > #waypoints then
+            -- Llegamos al final
+            print("✅ ¡LLEGASTE A LA BASE!")
+            humanoid.WalkSpeed = 16 -- Restaurar velocidad normal
+            isAutoRunning = false
+            if autoRunConnection then
+                autoRunConnection:Disconnect()
+                autoRunConnection = nil
+            end
+            return
         end
         
-        -- Limpiar BodyVelocity
-        local bodyVelocity = humanoidRootPart:FindFirstChild("BodyVelocity")
-        if bodyVelocity then
-            bodyVelocity:Destroy()
+        local targetWaypoint = waypoints[waypointIndex]
+        local targetPos = targetWaypoint.Position
+        
+        -- Hacer que el personaje camine hacia el waypoint
+        humanoid:MoveTo(targetPos)
+        
+        print("🚶‍♂️ Caminando hacia waypoint " .. waypointIndex .. "/" .. #waypoints)
+        
+        -- Función para verificar si llegó al waypoint
+        local function checkWaypoint()
+            if not character.Parent or not humanoidRootPart.Parent then
+                return
+            end
+            
+            local distance = (humanoidRootPart.Position - targetPos).Magnitude
+            
+            -- Si llegó cerca del waypoint (8 studs), ir al siguiente
+            if distance < 8 then
+                waypointIndex = waypointIndex + 1
+                followPath() -- Ir al siguiente waypoint
+            end
         end
         
-        -- Asegurar velocidad cero final
-        humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        humanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    end)
+        -- Manejar waypoints especiales (salto)
+        if targetWaypoint.Action == Enum.PathWaypointAction.Jump then
+            print("🦘 Saltando obstáculo...")
+            humanoid.Jump = true
+        end
+        
+        -- Crear connection para verificar llegada al waypoint
+        if autoRunConnection then
+            autoRunConnection:Disconnect()
+        end
+        
+        autoRunConnection = RunService.Heartbeat:Connect(function()
+            -- Timeout de seguridad
+            if tick() - startTime > 30 then
+                print("⏰ Auto-run detenido por timeout")
+                humanoid.WalkSpeed = 16
+                isAutoRunning = false
+                if autoRunConnection then
+                    autoRunConnection:Disconnect()
+                    autoRunConnection = nil
+                end
+                return
+            end
+            
+            checkWaypoint()
+        end)
+    end
     
-    print("¡Teletransportado suavemente al punto inicial!")
-    
-    -- Desactivar cooldown después de 2 segundos
-    spawn(function()
-        wait(2)
-        teleportCooldown = false
-    end)
+    -- Iniciar el seguimiento del camino
+    followPath()
 end
 
--- Función para auto steal MEJORADA
+-- Función para detener auto-run
+local function stopAutoRun()
+    if isAutoRunning then
+        print("🛑 Deteniendo auto-run...")
+        isAutoRunning = false
+        
+        if autoRunConnection then
+            autoRunConnection:Disconnect()
+            autoRunConnection = nil
+        end
+        
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+end
+
+-- Función para auto steal CON AUTO-RUN VISUAL
 local function toggleAutoSteal()
     autoStealEnabled = not autoStealEnabled
     
@@ -384,31 +451,31 @@ local function toggleAutoSteal()
         -- Guardar posición inicial
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             initialPosition = player.Character.HumanoidRootPart.Position
+            print("📍 Base guardada en: " .. tostring(initialPosition))
         end
         
-        -- Detectar cuando aparece un brainrot robado EN EL BACKPACK (más confiable)
+        -- Detectar brainrot en backpack
         local connection1 = player.Backpack.ChildAdded:Connect(function(item)
-            if isBrainrot(item.Name) and not teleportCooldown then
-                print("¡Brainrot añadido al inventario: " .. item.Name .. "! Iniciando teletransporte...")
+            if isBrainrot(item.Name) and not isAutoRunning then
+                print("🎯 ¡BRAINROT ROBADO: " .. item.Name .. "!")
                 if initialPosition then
-                    wait(0.3) -- Espera para que se complete el robo
-                    safeTeleport(initialPosition)
+                    wait(0.2)
+                    startAutoRun(initialPosition)
                 end
             end
         end)
         
-        -- Detectar brainrots que aparecen cerca del jugador (respaldo)
+        -- Detectar brainrot cerca del jugador
         local connection2 = workspace.ChildAdded:Connect(function(child)
-            if child:IsA("Model") and isBrainrot(child.Name) and not teleportCooldown then
-                wait(0.2)
+            if child:IsA("Model") and isBrainrot(child.Name) and not isAutoRunning then
+                wait(0.1)
                 
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and initialPosition then
                     local distance = (player.Character.HumanoidRootPart.Position - child:GetModelCFrame().Position).Magnitude
                     
-                    -- Si el brainrot aparece muy cerca del jugador
-                    if distance < 15 then
-                        print("¡Brainrot detectado cerca: " .. child.Name .. "! Iniciando teletransporte...")
-                        safeTeleport(initialPosition)
+                    if distance < 10 then
+                        print("🎯 ¡BRAINROT CERCA: " .. child.Name .. "!")
+                        startAutoRun(initialPosition)
                     end
                 end
             end
@@ -426,8 +493,8 @@ local function toggleAutoSteal()
             autoStealConnection = nil
         end
         
-        -- Resetear cooldown
-        teleportCooldown = false
+        -- Detener auto-run si está activo
+        stopAutoRun()
     end
 end
 
@@ -462,22 +529,20 @@ mainFrame.InputEnded:Connect(function(input)
     end
 end)
 
--- Actualizar posición inicial cuando el jugador se mueva significativamente
+-- Actualizar base cada cierto tiempo
 spawn(function()
     while true do
-        wait(3) -- Revisar cada 3 segundos
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and not autoStealEnabled then
+        wait(5)
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and not autoStealEnabled and not isAutoRunning then
             local newPos = player.Character.HumanoidRootPart.Position
-            if not initialPosition or (initialPosition and (initialPosition - newPos).Magnitude > 20) then
-                initialPosition = newPos
-                print("📍 Nuevo punto inicial guardado: " .. tostring(initialPosition))
-            end
+            initialPosition = newPos
         end
     end
 end)
 
-print("Brainrot Panel cargado exitosamente!")
-print("ESP: Resalta brainrots secrets con highlight")
-print("Auto Laser: Dispara automáticamente a jugadores cercanos (requiere LaserCape equipado)")
-print("Auto Steal: Te hace CORRER automáticamente hacia el punto inicial cuando robas un brainrot")
-print("NUEVO SISTEMA: Auto-Run en lugar de teletransporte - más natural y sin bugs!")
+print("🎮 Brainrot Panel cargado exitosamente!")
+print("👁️ ESP: Resalta brainrots secrets")
+print("🔫 Auto Laser: Dispara automáticamente a jugadores cercanos")
+print("🏃‍♂️ Auto Steal: Te hace CORRER VISUALMENTE a tu base cuando robas")
+print("🗺️ NUEVO: Usa Pathfinding para evitar obstáculos automáticamente!")
+print("✨ SIN TELETRANSPORTE - Solo corrida natural y rápida!")
