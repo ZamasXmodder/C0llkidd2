@@ -33,6 +33,35 @@ local secretBrainrots = {
     "Secret Lucky Block"
 }
 
+-- Lista completa de todos los brainrots
+local allBrainrots = {
+    "Noobini Pizzanini", "Lirili Larila", "TIM Cheese", "Flurifura", "Talpa Di Fero",
+    "Svinia Bombardino", "Pipi Kiwi", "Racooni Jandelini", "Pipi Corni", "Trippi Troppi",
+    "Tung Tung Tung Sahur", "Gangster Footera", "Bandito Bobritto", "Boneca Ambalabu",
+    "Cacto Hipopotamo", "Ta Ta Ta Ta Sahur", "Tric Trac Baraboom", "Steal a Brainrot Pipi Avocado",
+    "Cappuccino Assassino", "Brr Brr Patapin", "Trulimero Trulicina", "Bambini Crostini",
+    "Bananita Dolphinita", "Perochello Lemonchello", "Brri Brri Bicus Dicus Bombicus",
+    "Avocadini Guffo", "Salamino Penguino", "Ti Ti Ti Sahur", "Penguino Cocosino",
+    "Burbalini Loliloli", "Chimpanzini Bananini", "Ballerina Cappuccina", "Chef Crabracadabra",
+    "Lionel Cactuseli", "Glorbo Fruttodrillo", "Blueberrini Octapusini", "Strawberelli Flamingelli",
+    "Pandaccini Bananini", "Cocosini Mama", "Sigma Boy", "Pi Pi Watermelon", "frigo Camelo",
+    "Orangutini Ananasini", "Rhino Toasterino", "Bombardiro Crocodilo", "Bombombini Gusini",
+    "Cavallo Virtuso", "Gorillo Watermelondrillo", "Avocadorilla", "Tob Tobi Tobi",
+    "Gangazelli Trulala", "Te Te Te Sahur", "Tracoducotulu Delapeladustuz", "Lerulerulerule",
+    "Carloo", "Spioniro Golubiro", "Zibra Zubra Zibralini", "Tigrilini Watermelini",
+    "Cocofanta Elefanto", "Girafa Celestre", "Gyattatino Nyanino", "Matteo",
+    "Tralalero Tralala", "Espresso Signora", "Odin Din Din Dun", "Statutino Libertino",
+    "Trenostruzzo Turbo 3000", "Ballerino Lololo", "Los Orcalitos", "Tralalita Tralala",
+    "Urubini Flamenguini", "Trigoligre Frutonni", "Orcalero Orcala", "Bulbito Bandito Traktorito",
+    "Los Crocodilitos", "Piccione Macchina", "Trippi Troppi Troppa Trippa", "Los Tungtuntuncitos",
+    "Tukanno Bananno", "Alessio", "Tipi Topi Taco", "Pakrahmatmamat", "Bombardini Tortinii"
+}
+
+-- Combinar ambas listas
+for _, secret in pairs(secretBrainrots) do
+    table.insert(allBrainrots, secret)
+end
+
 -- Variables
 local espEnabled = false
 local autoStealEnabled = false
@@ -107,6 +136,16 @@ local function isSecretBrainrot(name)
     return false
 end
 
+-- Función para verificar si es cualquier brainrot
+local function isBrainrot(name)
+    for _, brainrotName in pairs(allBrainrots) do
+        if string.find(name:lower(), brainrotName:lower()) then
+            return true
+        end
+    end
+    return false
+end
+
 -- Función para crear ESP
 local function createESP(part)
     if not part or not part.Parent then return end
@@ -128,6 +167,30 @@ local function createESP(part)
     textLabel.Parent = billboardGui
     
     return billboardGui
+end
+
+-- Función para verificar si el jugador tiene un brainrot en la mano
+local function hasBrainrotInHand()
+    if not player.Character then return false end
+    
+    -- Buscar en las herramientas del jugador
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and isBrainrot(tool.Name) then
+                return true
+            end
+        end
+    end
+    
+    -- Buscar herramienta equipada
+    for _, child in pairs(player.Character:GetChildren()) do
+        if child:IsA("Tool") and isBrainrot(child.Name) then
+            return true
+        end
+    end
+    
+    return false
 end
 
 -- Función para toggle ESP
@@ -187,7 +250,7 @@ local function toggleAutoSteal()
         
         -- Guardar posición inicial
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            initialPosition = player.Character.HumanoidRootPart.Position
+            initialPosition = player.Character.HumanoidRootPart.CFrame
         end
         
         autoStealConnection = RunService.Heartbeat:Connect(function()
@@ -197,21 +260,11 @@ local function toggleAutoSteal()
             
             local humanoidRootPart = player.Character.HumanoidRootPart
             
-            -- Buscar brainrots cercanos
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("BasePart") and obj.Name:lower():find("brainrot") then
-                    local distance = (humanoidRootPart.Position - obj.Position).Magnitude
-                    
-                    -- Si estamos cerca de un brainrot (robando)
-                    if distance < 10 then
-                        wait(0.1) -- Pequeña espera para asegurar que se robe
-                        -- Teletransportar de vuelta a la posición inicial
-                        if initialPosition then
-                            humanoidRootPart.CFrame = CFrame.new(initialPosition)
-                        end
-                        break
-                    end
-                end
+            -- Verificar si tiene un brainrot en la mano
+            if hasBrainrotInHand() and initialPosition then
+                -- Teletransportar de vuelta a la posición inicial
+                humanoidRootPart.CFrame = initialPosition
+                wait(0.5) -- Esperar un poco antes de la siguiente verificación
             end
         end)
         
