@@ -27,6 +27,7 @@ local teleportPart = nil
 local teleportConnection = nil
 local brainrotDetectionConnection = nil
 local baseReturnButton = nil
+local espButton = nil
 
 -- Settings
 local settings = {
@@ -192,6 +193,127 @@ local function teleportToBase()
     end)
 end
 
+-- List of all brainrots
+local brainrotList = {
+    -- Regular brainrots
+    "Noobini Pizzanini", "Lirili Larila", "TIM Cheese", "Flurifura", "Talpa Di Fero",
+    "Svinia Bombardino", "Pipi Kiwi", "Racooni Jandelini", "Pipi Corni", "Trippi Troppi",
+    "Tung Tung Tung Sahur", "Gangster Footera", "Bandito Bobritto", "Boneca Ambalabu",
+    "Cacto Hipopotamo", "Ta Ta Ta Ta Sahur", "Tric Trac Baraboom", "Steal a Brainrot Pipi Avocado",
+    "Cappuccino Assassino", "Brr Brr Patapin", "Trulimero Trulicina", "Bambini Crostini",
+    "Bananita Dolphinita", "Perochello Lemonchello", "Brri Brri Bicus Dicus Bombicus",
+    "Avocadini Guffo", "Salamino Penguino", "Ti Ti Ti Sahur", "Penguino Cocosino",
+    "Burbalini Loliloli", "Chimpanzini Bananini", "Ballerina Cappuccina", "Chef Crabracadabra",
+    "Lionel Cactuseli", "Glorbo Fruttodrillo", "Blueberrini Octapusini", "Strawberelli Flamingelli",
+    "Pandaccini Bananini", "Cocosini Mama", "Sigma Boy", "Pi Pi Watermelon", "Frigo Camelo",
+    "Orangutini Ananasini", "Rhino Toasterino", "Bombardiro Crocodilo", "Bombombini Gusini",
+    "Cavallo Virtuso", "Gorillo Watermelondrillo", "Avocadorilla", "Tob Tobi Tobi",
+    "Gangazelli Trulala", "Te Te Te Sahur", "Tracoducotulu Delapeladustuz", "Lerulerulerule",
+    "Carloo", "Spioniro Golubiro", "Zibra Zubra Zibralini", "Tigrilini Watermelini",
+    "Cocofanta Elefanto", "Girafa Celestre", "Gyattatino Nyanino", "Matteo", "Tralalero Tralala",
+    "Espresso Signora", "Odin Din Din Dun", "Statutino Libertino", "Trenostruzzo Turbo 3000",
+    "Ballerino Lololo", "Los Orcalitos", "Tralalita Tralala", "Urubini Flamenguini",
+    "Trigoligre Frutonni", "Orcalero Orcala", "Bulbito Bandito Traktorito", "Los Crocodilitos",
+    "Piccione Macchina", "Trippi Troppi Troppa Trippa", "Los Tungtuntuncitos", "Tukanno Bananno",
+    "Alessio", "Tipi Topi Taco", "Pakrahmatmamat", "Bombardini Tortinii"
+}
+
+-- Secret brainrots (for ESP highlighting)
+local secretBrainrots = {
+    "La Vacca Saturno Saturnita", "Chimpanzini Spiderini", "Los Tralaleritos", "Las Tralaleritas",
+    "Graipuss Medussi", "La Grande Combinasion", "Nuclearo Dinossauro", "Garama and Madundung",
+    "Tortuginni Dragonfruitini", "Pot Hotspot", "Las Vaquitas Saturnitas", "Chicleteira Bicicleteira",
+    "Agarrini la Palini", "Dragon Cannelloni", "Los Combinasionas", "Karkerkar Kurkur",
+    "Los Hotspotsitos", "Esok Sekolah", "Los Matteos", "Dul Dul Dul", "Blackhole Goat",
+    "Nooo My Hotspot", "Sammyini Spyderini", "La Supreme Combinasion", "Ketupat Kepat"
+}
+
+-- ESP variables
+local espEnabled = false
+local espConnection = nil
+local espHighlights = {}
+
+-- Check if a tool is a brainrot
+local function isBrainrot(toolName)
+    for _, brainrot in pairs(brainrotList) do
+        if string.lower(toolName) == string.lower(brainrot) then
+            return true
+        end
+    end
+    for _, secret in pairs(secretBrainrots) do
+        if string.lower(toolName) == string.lower(secret) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Check if a tool is a secret brainrot
+local function isSecretBrainrot(toolName)
+    for _, secret in pairs(secretBrainrots) do
+        if string.lower(toolName) == string.lower(secret) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Create ESP highlight for secret brainrots
+local function createESPHighlight(tool)
+    if not isSecretBrainrot(tool.Name) then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = tool
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillColor = Color3.fromRGB(255, 0, 255) -- Magenta for secrets
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 0) -- Yellow outline
+
+    espHighlights[tool] = highlight
+
+    -- Add rainbow effect to secret ESP
+    local hue = 0
+    local rainbowESP = RunService.Heartbeat:Connect(function()
+        if highlight and highlight.Parent then
+            hue = (hue + 3) % 360
+            local color = Color3.fromHSV(hue / 360, 1, 1)
+            highlight.FillColor = color
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        else
+            rainbowESP:Disconnect()
+        end
+    end)
+end
+
+-- ESP system for secret brainrots
+local function startESP()
+    if espConnection then
+        espConnection:Disconnect()
+    end
+
+    espConnection = RunService.Heartbeat:Connect(function()
+        if not espEnabled then return end
+
+        -- Check all tools in workspace
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Tool") and isSecretBrainrot(obj.Name) and not espHighlights[obj] then
+                createESPHighlight(obj)
+            end
+        end
+
+        -- Clean up destroyed highlights
+        for tool, highlight in pairs(espHighlights) do
+            if not tool.Parent or not highlight.Parent then
+                if highlight.Parent then
+                    highlight:Destroy()
+                end
+                espHighlights[tool] = nil
+            end
+        end
+    end)
+end
+
 local function detectBrainrot()
     if brainrotDetectionConnection then
         brainrotDetectionConnection:Disconnect()
@@ -210,13 +332,7 @@ local function detectBrainrot()
 
         if backpack then
             for _, tool in pairs(backpack:GetChildren()) do
-                if tool:IsA("Tool") and (
-                    string.find(string.lower(tool.Name), "brainrot") or
-                    string.find(string.lower(tool.Name), "brain") or
-                    string.find(string.lower(tool.Name), "rot") or
-                    string.find(string.lower(tool.Name), "italian") or
-                    string.find(string.lower(tool.Name), "tralalero")
-                ) then
+                if tool:IsA("Tool") and isBrainrot(tool.Name) then
                     hasBrainrot = true
                     break
                 end
@@ -226,13 +342,7 @@ local function detectBrainrot()
         -- Check equipped tool
         if not hasBrainrot and character then
             local equippedTool = character:FindFirstChildOfClass("Tool")
-            if equippedTool and (
-                string.find(string.lower(equippedTool.Name), "brainrot") or
-                string.find(string.lower(equippedTool.Name), "brain") or
-                string.find(string.lower(equippedTool.Name), "rot") or
-                string.find(string.lower(equippedTool.Name), "italian") or
-                string.find(string.lower(equippedTool.Name), "tralalero")
-            ) then
+            if equippedTool and isBrainrot(equippedTool.Name) then
                 hasBrainrot = true
             end
         end
@@ -293,6 +403,46 @@ local function toggleBaseReturn()
     end
 end
 
+-- Toggle ESP for secret brainrots
+local function toggleESP()
+    if espEnabled then
+        -- Disable ESP
+        espEnabled = false
+
+        if espConnection then
+            espConnection:Disconnect()
+            espConnection = nil
+        end
+
+        -- Remove all ESP highlights
+        for tool, highlight in pairs(espHighlights) do
+            if highlight and highlight.Parent then
+                highlight:Destroy()
+            end
+        end
+        espHighlights = {}
+
+        if espButton then
+            espButton.Text = "SECRET BRAINROT ESP: OFF"
+            espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 255)
+        end
+
+        print("🔍 Secret Brainrot ESP: DISABLED")
+    else
+        -- Enable ESP
+        espEnabled = true
+        startESP()
+
+        if espButton then
+            espButton.Text = "SECRET BRAINROT ESP: ON"
+            espButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        end
+
+        print("🔍 Secret Brainrot ESP: ENABLED")
+        print("✨ Rainbow highlights will appear on secret brainrots!")
+    end
+end
+
 -- Create GUI Panel
 local function createControlPanel()
     -- Main ScreenGui
@@ -303,7 +453,7 @@ local function createControlPanel()
     -- Main Frame (increased height for new button)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 300, 0, 500)
+    mainFrame.Size = UDim2.new(0, 300, 0, 550)
     mainFrame.Position = UDim2.new(0, 10, 0, 10)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     mainFrame.BorderSizePixel = 0
@@ -378,10 +528,26 @@ local function createControlPanel()
     baseCorner.CornerRadius = UDim.new(0, 5)
     baseCorner.Parent = baseBtn
 
+    -- ESP Button for Secret Brainrots
+    local espBtn = Instance.new("TextButton")
+    espBtn.Name = "ESPButton"
+    espBtn.Size = UDim2.new(0.9, 0, 0, 35)
+    espBtn.Position = UDim2.new(0.05, 0, 0, 200)
+    espBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 255)
+    espBtn.Text = "SECRET BRAINROT ESP: OFF"
+    espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    espBtn.TextScaled = true
+    espBtn.Font = Enum.Font.Gotham
+    espBtn.Parent = mainFrame
+
+    local espCorner = Instance.new("UICorner")
+    espCorner.CornerRadius = UDim.new(0, 5)
+    espCorner.Parent = espBtn
+
     -- Speed Control
     local speedLabel = Instance.new("TextLabel")
     speedLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    speedLabel.Position = UDim2.new(0.05, 0, 0, 205)
+    speedLabel.Position = UDim2.new(0.05, 0, 0, 250)
     speedLabel.BackgroundTransparency = 1
     speedLabel.Text = "Velocidad de Vuelo: " .. settings.flySpeed
     speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -391,7 +557,7 @@ local function createControlPanel()
 
     local speedSlider = Instance.new("Frame")
     speedSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    speedSlider.Position = UDim2.new(0.05, 0, 0, 240)
+    speedSlider.Position = UDim2.new(0.05, 0, 0, 285)
     speedSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     speedSlider.Parent = mainFrame
     
@@ -413,7 +579,7 @@ local function createControlPanel()
     -- Rainbow Speed Control
     local rainbowLabel = Instance.new("TextLabel")
     rainbowLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    rainbowLabel.Position = UDim2.new(0.05, 0, 0, 275)
+    rainbowLabel.Position = UDim2.new(0.05, 0, 0, 320)
     rainbowLabel.BackgroundTransparency = 1
     rainbowLabel.Text = "Velocidad Arcoíris: " .. settings.rainbowSpeed
     rainbowLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -423,7 +589,7 @@ local function createControlPanel()
 
     local rainbowSlider = Instance.new("Frame")
     rainbowSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    rainbowSlider.Position = UDim2.new(0.05, 0, 0, 310)
+    rainbowSlider.Position = UDim2.new(0.05, 0, 0, 355)
     rainbowSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     rainbowSlider.Parent = mainFrame
     
@@ -445,7 +611,7 @@ local function createControlPanel()
     -- Floor Size Control
     local sizeLabel = Instance.new("TextLabel")
     sizeLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    sizeLabel.Position = UDim2.new(0.05, 0, 0, 345)
+    sizeLabel.Position = UDim2.new(0.05, 0, 0, 390)
     sizeLabel.BackgroundTransparency = 1
     sizeLabel.Text = "Tamaño del Suelo: " .. settings.floorSize
     sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -455,7 +621,7 @@ local function createControlPanel()
 
     local sizeSlider = Instance.new("Frame")
     sizeSlider.Size = UDim2.new(0.9, 0, 0, 20)
-    sizeSlider.Position = UDim2.new(0.05, 0, 0, 380)
+    sizeSlider.Position = UDim2.new(0.05, 0, 0, 425)
     sizeSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     sizeSlider.Parent = mainFrame
     
@@ -477,7 +643,7 @@ local function createControlPanel()
     -- Controls Info
     local controlsLabel = Instance.new("TextLabel")
     controlsLabel.Size = UDim2.new(0.9, 0, 0, 60)
-    controlsLabel.Position = UDim2.new(0.05, 0, 0, 415)
+    controlsLabel.Position = UDim2.new(0.05, 0, 0, 460)
     controlsLabel.BackgroundTransparency = 1
     controlsLabel.Text = "Controles:\nW/A/S/D - Movimiento\nEspacio - Subir\nShift - Bajar"
     controlsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -559,7 +725,13 @@ local function createControlPanel()
         toggleBaseReturn()
     end)
 
+    -- ESP button functionality
+    espBtn.MouseButton1Click:Connect(function()
+        toggleESP()
+    end)
+
     baseReturnButton = baseBtn
+    espButton = espBtn
     return screenGui, toggleBtn
 end
 
@@ -830,6 +1002,19 @@ player.CharacterRemoving:Connect(function()
         brainrotDetectionConnection = nil
     end
 
+    if espConnection then
+        espConnection:Disconnect()
+        espConnection = nil
+    end
+
+    -- Clean up ESP highlights
+    for tool, highlight in pairs(espHighlights) do
+        if highlight and highlight.Parent then
+            highlight:Destroy()
+        end
+    end
+    espHighlights = {}
+
     stopFlying()
     stopBackpackForce()
 end)
@@ -856,6 +1041,17 @@ game.Players.PlayerRemoving:Connect(function(leavingPlayer)
             teleportPart:Destroy()
             teleportPart = nil
         end
+        if espConnection then
+            espConnection:Disconnect()
+            espConnection = nil
+        end
+        -- Clean up ESP highlights
+        for tool, highlight in pairs(espHighlights) do
+            if highlight and highlight.Parent then
+                highlight:Destroy()
+            end
+        end
+        espHighlights = {}
     end
 end)
 
