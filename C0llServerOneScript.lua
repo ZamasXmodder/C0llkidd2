@@ -68,6 +68,7 @@ local autoStealEnabled = false
 local espConnections = {}
 local autoStealConnection = nil
 local initialPosition = nil
+local lastBrainrotCheck = {}
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -169,28 +170,21 @@ local function createESP(part)
     return billboardGui
 end
 
--- Función para verificar si el jugador tiene un brainrot en la mano
-local function hasBrainrotInHand()
-    if not player.Character then return false end
-    
-    -- Buscar en las herramientas del jugador
-    local backpack = player:FindFirstChild("Backpack")
-    if backpack then
-        for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and isBrainrot(tool.Name) then
-                return true
+-- Función para verificar si el jugador tiene un brainrot robado (como Model en workspace)
+local function hasStolenBrainrot()
+    -- Buscar modelos de brainrots en el workspace que podrían ser del jugador
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and isBrainrot(obj.Name) then
+            -- Verificar si el modelo está cerca del jugador (indicando que lo robó)
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local distance = (player.Character.HumanoidRootPart.Position - obj:GetModelCFrame().Position).Magnitude
+                if distance < 20 then -- Si está cerca del jugador
+                    return true, obj.Name
+                end
             end
         end
     end
-    
-    -- Buscar herramienta equipada
-    for _, child in pairs(player.Character:GetChildren()) do
-        if child:IsA("Tool") and isBrainrot(child.Name) then
-            return true
-        end
-    end
-    
-    return false
+    return false, nil
 end
 
 -- Función para toggle ESP
@@ -207,6 +201,13 @@ local function toggleESP()
                 if child:IsA("BasePart") and isSecretBrainrot(child.Name) then
                     local esp = createESP(child)
                     table.insert(espConnections, esp)
+                elseif child:IsA("Model") and isSecretBrainrot(child.Name) then
+                    -- Para modelos, crear ESP en la parte principal
+                    local primaryPart = child.PrimaryPart or child:FindFirstChildOfClass("BasePart")
+                    if primaryPart then
+                        local esp = createESP(primaryPart)
+                        table.insert(espConnections, esp)
+                    end
                 end
                 scanWorkspace(child)
             end
@@ -216,10 +217,16 @@ local function toggleESP()
         
         -- Conectar para nuevos objetos
         local connection = workspace.DescendantAdded:Connect(function(descendant)
-            if descendant:IsA("BasePart") and isSecretBrainrot(descendant.Name) then
+            if (descendant:IsA("BasePart") or descendant:IsA("Model")) and isSecretBrainrot(descendant.Name) then
                 wait(0.1)
-                local esp = createESP(descendant)
-                table.insert(espConnections, esp)
+                local targetPart = descendant
+                if descendant:IsA("Model") then
+                    targetPart = descendant.PrimaryPart or descendant:FindFirstChildOfClass("BasePart")
+                end
+                if targetPart then
+                    local esp = createESP(targetPart)
+                    table.insert(espConnections, esp)
+                end
             end
         end)
         table.insert(espConnections, connection)
@@ -260,11 +267,13 @@ local function toggleAutoSteal()
             
             local humanoidRootPart = player.Character.HumanoidRootPart
             
-            -- Verificar si tiene un brainrot en la mano
-            if hasBrainrotInHand() and initialPosition then
+            -- Verificar si tiene un brainrot robado
+            local hasBrainrot, brainrotName = hasStolenBrainrot()
+            if hasBrainrot and initialPosition then
+                print("Brainrot detectado: " .. brainrotName .. " - Teletransportando...")
                 -- Teletransportar de vuelta a la posición inicial
                 humanoidRootPart.CFrame = initialPosition
-                wait(0.5) -- Esperar un poco antes de la siguiente verificación
+                wait(1) -- Esperar un poco antes de la siguiente verificación
             end
         end)
         
@@ -293,7 +302,7 @@ mainFrame.InputBegan:Connect(function(input)
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
-    end
+                end
 end)
 
 mainFrame.InputChanged:Connect(function(input)
@@ -309,4 +318,23 @@ mainFrame.InputEnded:Connect(function(input)
     end
 end)
 
+-- Detectar cuando aparece un nuevo brainrot como Model en el workspace
+workspace.ChildAdded:Connect(function(child)
+    if autoStealEnabled and child:IsA("Model") and isBrainrot(child.Name) then
+        wait(0.1) -- Pequeña espera para asegurar que el modelo se cargue completamente
+        
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and initialPosition then
+            local distance = (player.Character.HumanoidRootPart.Position - child:GetModelCFrame().Position).Magnitude
+            
+            -- Si el brainrot aparece cerca del jugador (lo robó)
+            if distance < 30 then
+                print("¡Brainrot robado detectado: " .. child.Name .. "! Teletransportando...")
+                player.Character.HumanoidRootPart.CFrame = initialPosition
+            end
+        end
+    end
+end)
+
 print("Brainrot Panel cargado exitosamente!")
+print("ESP: Solo mostrará brainrots secrets")
+print("Auto Steal: Te teletransportará cuando robes cualquier brainrot")
