@@ -1,5 +1,5 @@
 -- Script completo para generar piso invisible con panel de control integrado
--- Colocar este script en ServerScriptService
+-- IMPORTANTE: Colocar este script en StarterGui como LocalScript (NO en ServerScriptService)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,20 +7,25 @@ local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
+-- Referencias del jugador local
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
 -- Configuración
 local FALL_DETECTION_HEIGHT = 10 -- Altura mínima para detectar caída
 local FLOOR_SIZE = Vector3.new(20, 1, 20) -- Tamaño del piso invisible
 local FLOOR_OFFSET = -5 -- Distancia debajo del jugador para colocar el piso
 local CHECK_INTERVAL = 0.1 -- Intervalo de verificación en segundos
 
--- Variables de estado globales
+-- Variables de estado
 local systemEnabled = false -- Sistema desactivado por defecto
-local invisibleFloors = {}
-local playerLoops = {} -- Para controlar los bucles de cada jugador
-local playerGUIs = {} -- Para almacenar las GUIs de cada jugador
+local invisibleFloor = nil -- Piso invisible del jugador local
+local isLooping = false -- Control del bucle de verificación
+local panelVisible = false -- Estado de visibilidad del panel
+local mainGui = nil -- Referencia al GUI principal
 
 -- Función para verificar si el jugador está en el aire
-local function isPlayerInAir(player)
+local function isPlayerInAir()
     local character = player.Character
     if not character then return false end
     
@@ -35,7 +40,7 @@ local function isPlayerInAir(player)
 end
 
 -- Función para verificar si hay suelo debajo del jugador usando Raycast
-local function hasGroundBelow(player, maxDistance)
+local function hasGroundBelow(maxDistance)
     local character = player.Character
     if not character then return true end
     
@@ -51,8 +56,8 @@ local function hasGroundBelow(player, maxDistance)
     raycastParams.FilterDescendantsInstances = {character}
     
     -- Si hay un piso invisible, también excluirlo del raycast
-    if invisibleFloors[player] then
-        local filterList = {character, invisibleFloors[player]}
+    if invisibleFloor then
+        local filterList = {character, invisibleFloor}
         raycastParams.FilterDescendantsInstances = filterList
     end
     
@@ -62,7 +67,7 @@ local function hasGroundBelow(player, maxDistance)
 end
 
 -- Función para crear piso invisible
-local function createInvisibleFloor(player)
+local function createInvisibleFloor()
     local character = player.Character
     if not character then return end
     
@@ -70,8 +75,8 @@ local function createInvisibleFloor(player)
     if not rootPart then return end
     
     -- Eliminar piso anterior si existe
-    if invisibleFloors[player] then
-        invisibleFloors[player]:Destroy()
+    if invisibleFloor then
+        invisibleFloor:Destroy()
     end
     
     -- Crear nuevo piso invisible
@@ -89,42 +94,42 @@ local function createInvisibleFloor(player)
     --floor.Transparency = 0.8
     
     floor.Parent = Workspace
-    invisibleFloors[player] = floor
+    invisibleFloor = floor
     
-    print("Piso invisible creado para " .. player.Name)
+    print("Piso invisible creado")
     
     -- Eliminar el piso después de un tiempo si el jugador ya no lo necesita
     spawn(function()
         wait(2) -- Esperar 2 segundos
-        if invisibleFloors[player] == floor then
+        if invisibleFloor == floor then
             -- Verificar si el jugador ya está en suelo firme
-            if not isPlayerInAir(player) or hasGroundBelow(player, FALL_DETECTION_HEIGHT) then
+            if not isPlayerInAir() or hasGroundBelow(FALL_DETECTION_HEIGHT) then
                 floor:Destroy()
-                if invisibleFloors[player] == floor then
-                    invisibleFloors[player] = nil
+                if invisibleFloor == floor then
+                    invisibleFloor = nil
                 end
-                print("Piso invisible removido para " .. player.Name)
+                print("Piso invisible removido")
             end
         end
     end)
 end
 
 -- Función para eliminar piso invisible
-local function removeInvisibleFloor(player)
-    if invisibleFloors[player] then
-        invisibleFloors[player]:Destroy()
-        invisibleFloors[player] = nil
-        print("Piso invisible removido para " .. player.Name)
+local function removeInvisibleFloor()
+    if invisibleFloor then
+        invisibleFloor:Destroy()
+        invisibleFloor = nil
+        print("Piso invisible removido")
     end
 end
 
 -- Función principal de verificación
-local function checkPlayer(player)
+local function checkPlayer()
     -- Solo funciona si el sistema está activado
     if not systemEnabled then
         -- Si el sistema está desactivado, remover cualquier piso existente
-        if invisibleFloors[player] then
-            removeInvisibleFloor(player)
+        if invisibleFloor then
+            removeInvisibleFloor()
         end
         return
     end
@@ -136,15 +141,15 @@ local function checkPlayer(player)
     if not rootPart then return end
     
     -- Verificar si el jugador está en el aire y no hay suelo debajo
-    if isPlayerInAir(player) and not hasGroundBelow(player, FALL_DETECTION_HEIGHT) then
+    if isPlayerInAir() and not hasGroundBelow(FALL_DETECTION_HEIGHT) then
         -- Crear piso invisible si no existe
-        if not invisibleFloors[player] then
-            createInvisibleFloor(player)
+        if not invisibleFloor then
+            createInvisibleFloor()
         end
     else
         -- Remover piso invisible si existe y el jugador ya no lo necesita
-        if invisibleFloors[player] then
-            removeInvisibleFloor(player)
+        if invisibleFloor then
+            removeInvisibleFloor()
         end
     end
 end
@@ -155,79 +160,70 @@ local function toggleSystem(enabled)
     
     if enabled then
         print("✅ Sistema de piso invisible ACTIVADO")
-        -- Iniciar verificación para todos los jugadores conectados
-        for _, player in pairs(Players:GetPlayers()) do
-            if player.Character and not playerLoops[player] then
-                startPlayerLoop(player)
-            end
+        -- Iniciar el bucle de verificación
+        if not isLooping then
+            startPlayerLoop()
         end
     else
         print("❌ Sistema de piso invisible DESACTIVADO")
-        -- Remover todos los pisos invisibles
-        for player, floor in pairs(invisibleFloors) do
-            removeInvisibleFloor(player)
-        end
-        -- Detener todos los bucles
-        for player, _ in pairs(playerLoops) do
-            playerLoops[player] = false
-        end
+        -- Remover el piso invisible
+        removeInvisibleFloor()
+        -- Detener el bucle
+        isLooping = false
     end
 end
 
--- Función para iniciar el bucle de verificación de un jugador
-local function startPlayerLoop(player)
-    if playerLoops[player] then return end -- Ya existe un bucle para este jugador
+-- Función para iniciar el bucle de verificación
+local function startPlayerLoop()
+    if isLooping then return end -- Ya existe un bucle
     
-    playerLoops[player] = true
+    isLooping = true
     spawn(function()
-        while player.Parent and player.Character and playerLoops[player] do
-            checkPlayer(player)
+        while isLooping and player.Parent do
+            if player.Character then
+                checkPlayer()
+            end
             wait(CHECK_INTERVAL)
         end
-        playerLoops[player] = nil
     end)
 end
 
--- Función que se ejecuta cuando un jugador se une
-local function onPlayerAdded(player)
-    -- Crear GUI para el jugador
-    spawn(function()
-        createGUI(player)
-    end)
-    
-    player.CharacterAdded:Connect(function(character)
-        print(player.Name .. " se unió al juego")
+-- Función para mostrar/ocultar el panel
+local function togglePanel()
+    if mainGui then
+        panelVisible = not panelVisible
+        local targetTransparency = panelVisible and 0 or 1
+        local targetPosition = panelVisible and UDim2.new(0.5, -150, 0.5, -60) or UDim2.new(0.5, -150, -0.5, -60)
         
-        -- Esperar a que el personaje se cargue completamente
-        character:WaitForChild("HumanoidRootPart")
-        character:WaitForChild("Humanoid")
+        -- Animación suave
+        local tween = TweenService:Create(
+            mainGui.MainFrame,
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {
+                Position = targetPosition,
+                BackgroundTransparency = targetTransparency
+            }
+        )
+        tween:Play()
         
-        -- Solo iniciar el bucle si el sistema está activado
-        if systemEnabled then
-            startPlayerLoop(player)
+        -- Animar los elementos internos
+        for _, child in pairs(mainGui.MainFrame:GetChildren()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") then
+                local childTween = TweenService:Create(
+                    child,
+                    TweenInfo.new(0.3),
+                    {TextTransparency = targetTransparency}
+                )
+                childTween:Play()
+            end
         end
-    end)
-end
-
--- Función que se ejecuta cuando un jugador se va
-local function onPlayerRemoving(player)
-    removeInvisibleFloor(player)
-    playerLoops[player] = false -- Detener el bucle del jugador
-    
-    -- Limpiar GUI del jugador
-    if playerGUIs[player] then
-        if playerGUIs[player].gui then
-            playerGUIs[player].gui:Destroy()
-        end
-        playerGUIs[player] = nil
+        
+        print(panelVisible and "📱 Panel mostrado" or "📱 Panel ocultado")
     end
-    
-    print(player.Name .. " salió del juego")
 end
 
--- Función para crear el panel GUI para un jugador
-local function createGUI(player)
-    local playerGui = player:WaitForChild("PlayerGui")
+-- Función para crear el panel GUI
+local function createGUI()
     
     -- Crear ScreenGui principal
     local screenGui = Instance.new("ScreenGui")
@@ -235,12 +231,13 @@ local function createGUI(player)
     screenGui.ResetOnSpawn = false
     screenGui.Parent = playerGui
     
-    -- Frame principal del panel
+    -- Frame principal del panel (inicialmente oculto)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, 300, 0, 120)
-    mainFrame.Position = UDim2.new(0, 20, 0, 20)
+    mainFrame.Position = UDim2.new(0.5, -150, -0.5, -60) -- Posición inicial fuera de pantalla
     mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    mainFrame.BackgroundTransparency = 1 -- Inicialmente invisible
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
     
@@ -272,6 +269,7 @@ local function createGUI(player)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = "🛡️ Piso Invisible"
     titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextTransparency = 1 -- Inicialmente invisible
     titleLabel.TextScaled = true
     titleLabel.Font = Enum.Font.GothamBold
     titleLabel.Parent = mainFrame
@@ -284,6 +282,7 @@ local function createGUI(player)
     statusLabel.BackgroundTransparency = 1
     statusLabel.Text = "❌ DESACTIVADO"
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    statusLabel.TextTransparency = 1 -- Inicialmente invisible
     statusLabel.TextScaled = true
     statusLabel.Font = Enum.Font.Gotham
     statusLabel.Parent = mainFrame
@@ -297,6 +296,7 @@ local function createGUI(player)
     toggleButton.BorderSizePixel = 0
     toggleButton.Text = "ACTIVAR SISTEMA"
     toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextTransparency = 1 -- Inicialmente invisible
     toggleButton.TextScaled = true
     toggleButton.Font = Enum.Font.GothamBold
     toggleButton.Parent = mainFrame
@@ -334,35 +334,48 @@ local function createGUI(player)
         systemEnabled = not systemEnabled
         toggleSystem(systemEnabled)
         
-        -- Actualizar todas las GUIs
-        for _, gui in pairs(playerGUIs) do
-            if gui and gui.updateFunction then
-                gui.updateFunction(systemEnabled)
-            end
-        end
+        -- Actualizar la GUI
+        updateGUI(systemEnabled)
     end)
     
     -- Actualizar GUI inicial
     updateGUI(systemEnabled)
     
-    -- Almacenar referencia
-    playerGUIs[player] = {
-        gui = screenGui,
-        updateFunction = updateGUI
-    }
+    -- Almacenar referencia global
+    mainGui = screenGui
     
     return screenGui
 end
 
--- Conectar eventos
-Players.PlayerAdded:Connect(onPlayerAdded)
-Players.PlayerRemoving:Connect(onPlayerRemoving)
+-- Crear GUI al cargar el script
+spawn(function()
+    createGUI()
+end)
 
--- Manejar jugadores que ya están en el juego
-for _, player in pairs(Players:GetPlayers()) do
-    onPlayerAdded(player)
-end
+-- Detectar cuando presionen la tecla F
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end -- Ignorar si está escribiendo en chat
+    
+    if input.KeyCode == Enum.KeyCode.F then
+        togglePanel()
+    end
+end)
 
-print("🚀 Sistema de piso invisible con GUI integrado cargado")
+-- Manejar cuando el jugador respawnea
+player.CharacterAdded:Connect(function(character)
+    print("🎮 Personaje cargado")
+    
+    -- Esperar a que el personaje se cargue completamente
+    character:WaitForChild("HumanoidRootPart")
+    character:WaitForChild("Humanoid")
+    
+    -- Reiniciar el bucle si el sistema está activado
+    if systemEnabled then
+        isLooping = false -- Reset del estado
+        startPlayerLoop()
+    end
+end)
+
+print("🚀 Sistema de piso invisible con panel controlado por tecla F cargado")
 print("💡 Estado inicial: DESACTIVADO")
-print("🎮 Los jugadores verán un panel en la esquina superior izquierda para controlarlo")
+print("🎮 Presiona F para mostrar/ocultar el panel de control")
