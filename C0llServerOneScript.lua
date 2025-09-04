@@ -3,7 +3,6 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local PathfindingService = game:GetService("PathfindingService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -73,10 +72,7 @@ local autoLaserConnection = nil
 local autoStealConnection = nil
 local initialPosition = nil
 local espObjects = {}
-local isAutoRunning = false
-local autoRunConnection = nil
-local currentPath = nil
-local currentWaypointIndex = 1
+local coilCooldown = false
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -140,7 +136,7 @@ local autoStealButton = Instance.new("TextButton")
 autoStealButton.Size = UDim2.new(0.8, 0, 0, 35)
 autoStealButton.Position = UDim2.new(0.1, 0, 0, 140)
 autoStealButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-autoStealButton.Text = "Auto Steal: OFF"
+autoStealButton.Text = "Auto Coil: OFF"
 autoStealButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoStealButton.TextScaled = true
 autoStealButton.Font = Enum.Font.Gotham
@@ -300,201 +296,144 @@ local function toggleAutoLaser()
     end
 end
 
--- NUEVA FUNCIÓN: AUTO-RUN VISUAL CON PATHFINDING (SIN TELETRANSPORTE)
-local function startAutoRun(targetPosition)
-    if isAutoRunning or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") or not player.Character:FindFirstChild("Humanoid") then
+-- FUNCIÓN PARA ENCONTRAR Y USAR COIL COMBO AUTOMÁTICAMENTE
+local function findAndUseCoilCombo()
+    if coilCooldown then
+        print("⏳ Coil Combo en cooldown...")
         return
     end
     
-    isAutoRunning = true
-    local character = player.Character
-    local humanoid = character.Humanoid
-    local humanoidRootPart = character.HumanoidRootPart
+    -- Buscar Coil Combo en el backpack
+    local coilCombo = player.Backpack:FindFirstChild("Coil Combo")
     
-    print("🏃‍♂️ INICIANDO AUTO-RUN VISUAL hacia la base!")
-    print("📍 Destino: " .. tostring(targetPosition))
-    
-    -- Crear path con Pathfinding para evitar obstáculos
-    local path = PathfindingService:CreatePath({
-        AgentRadius = 3,
-        AgentHeight = 6,
-        AgentCanJump = true,
-        WaypointSpacing = 4,
-        Costs = {
-            Water = math.huge, -- Evitar agua
-            DangerousLava = math.huge -- Evitar lava si existe
-        }
-    })
-    
-    -- Calcular el camino
-    local success, errorMessage = pcall(function()
-        path:ComputeAsync(humanoidRootPart.Position, targetPosition)
-    end)
-    
-    if not success then
-        print("❌ Error calculando camino: " .. tostring(errorMessage))
-        isAutoRunning = false
-        return
+    -- Si no está en backpack, buscar en el personaje (equipado)
+    if not coilCombo and player.Character then
+        coilCombo = player.Character:FindFirstChild("Coil Combo")
     end
     
-    local waypoints = path:GetWaypoints()
-    
-    if #waypoints < 2 then
-        print("❌ No se pudo crear un camino válido")
-        isAutoRunning = false
-        return
-    end
-    
-    print("✅ Camino calculado con " .. #waypoints .. " puntos")
-    
-    -- Aumentar velocidad de corrida
-    humanoid.WalkSpeed = 50 -- Velocidad rápida pero natural
-    
-    -- Variables para el seguimiento del camino
-    local waypointIndex = 1
-    local startTime = tick()
-    
-    -- Función para seguir el camino
-    local function followPath()
-        if waypointIndex > #waypoints then
-            -- Llegamos al final
-            print("✅ ¡LLEGASTE A LA BASE!")
-            humanoid.WalkSpeed = 16 -- Restaurar velocidad normal
-            isAutoRunning = false
-            if autoRunConnection then
-                autoRunConnection:Disconnect()
-                autoRunConnection = nil
-            end
-            return
-        end
+    if coilCombo then
+        print("🌀 ¡COIL COMBO ENCONTRADO! Usando automáticamente...")
         
-        local targetWaypoint = waypoints[waypointIndex]
-        local targetPos = targetWaypoint.Position
+        coilCooldown = true -- Activar cooldown
         
-        -- Hacer que el personaje camine hacia el waypoint
-        humanoid:MoveTo(targetPos)
-        
-        print("🚶‍♂️ Caminando hacia waypoint " .. waypointIndex .. "/" .. #waypoints)
-        
-        -- Función para verificar si llegó al waypoint
-        local function checkWaypoint()
-            if not character.Parent or not humanoidRootPart.Parent then
-                return
-            end
-            
-            local distance = (humanoidRootPart.Position - targetPos).Magnitude
-            
-            -- Si llegó cerca del waypoint (8 studs), ir al siguiente
-            if distance < 8 then
-                waypointIndex = waypointIndex + 1
-                followPath() -- Ir al siguiente waypoint
+        -- Si está en el backpack, equiparlo primero
+        if coilCombo.Parent == player.Backpack then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:EquipTool(coilCombo)
+                wait(0.2) -- Esperar a que se equipe
             end
         end
         
-        -- Manejar waypoints especiales (salto)
-        if targetWaypoint.Action == Enum.PathWaypointAction.Jump then
-            print("🦘 Saltando obstáculo...")
-            humanoid.Jump = true
-        end
-        
-        -- Crear connection para verificar llegada al waypoint
-        if autoRunConnection then
-            autoRunConnection:Disconnect()
-        end
-        
-        autoRunConnection = RunService.Heartbeat:Connect(function()
-            -- Timeout de seguridad
-            if tick() - startTime > 30 then
-                print("⏰ Auto-run detenido por timeout")
-                humanoid.WalkSpeed = 16
-                isAutoRunning = false
-                if autoRunConnection then
-                    autoRunConnection:Disconnect()
-                    autoRunConnection = nil
-                end
-                return
-            end
-            
-            checkWaypoint()
+        -- Usar la tool (activar)
+        pcall(function()
+            coilCombo:Activate()
+            print("✅ ¡Coil Combo activado!")
         end)
+        
+        -- También intentar disparar el RemoteEvent si existe
+        pcall(function()
+            if coilCombo:FindFirstChild("RemoteEvent") then
+                coilCombo.RemoteEvent:FireServer()
+            elseif coilCombo:FindFirstChild("ServerScript") then
+                -- Intentar activar de otra manera
+                coilCombo.ServerScript.Disabled = false
+            end
+        end)
+        
+        -- Cooldown de 3 segundos
+        spawn(function()
+            wait(3)
+            coilCooldown = false
+            print("🔄 Coil Combo listo para usar de nuevo")
+        end)
+        
+        return true
+    else
+        print("❌ Coil Combo no encontrado en inventario")
+        print("💡 Asegúrate de tener 'Coil Combo' en tu backpack")
+        return false
     end
-    
-    -- Iniciar el seguimiento del camino
-    followPath()
 end
 
--- Función para detener auto-run
-local function stopAutoRun()
-    if isAutoRunning then
-        print("🛑 Deteniendo auto-run...")
-        isAutoRunning = false
-        
-        if autoRunConnection then
-            autoRunConnection:Disconnect()
-            autoRunConnection = nil
-        end
-        
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.WalkSpeed = 16
-        end
-    end
-end
-
--- Función para auto steal CON AUTO-RUN VISUAL
+-- FUNCIÓN PARA AUTO STEAL CON COIL COMBO
 local function toggleAutoSteal()
     autoStealEnabled = not autoStealEnabled
     
     if autoStealEnabled then
-        autoStealButton.Text = "Auto Steal: ON"
+        autoStealButton.Text = "Auto Coil: ON"
         autoStealButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
         
-        -- Guardar posición inicial
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            initialPosition = player.Character.HumanoidRootPart.Position
-            print("📍 Base guardada en: " .. tostring(initialPosition))
-        end
+        print("🌀 AUTO COIL COMBO ACTIVADO!")
+        print("💡 Cuando robes un brainrot, se usará Coil Combo automáticamente")
         
-        -- Detectar brainrot en backpack
+        -- Detectar brainrot en backpack (método principal)
         local connection1 = player.Backpack.ChildAdded:Connect(function(item)
-            if isBrainrot(item.Name) and not isAutoRunning then
+            if isBrainrot(item.Name) then
                 print("🎯 ¡BRAINROT ROBADO: " .. item.Name .. "!")
-                if initialPosition then
-                    wait(0.2)
-                    startAutoRun(initialPosition)
-                end
+                wait(0.3) -- Pequeña espera para asegurar que se completó el robo
+                findAndUseCoilCombo()
             end
         end)
         
-        -- Detectar brainrot cerca del jugador
+        -- Detectar brainrot cerca del jugador (método de respaldo)
         local connection2 = workspace.ChildAdded:Connect(function(child)
-            if child:IsA("Model") and isBrainrot(child.Name) and not isAutoRunning then
+            if child:IsA("Model") and isBrainrot(child.Name) then
                 wait(0.1)
                 
-                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and initialPosition then
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                     local distance = (player.Character.HumanoidRootPart.Position - child:GetModelCFrame().Position).Magnitude
                     
-                    if distance < 10 then
-                        print("🎯 ¡BRAINROT CERCA: " .. child.Name .. "!")
-                        startAutoRun(initialPosition)
+                    -- Si el brainrot aparece muy cerca del jugador (lo robó)
+                    if distance < 8 then
+                        print("🎯 ¡BRAINROT DETECTADO CERCA: " .. child.Name .. "!")
+                        findAndUseCoilCombo()
                     end
                 end
             end
         end)
         
+        -- Detectar cambios en stats/dinero (método adicional)
+        local connection3 = nil
+        if player:FindFirstChild("leaderstats") then
+            local money = player.leaderstats:FindFirstChild("Money") or 
+                         player.leaderstats:FindFirstChild("Cash") or 
+                         player.leaderstats:FindFirstChild("Value") or
+                         player.leaderstats:FindFirstChild("Points")
+            
+            if money then
+                local lastValue = money.Value
+                connection3 = money.Changed:Connect(function()
+                    local newValue = money.Value
+                    -- Si aumentó significativamente (robó algo valioso)
+                    if newValue > lastValue + 300 then
+                        print("💰 ¡STATS AUMENTADOS! De " .. lastValue .. " a " .. newValue)
+                        findAndUseCoilCombo()
+                    end
+                    lastValue = newValue
+                end)
+            end
+        end
+        
         autoStealConnection = connection1
         table.insert(espConnections, connection2)
+        if connection3 then
+            table.insert(espConnections, connection3)
+        end
         
     else
-        autoStealButton.Text = "Auto Steal: OFF"
+        autoStealButton.Text = "Auto Coil: OFF"
         autoStealButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        
+        print("🛑 AUTO COIL COMBO DESACTIVADO")
         
         if autoStealConnection then
             autoStealConnection:Disconnect()
             autoStealConnection = nil
         end
         
-        -- Detener auto-run si está activo
-        stopAutoRun()
+        -- Resetear cooldown
+        coilCooldown = false
     end
 end
 
@@ -529,20 +468,9 @@ mainFrame.InputEnded:Connect(function(input)
     end
 end)
 
--- Actualizar base cada cierto tiempo
-spawn(function()
-    while true do
-        wait(5)
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and not autoStealEnabled and not isAutoRunning then
-            local newPos = player.Character.HumanoidRootPart.Position
-            initialPosition = newPos
-        end
-    end
-end)
-
 print("🎮 Brainrot Panel cargado exitosamente!")
-print("👁️ ESP: Resalta brainrots secrets")
+print("👁️ ESP: Resalta brainrots secrets con highlight")
 print("🔫 Auto Laser: Dispara automáticamente a jugadores cercanos")
-print("🏃‍♂️ Auto Steal: Te hace CORRER VISUALMENTE a tu base cuando robas")
-print("🗺️ NUEVO: Usa Pathfinding para evitar obstáculos automáticamente!")
-print("✨ SIN TELETRANSPORTE - Solo corrida natural y rápida!")
+print("🌀 Auto Coil: USA COIL COMBO automáticamente cuando robas un brainrot")
+print("💡 REQUISITO: Debes tener 'Coil Combo' en tu inventario/backpack")
+print("✨ ¡Mucho más simple y efectivo!")
