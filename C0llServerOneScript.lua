@@ -222,12 +222,12 @@ local function toggleESP()
         
     else
         espButton.Text = "ESP Secrets: OFF"
-                espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         
         -- Limpiar ESP
         for obj, esp in pairs(espObjects) do
             if esp and esp.Parent then
-                esp:Destroy()
+                                esp:Destroy()
             end
         end
         espObjects = {}
@@ -295,137 +295,42 @@ local function toggleAutoLaser()
     end
 end
 
--- Función para crear part que arrastra al jugador SÚPER RÁPIDO
-local function createDragPart(targetPosition)
+-- Función para teletransporte real del servidor
+local function serverTeleport(targetPosition)
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
     
-    local humanoidRootPart = player.Character.HumanoidRootPart
-    local humanoid = player.Character:FindFirstChild("Humanoid")
+    -- Método 1: Usar el HumanoidRootPart directamente (más confiable)
+    pcall(function()
+        player.Character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+    end)
     
-    -- Deshabilitar controles del jugador
-    if humanoid then
-        humanoid.PlatformStand = true
-    end
-    
-    -- Crear part invisible pero visible para debug
-    local dragPart = Instance.new("Part")
-    dragPart.Name = "DragPart"
-    dragPart.Size = Vector3.new(2, 2, 2)
-    dragPart.Material = Enum.Material.Neon
-    dragPart.BrickColor = BrickColor.new("Bright blue")
-    dragPart.Transparency = 0.5
-    dragPart.CanCollide = false
-    dragPart.Anchored = true
-    dragPart.Position = humanoidRootPart.Position
-    dragPart.Parent = workspace
-    
-    -- Crear WeldConstraint para forzar al jugador a seguir la part
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = dragPart
-    weld.Part1 = humanoidRootPart
-    weld.Parent = dragPart
-    
-    -- Hacer la part no anclada para que se mueva
-    dragPart.Anchored = false
-    
-    -- Crear BodyVelocity SÚPER POTENTE
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVelocity.Parent = dragPart
-    
-    -- Calcular dirección y velocidad súper rápida
-    local direction = (targetPosition - humanoidRootPart.Position).Unit
-    local distance = (targetPosition - humanoidRootPart.Position).Magnitude
-    
-    -- Velocidad súper alta
-    local speed = math.max(500, distance * 10) -- Mínimo 500 studs/segundo
-    bodyVelocity.Velocity = direction * speed
-    
-    -- Crear BodyPosition para asegurar que llegue al destino
-    local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyPosition.Position = targetPosition
-    bodyPosition.D = 5000 -- Damping alto
-    bodyPosition.P = 50000 -- Power súper alto
-    bodyPosition.Parent = dragPart
-    
-    -- Tween súper rápido para la part
-    local tweenInfo = TweenInfo.new(
-        0.5, -- Solo 0.5 segundos
-        Enum.EasingStyle.Quart,
-        Enum.EasingDirection.Out,
-        0,
-        false,
-        0
-    )
-    
-    -- Forzar teletransporte si está muy lejos
-    if distance > 1000 then
-        humanoidRootPart.CFrame = CFrame.new(targetPosition)
-        dragPart:Destroy()
-        if humanoid then
-            humanoid.PlatformStand = false
-        end
-        return
-    end
-    
-    local tween = TweenService:Create(dragPart, tweenInfo, {Position = targetPosition})
-    tween:Play()
-    
-    -- Verificar constantemente si llegó
-    local checkConnection
-    checkConnection = RunService.Heartbeat:Connect(function()
-        if dragPart.Parent and humanoidRootPart.Parent then
-            local currentDistance = (dragPart.Position - targetPosition).Magnitude
-            
-            -- Si está cerca del destino, terminar
-            if currentDistance < 10 then
-                checkConnection:Disconnect()
-                
-                -- Restaurar controles
-                if humanoid then
-                    humanoid.PlatformStand = false
+    -- Método 2: Intentar usar RemoteEvents del juego para teletransporte
+    pcall(function()
+        -- Buscar RemoteEvents relacionados con teletransporte
+        for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+            if remote:IsA("RemoteEvent") then
+                local name = remote.Name:lower()
+                if string.find(name, "teleport") or string.find(name, "tp") or string.find(name, "move") then
+                    remote:FireServer(targetPosition)
                 end
-                
-                -- Limpiar
-                dragPart:Destroy()
             end
-        else
-            checkConnection:Disconnect()
         end
     end)
     
-    -- Limpiar después de tiempo máximo
-    tween.Completed:Connect(function()
+    -- Método 3: Usar Humanoid:MoveTo como respaldo
+    pcall(function()
+        local humanoid = player.Character:FindFirstChild("Humanoid")
         if humanoid then
-            humanoid.PlatformStand = false
-        end
-        dragPart:Destroy()
-        if checkConnection then
-            checkConnection:Disconnect()
+            humanoid:MoveTo(targetPosition)
         end
     end)
     
-    -- Limpiar de emergencia
-    spawn(function()
-        wait(2) -- Máximo 2 segundos
-        if dragPart.Parent then
-            dragPart:Destroy()
-        end
-        if humanoid then
-            humanoid.PlatformStand = false
-        end
-        if checkConnection then
-            checkConnection:Disconnect()
-        end
-    end)
-    
-    print("¡Arrastrando súper rápido hacia el punto inicial!")
+    print("¡Teletransportado de vuelta al punto inicial!")
 end
 
--- Función para auto steal
+-- Función para auto steal (SIN EFECTOS VISUALES)
 local function toggleAutoSteal()
     autoStealEnabled = not autoStealEnabled
     
@@ -448,28 +353,59 @@ local function toggleAutoSteal()
                     
                     -- Si el brainrot aparece cerca del jugador (lo robó)
                     if distance < 30 then
-                        print("¡Brainrot robado detectado: " .. child.Name .. "! Arrastrando de vuelta...")
-                        createDragPart(initialPosition)
+                        print("¡Brainrot robado detectado: " .. child.Name .. "! Teletransportando de vuelta...")
+                        serverTeleport(initialPosition)
                     end
                 end
             end
         end)
         
-        -- También detectar cambios en el inventario/backpack
-        local connection2 = RunService.Heartbeat:Connect(function()
+        -- Detectar brainrots que aparecen en el inventario/backpack
+        local connection2 = player.Backpack.ChildAdded:Connect(function(item)
+            if isBrainrot(item.Name) then
+                print("¡Brainrot añadido al inventario: " .. item.Name .. "! Teletransportando de vuelta...")
+                if initialPosition then
+                    wait(0.1) -- Pequeña espera para asegurar que el robo se completó
+                    serverTeleport(initialPosition)
+                end
+            end
+        end)
+        
+        -- Detectar cambios en el leaderstats (dinero/valor)
+        local connection3 = nil
+        if player:FindFirstChild("leaderstats") then
+            local money = player.leaderstats:FindFirstChild("Money") or player.leaderstats:FindFirstChild("Cash") or player.leaderstats:FindFirstChild("Value")
+            if money then
+                local lastValue = money.Value
+                connection3 = money.Changed:Connect(function()
+                    local newValue = money.Value
+                    -- Si el dinero aumentó significativamente (robó algo valioso)
+                    if newValue > lastValue + 1000 then
+                        print("¡Dinero aumentado significativamente! Teletransportando de vuelta...")
+                        if initialPosition then
+                            serverTeleport(initialPosition)
+                        end
+                    end
+                    lastValue = newValue
+                end)
+            end
+        end
+        
+        -- Detectar proximidad a brainrots (método de respaldo)
+        local connection4 = RunService.Heartbeat:Connect(function()
             if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
                 return
             end
             
-            -- Verificar si hay algún brainrot cerca que podría haber sido robado
+            -- Verificar si hay algún brainrot muy cerca
             for _, obj in pairs(workspace:GetChildren()) do
                 if obj:IsA("Model") and isBrainrot(obj.Name) then
                     local distance = (player.Character.HumanoidRootPart.Position - obj:GetModelCFrame().Position).Magnitude
                     
-                    if distance < 15 then -- Muy cerca, probablemente robado
+                    if distance < 10 then -- Muy cerca, probablemente robando
                         if initialPosition then
-                            createDragPart(initialPosition)
-                            wait(2) -- Esperar antes de la siguiente verificación
+                            serverTeleport(initialPosition)
+                            wait(3) -- Esperar antes de la siguiente verificación
                         end
                         break
                     end
@@ -479,6 +415,10 @@ local function toggleAutoSteal()
         
         autoStealConnection = connection1
         table.insert(espConnections, connection2)
+        if connection3 then
+            table.insert(espConnections, connection3)
+        end
+        table.insert(espConnections, connection4)
         
     else
         autoStealButton.Text = "Auto Steal: OFF"
@@ -535,4 +475,4 @@ end)
 print("Brainrot Panel cargado exitosamente!")
 print("ESP: Resalta brainrots secrets con highlight")
 print("Auto Laser: Dispara automáticamente a jugadores cercanos (requiere LaserCape equipado)")
-print("Auto Steal: Te arrastra súper rápido de vuelta al punto inicial cuando robas un brainrot")
+print("Auto Steal: Te teletransporta instantáneamente de vuelta al punto inicial cuando robas un brainrot")
