@@ -214,25 +214,32 @@ end
 
 local function disableRagdoll()
     pcall(function()
+        -- Primero desactivar PlatformStand
+        humanoid.PlatformStand = false
+        
+        -- Eliminar todas las constraints de ragdoll
         for _, constraint in pairs(character:GetDescendants()) do
             if constraint:IsA("BallSocketConstraint") then
                 constraint:Destroy()
             end
         end
         
+        -- Eliminar attachments creados para ragdoll
         for _, attachment in pairs(character:GetDescendants()) do
             if attachment:IsA("Attachment") and attachment.Parent ~= rootPart then
                 attachment:Destroy()
             end
         end
         
+        -- Reactivar todas las articulaciones
         for _, joint in pairs(character:GetDescendants()) do
             if joint:IsA("Motor6D") then
                 joint.Enabled = true
             end
         end
         
-        humanoid.PlatformStand = false
+        -- Forzar al humanoid a estar de pie
+        humanoid:ChangeState(Enum.HumanoidStateType.Running)
     end)
 end
 
@@ -328,7 +335,7 @@ local function goToEstablishedPoint()
             
             -- Probar ir por la izquierda
             local leftPos = currentPos + leftDirection * 5
-            local leftRaycast = workspace:Raycast(currentPos, (leftPos - currentPos), raycastParams)
+                        local leftRaycast = workspace:Raycast(currentPos, (leftPos - currentPos), raycastParams)
             
             if not leftRaycast then
                 return leftDirection * floatSpeed
@@ -343,7 +350,7 @@ local function goToEstablishedPoint()
     
     local effectConnection = RunService.Heartbeat:Connect(function(deltaTime)
         local currentPos = rootPart.Position
-                local distanceToTarget = (endPos - currentPos).Magnitude
+        local distanceToTarget = (endPos - currentPos).Magnitude
         
         -- Si estamos cerca del objetivo, ir directamente
         if distanceToTarget < 3 then
@@ -374,21 +381,31 @@ local function goToEstablishedPoint()
         if distanceToTarget < 2 then
             effectConnection:Disconnect()
             
-            -- Asegurar que se desactive el ragdoll al llegar
-            wait(0.1) -- Pequeña pausa para estabilizar
+            -- Detener movimiento inmediatamente
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            
+            -- Esperar un frame para que se estabilice
+            RunService.Heartbeat:Wait()
+            
+            -- Limpiar BodyVelocity
+            bodyVelocity:Destroy()
+            
+            -- Limpiar partículas
+            cleanupTransportParts()
+            
+            -- Desactivar ragdoll DESPUÉS de limpiar todo
             disableRagdoll()
             
-            -- Limpiar todo
-            if bodyVelocity then
-                bodyVelocity:Destroy()
-            end
-            cleanupTransportParts()
+            -- Esperar otro frame
+            RunService.Heartbeat:Wait()
+            
+            -- Asegurar que el personaje esté completamente normal
+            humanoid.PlatformStand = false
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            
+            -- Finalizar transporte
             isTransporting = false
             statusLabel.Text = "¡Flote completado!"
-            
-            -- Asegurar que el personaje esté en estado normal
-            wait(0.2)
-            humanoid.PlatformStand = false
         end
     end)
 end
