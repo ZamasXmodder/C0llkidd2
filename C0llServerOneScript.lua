@@ -1,13 +1,18 @@
+-- Server Script - Panel de Administración con Sistema Brainrot
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- Configuración de administradores (agrega tu UserId aquí)
+local ADMINS = {
+    4622374080, -- Reemplaza con tu UserId
+    -- Agrega más UserIds de admins aquí
+}
 
--- Lista de todos los brainrots
-local brainrotList = {
+-- Lista completa de todos los brainrots
+local BRAINROTS = {
     "Noobini Pizzanini", "Lirili Larila", "TIM Cheese", "Flurifura", "Talpa Di Fero",
     "Svinia Bombardino", "Pipi Kiwi", "Racooni Jandelini", "Pipi Corni", "Trippi Troppi",
     "Tung Tung Tung Sahur", "Gangster Footera", "Bandito Bobritto", "Boneca Ambalabu",
@@ -22,585 +27,340 @@ local brainrotList = {
     "Cavallo Virtuso", "Gorillo Watermelondrillo", "Avocadorilla", "Tob Tobi Tobi",
     "Gangazelli Trulala", "Te Te Te Sahur", "Tracoducotulu Delapeladustuz", "Lerulerulerule",
     "Carloo", "Spioniro Golubiro", "Zibra Zubra Zibralini", "Tigrilini Watermelini",
-    "Cocofanta Elefanto", "Girafa Celestre", "Gyattatino Nyanino", "Matteo",
-    "Tralalero Tralala", "Espresso Signora", "Odin Din Din Dun", "Statutino Libertino",
-    "Trenostruzzo Turbo 3000", "Ballerino Lololo", "Los Orcalitos", "Tralalita Tralala",
-    "Urubini Flamenguini", "Trigoligre Frutonni", "Orcalero Orcala", "Bulbito Bandito Traktorito",
-    "Los Crocodilitos", "Piccione Macchina", "Trippi Troppi Troppa Trippa", "Los Tungtuntuncitos",
-    "Tukanno Bananno", "Alessio", "Tipi Topi Taco", "Pakrahmatmamat", "Bombardini Tortinii",
-    "La Vacca Saturno Saturnita", "Chimpanzini Spiderini", "Los Tralaleritos", "Las Tralaleritas",
-    "Graipuss Medussi", "La Grande Combinasion", "Nuclearo Dinossauro", "Garama and Madundung",
-    "Tortuginni Dragonfruitini", "Pot Hotspot", "Las Vaquitas Saturnitas", "Chicleteira Bicicleteira",
-    "Agarrini la Palini", "Dragon Cannelloni", "Los Combinasionas", "Karkerkar Kurkur",
-    "Los Hotspotsitos", "Esok Sekolah", "Los Matteos", "Dul Dul Dul", "Blackhole Goat",
-    "Nooo My Hotspot", "Sammyini Spyderini", "La Supreme Combinasion", "Ketupat Kepat"
+    "Cocofanta Elefanto", "Girafa Celestre", "Gyattatino Nyanino", "Matteo", "Tralalero Tralala",
+    "Espresso Signora", "Odin Din Din Dun", "Statutino Libertino", "Trenostruzzo Turbo 3000",
+    "Ballerino Lololo", "Los Orcalitos", "Tralalita Tralala", "Urubini Flamenguini",
+    "Trigoligre Frutonni", "Orcalero Orcala", "Bulbito Bandito Traktorito", "Los Crocodilitos",
+    "Piccione Macchina", "Trippi Troppi Troppa Trippa", "Los Tungtuntuncitos", "Tukanno Bananno",
+    "Alessio", "Tipi Topi Taco", "Pakrahmatmamat", "Bombardini Tortinii", "La Vacca Saturno Saturnita",
+    "Chimpanzini Spiderini", "Los Tralaleritos", "Las Tralaleritas", "Graipuss Medussi",
+    "La Grande Combinasion", "Nuclearo Dinossauro", "Garama and Madundung", "Tortuginni Dragonfruitini",
+    "Pot Hotspot", "Las Vaquitas Saturnitas", "Chicleteira Bicicleteira", "Agarrini la Palini",
+    "Dragon Cannelloni", "Los Combinasionas", "Karkerkar Kurkur", "Los Hotspotsitos",
+    "Esok Sekolah", "Los Matteos", "Dul Dul Dul", "Blackhole Goat", "Nooo My Hotspot",
+    "Sammyini Spyderini", "La Supreme Combinasion", "Ketupat Kepat"
 }
 
--- Variables de estado
-local autoStealActive = false
-local currentConnection = nil
-local homePosition = nil
-local isMoving = false
-local floatSpeed = 50 -- Velocidad inicial
-local carrierParts = {}
-local bodyVelocity = nil
+-- Variables del sistema
+local brainrotSystemEnabled = false
+local playersWithBrainrots = {}
+local droppedBodies = {}
+local chatConnections = {}
 
--- Crear GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AutoStealPanel"
-screenGui.Parent = playerGui
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 200)
-frame.Position = UDim2.new(0, 10, 0, 10)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = frame
-
--- Título
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -20, 0, 25)
-titleLabel.Position = UDim2.new(0, 10, 0, 5)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🚀 Auto Steal Panel"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.Parent = frame
-
--- Botón principal
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(1, -20, 0, 40)
-button.Position = UDim2.new(0, 10, 0, 35)
-button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-button.Text = "🔄 Auto Steal: OFF"
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.TextScaled = true
-button.Font = Enum.Font.GothamBold
-button.Parent = frame
-
-local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0, 8)
-buttonCorner.Parent = button
-
--- Control de velocidad
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, -20, 0, 20)
-speedLabel.Position = UDim2.new(0, 10, 0, 85)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "⚡ Float Speed: " .. floatSpeed
-speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-speedLabel.TextScaled = true
-speedLabel.Font = Enum.Font.Gotham
-speedLabel.Parent = frame
-
--- Botones de velocidad
-local speedDownButton = Instance.new("TextButton")
-speedDownButton.Size = UDim2.new(0, 40, 0, 25)
-speedDownButton.Position = UDim2.new(0, 10, 0, 110)
-speedDownButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-speedDownButton.Text = "➖"
-speedDownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedDownButton.TextScaled = true
-speedDownButton.Font = Enum.Font.GothamBold
-speedDownButton.Parent = frame
-
-local speedDownCorner = Instance.new("UICorner")
-speedDownCorner.CornerRadius = UDim.new(0, 6)
-speedDownCorner.Parent = speedDownButton
-
-local speedUpButton = Instance.new("TextButton")
-speedUpButton.Size = UDim2.new(0, 40, 0, 25)
-speedUpButton.Position = UDim2.new(1, -50, 0, 110)
-speedUpButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-speedUpButton.Text = "➕"
-speedUpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedUpButton.TextScaled = true
-speedUpButton.Font = Enum.Font.GothamBold
-speedUpButton.Parent = frame
-
-local speedUpCorner = Instance.new("UICorner")
-speedUpCorner.CornerRadius = UDim.new(0, 6)
-speedUpCorner.Parent = speedUpButton
-
--- Indicador de velocidad visual
-local speedIndicator = Instance.new("Frame")
-speedIndicator.Size = UDim2.new(0, 170, 0, 25)
-speedIndicator.Position = UDim2.new(0, 60, 0, 110)
-speedIndicator.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedIndicator.Parent = frame
-
-local speedIndicatorCorner = Instance.new("UICorner")
-speedIndicatorCorner.CornerRadius = UDim.new(0, 6)
-speedIndicatorCorner.Parent = speedIndicator
-
-local speedBar = Instance.new("Frame")
-speedBar.Size = UDim2.new((floatSpeed - 10) / 190, 0, 1, 0)
-speedBar.Position = UDim2.new(0, 0, 0, 0)
-speedBar.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-speedBar.Parent = speedIndicator
-
-local speedBarCorner = Instance.new("UICorner")
-speedBarCorner.CornerRadius = UDim.new(0, 6)
-speedBarCorner.Parent = speedBar
-
--- Status labels
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -20, 0, 20)
-statusLabel.Position = UDim2.new(0, 10, 0, 145)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "💤 Status: Inactive"
-statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-statusLabel.TextScaled = true
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.Parent = frame
-
-local countLabel = Instance.new("TextLabel")
-countLabel.Size = UDim2.new(1, -20, 0, 18)
-countLabel.Position = UDim2.new(0, 10, 0, 170)
-countLabel.BackgroundTransparency = 1
-countLabel.Text = "🎯 Found: 0 brainrots"
-countLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-countLabel.TextScaled = true
-countLabel.Font = Enum.Font.Gotham
-countLabel.Parent = frame
-
--- Función para actualizar la velocidad (cambiado de 10 a 5)
-local function updateSpeed(newSpeed)
-    floatSpeed = math.clamp(newSpeed, 10, 200)
-    speedLabel.Text = "⚡ Float Speed: " .. floatSpeed
-    speedBar.Size = UDim2.new((floatSpeed - 10) / 190, 0, 1, 0)
+-- Función para verificar si es admin
+local function isAdmin(player)
+    for _, adminId in pairs(ADMINS) do
+        if player.UserId == adminId then
+            return true
+        end
+    end
+    return false
 end
 
--- Eventos de los botones de velocidad (ahora de 5 en 5)
-speedDownButton.MouseButton1Click:Connect(function()
-    updateSpeed(floatSpeed - 5)
-end)
-
-speedUpButton.MouseButton1Click:Connect(function()
-    updateSpeed(floatSpeed + 5)
-end)
-
--- Función para detectar obstáculos usando raycast
-local function checkObstacle(from, to)
-    local rayDirection = (to - from)
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {player.Character, unpack(carrierParts)}
+-- Función para crear el panel de administración
+local function createAdminPanel(player)
+    local playerGui = player:WaitForChild("PlayerGui")
     
-    local raycastResult = workspace:Raycast(from, rayDirection, raycastParams)
-    return raycastResult
-end
-
--- Función para encontrar una ruta alternativa cuando hay obstáculo
-local function findAlternatePath(startPos, targetPos)
-    -- Intentar diferentes alturas para evitar obstáculos
-    local testPositions = {
-        targetPos + Vector3.new(0, 10, 0), -- Más alto
-        targetPos + Vector3.new(5, 5, 0),  -- Lateral derecho
-        targetPos + Vector3.new(-5, 5, 0), -- Lateral izquierdo
-        targetPos + Vector3.new(0, 5, 5),  -- Lateral adelante
-        targetPos + Vector3.new(0, 5, -5), -- Lateral atrás
-        targetPos + Vector3.new(0, 15, 0)  -- Mucho más alto
-    }
+    -- Crear ScreenGui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AdminPanel"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = playerGui
     
-    for _, testPos in pairs(testPositions) do
-        local obstacle = checkObstacle(startPos, testPos)
-        if not obstacle then
-            return testPos
+    -- Frame principal
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 400, 0, 300)
+    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+    mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.Parent = screenGui
+    
+    -- Esquinas redondeadas
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = mainFrame
+    
+    -- Título
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.Size = UDim2.new(1, -40, 0, 50)
+    titleLabel.Position = UDim2.new(0, 20, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "🎮 Panel de Administración"
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.SourceSansBold
+    titleLabel.Parent = mainFrame
+    
+    -- Botón de cerrar
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0, 30, 0, 30)
+    closeButton.Position = UDim2.new(1, -40, 0, 10)
+    closeButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+    closeButton.Text = "✕"
+    closeButton.TextColor3 = Color3.new(1, 1, 1)
+    closeButton.TextScaled = true
+    closeButton.Font = Enum.Font.SourceSansBold
+    closeButton.Parent = mainFrame
+    
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeButton
+    
+    -- Sección Brainrot
+    local brainrotSection = Instance.new("Frame")
+    brainrotSection.Name = "BrainrotSection"
+    brainrotSection.Size = UDim2.new(1, -40, 0, 80)
+    brainrotSection.Position = UDim2.new(0, 20, 0, 70)
+    brainrotSection.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
+    brainrotSection.BorderSizePixel = 0
+    brainrotSection.Parent = mainFrame
+    
+    local sectionCorner = Instance.new("UICorner")
+    sectionCorner.CornerRadius = UDim.new(0, 8)
+    sectionCorner.Parent = brainrotSection
+    
+    -- Título de sección
+    local sectionTitle = Instance.new("TextLabel")
+    sectionTitle.Size = UDim2.new(1, -20, 0, 30)
+    sectionTitle.Position = UDim2.new(0, 10, 0, 5)
+    sectionTitle.BackgroundTransparency = 1
+    sectionTitle.Text = "Sistema Brainrot Body Drop"
+    sectionTitle.TextColor3 = Color3.new(1, 1, 1)
+    sectionTitle.TextScaled = true
+    sectionTitle.Font = Enum.Font.SourceSans
+    sectionTitle.Parent = brainrotSection
+    
+    -- Toggle Brainrot System
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleBrainrot"
+    toggleButton.Size = UDim2.new(0, 100, 0, 35)
+    toggleButton.Position = UDim2.new(0, 15, 0, 40)
+    toggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+    toggleButton.Text = "DESACTIVADO"
+    toggleButton.TextColor3 = Color3.new(1, 1, 1)
+    toggleButton.TextScaled = true
+    toggleButton.Font = Enum.Font.SourceSansBold
+    toggleButton.Parent = brainrotSection
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 6)
+    toggleCorner.Parent = toggleButton
+    
+    -- Status label
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(0, 200, 0, 35)
+    statusLabel.Position = UDim2.new(0, 125, 0, 40)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "Los jugadores NO pueden usar brainrots"
+    statusLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+    statusLabel.TextScaled = true
+    statusLabel.Font = Enum.Font.SourceSans
+    statusLabel.Parent = brainrotSection
+    
+    -- Información adicional
+    local infoLabel = Instance.new("TextLabel")
+    infoLabel.Size = UDim2.new(1, -40, 0, 80)
+    infoLabel.Position = UDim2.new(0, 20, 0, 160)
+    infoLabel.BackgroundTransparency = 1
+    infoLabel.Text = "ℹ️ Cuando esté activado:\n• Los jugadores pueden escribir nombres de brainrots en el chat\n• Su cuerpo se soltará y caerá por debajo del mapa\n• Podrán seguir caminando normalmente"
+    infoLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+    infoLabel.TextScaled = true
+    infoLabel.Font = Enum.Font.SourceSans
+    infoLabel.Parent = mainFrame
+    
+    -- Función para actualizar UI
+    local function updateUI()
+        if brainrotSystemEnabled then
+            toggleButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
+            toggleButton.Text = "ACTIVADO"
+            statusLabel.Text = "Los jugadores PUEDEN usar brainrots"
+            statusLabel.TextColor3 = Color3.new(0.2, 0.8, 0.2)
+        else
+            toggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+            toggleButton.Text = "DESACTIVADO"
+            statusLabel.Text = "Los jugadores NO pueden usar brainrots"
+            statusLabel.TextColor3 = Color3.new(0.8, 0.2, 0.2)
         end
     end
     
-    -- Si no encuentra ruta, volar muy alto
-    return targetPos + Vector3.new(0, 25, 0)
+    -- Eventos
+    toggleButton.MouseButton1Click:Connect(function()
+        brainrotSystemEnabled = not brainrotSystemEnabled
+        updateUI()
+        
+        if brainrotSystemEnabled then
+            print("🎮 Sistema Brainrot ACTIVADO por " .. player.Name)
+        else
+            print("🎮 Sistema Brainrot DESACTIVADO por " .. player.Name)
+            -- Limpiar brainrots activos
+            local activeFolder = workspace:FindFirstChild("ActiveBrainrots")
+            if activeFolder then
+                activeFolder:ClearAllChildren()
+            end
+        end
+    end)
+    
+    closeButton.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+    end)
+    
+    -- Animación de entrada
+    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+    local openTween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+        Size = UDim2.new(0, 400, 0, 300)
+    })
+    openTween:Play()
 end
 
--- Función para encontrar brainrots en workspace
-local function findBrainrots()
-    local brainrots = {}
+-- Funciones del sistema Brainrot (las mismas de antes)
+local function createBrainrotInWorkspace(brainrotName, player)
+    local brainrotFolder = workspace:FindFirstChild("ActiveBrainrots")
+    if not brainrotFolder then
+        brainrotFolder = Instance.new("Folder")
+        brainrotFolder.Name = "ActiveBrainrots"
+        brainrotFolder.Parent = workspace
+    end
     
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj:IsA("Model") then
-            for _, brainrotName in pairs(brainrotList) do
-                if obj.Name == brainrotName then
-                    if obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildOfClass("Part") then
-                        table.insert(brainrots, obj)
-                    end
-                    break
-                end
+    local brainrotPart = Instance.new("Part")
+    brainrotPart.Name = brainrotName .. "_" .. player.Name
+    brainrotPart.Size = Vector3.new(2, 0.1, 4)
+    brainrotPart.Material = Enum.Material.Neon
+    brainrotPart.BrickColor = BrickColor.new("Bright green")
+    brainrotPart.Anchored = true
+    brainrotPart.CanCollide = false
+    brainrotPart.Shape = Enum.PartType.Cylinder
+    
+    local gui = Instance.new("BillboardGui")
+    gui.Size = UDim2.new(0, 200, 0, 50)
+    gui.StudsOffset = Vector3.new(0, 2, 0)
+    gui.Parent = brainrotPart
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = brainrotName
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.Parent = gui
+    
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        brainrotPart.Position = player.Character.HumanoidRootPart.Position + Vector3.new(0, 3, 0)
+    end
+    
+    brainrotPart.Parent = brainrotFolder
+    return brainrotPart
+end
+
+local function dropPlayerBody(player)
+    if not player.Character then return end
+    
+    local character = player.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if not humanoidRootPart or not humanoid then return end
+    
+    local bodyClone = character:Clone()
+    bodyClone.Name = character.Name .. "_DroppedBody"
+    bodyClone.Parent = workspace
+    
+    for _, obj in pairs(bodyClone:GetDescendants()) do
+        if obj:IsA("LocalScript") or obj:IsA("Script") then
+            obj:Destroy()
+        end
+    end
+    
+    local cloneHRP = bodyClone:FindFirstChild("HumanoidRootPart")
+    if cloneHRP then
+        cloneHRP.Anchored = false
+        cloneHRP.CanCollide = true
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+        bodyVelocity.Velocity = Vector3.new(0, -50, 0)
+        bodyVelocity.Parent = cloneHRP
+        
+        game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+    end
+    
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and part ~= humanoidRootPart then
+            part.Transparency = 1
+        elseif part:IsA("Accessory") then
+            local handle = part:FindFirstChild("Handle")
+            if handle then
+                handle.Transparency = 1
             end
         end
     end
     
-    return brainrots
+    droppedBodies[player.UserId] = bodyClone
+    game:GetService("Debris"):AddItem(bodyClone, 30)
 end
 
--- Función para obtener la posición del brainrot
-local function getBrainrotPosition(brainrot)
-    if brainrot.PrimaryPart then
-        return brainrot.PrimaryPart.Position
-    elseif brainrot:FindFirstChild("HumanoidRootPart") then
-        return brainrot.HumanoidRootPart.Position
-    elseif brainrot:FindFirstChildOfClass("Part") then
-        return brainrot:FindFirstChildOfClass("Part").Position
-    end
-    return nil
-end
-
--- Función para limpiar efectos
-local function cleanupEffects()
-    if bodyVelocity then
-        bodyVelocity:Destroy()
-        bodyVelocity = nil
-    end
-    
-    for _, part in pairs(carrierParts) do
-        if part and part.Parent then
-            part:Destroy()
+local function isValidBrainrot(name)
+    for _, brainrot in pairs(BRAINROTS) do
+        if string.lower(brainrot) == string.lower(name) then
+            return true
         end
     end
-    carrierParts = {}
-    
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.PlatformStand = false
-    end
+    return false
 end
 
--- Función para crear las partes que llevarán al jugador
-local function createCarrierParts()
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        return
+-- Eventos de jugadores
+Players.PlayerAdded:Connect(function(player)
+    playersWithBrainrots[player.UserId] = {}
+    
+    -- Crear panel para admins
+    if isAdmin(player) then
+        player.CharacterAdded:Connect(function()
+            wait(2) -- Esperar a que cargue completamente
+            createAdminPanel(player)
+        end)
     end
     
-    local humanoidRootPart = player.Character.HumanoidRootPart
-    
-    -- Limpiar partes anteriores
-    cleanupEffects()
-    
-    -- Crear 6 partes flotantes
-    for i = 1, 6 do
-        local part = Instance.new("Part")
-        part.Size = Vector3.new(2, 2, 2)
-        part.Material = Enum.Material.ForceField
-        part.BrickColor = BrickColor.new("Bright blue")
-        part.CanCollide = false
-        part.Anchored = false
-        part.Shape = Enum.PartType.Ball
-        part.TopSurface = Enum.SurfaceType.Smooth
-        part.BottomSurface = Enum.SurfaceType.Smooth
+    player.CharacterAdded:Connect(function(character)
+        local humanoid = character:WaitForChild("Humanoid")
         
-        local angle = (i - 1) * (math.pi * 2 / 6)
-        local radius = 8
-        part.Position = humanoidRootPart.Position + Vector3.new(
-            math.cos(angle) * radius,
-            math.random(3, 7),
-            math.sin(angle) * radius
-        )
+        -- Desconectar conexión anterior si existe
+        if chatConnections[player.UserId] then
+            chatConnections[player.UserId]:Disconnect()
+        end
         
-        part.Parent = workspace
-        table.insert(carrierParts, part)
-        
-        -- Efecto de brillo
-        local pointLight = Instance.new("PointLight")
-        pointLight.Color = Color3.fromRGB(0, 162, 255)
-        pointLight.Brightness = 3
-        pointLight.Range = 15
-        pointLight.Parent = part
-        
-        -- BodyVelocity para movimiento suave
-        local bodyVel = Instance.new("BodyVelocity")
-        bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVel.Velocity = Vector3.new(0, 0, 0)
-        bodyVel.Parent = part
-        
-        -- BodyAngularVelocity para rotación
-        local bodyAngular = Instance.new("BodyAngularVelocity")
-        bodyAngular.AngularVelocity = Vector3.new(0, math.random(5, 15), 0)
-        bodyAngular.MaxTorque = Vector3.new(0, math.huge, 0)
-        bodyAngular.Parent = part
-    end
-    
-    -- Crear BodyVelocity para el jugador
-    bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.Parent = humanoidRootPart
-    
-    -- Inmovilizar al jugador
-    if player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.PlatformStand = true
-    end
-end
-
--- Función para mover flotando hacia el objetivo (mejorada con detección de obstáculos)
-local function floatToTarget(targetPosition, isReturningHome)
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        return
-    end
-    
-    isMoving = true
-    local humanoidRootPart = player.Character.HumanoidRootPart
-    
-    -- Crear las partes que llevarán al jugador
-    createCarrierParts()
-    
-    -- Verificar si hay obstáculos y encontrar ruta alternativa
-    local obstacle = checkObstacle(humanoidRootPart.Position, targetPosition)
-    local finalTarget = targetPosition
-    
-    if obstacle then
-        finalTarget = findAlternatePath(humanoidRootPart.Position, targetPosition)
-        statusLabel.Text = "🧭 Avoiding obstacles..."
-    end
-    
-    -- Movimiento flotante
-    spawn(function()
-        local startTime = tick()
-        local connection
-        
-        connection = RunService.Heartbeat:Connect(function()
-            if not autoStealActive or tick() - startTime > 20 then -- Aumentado el tiempo límite
-                connection:Disconnect()
-                isMoving = false
-                cleanupEffects()
-                return
-            end
-            
-            if humanoidRootPart and humanoidRootPart.Parent then
-                local direction = (finalTarget - humanoidRootPart.Position)
-                local distance = direction.Magnitude
-                
-                if distance < 8 then
-                    -- Llegamos al objetivo
-                    connection:Disconnect()
-                    isMoving = false
+        chatConnections[player.UserId] = player.Chatted:Connect(function(message)
+            if brainrotSystemEnabled and isValidBrainrot(message) then
+                if not playersWithBrainrots[player.UserId][message] then
+                    playersWithBrainrots[player.UserId][message] = true
                     
-                    if not isReturningHome then
-                        -- Simular recolección más rápida (reducido de 2 a 0.5 segundos)
-                        statusLabel.Text = "✨ Collecting brainrot..."
-                        wait(0.5)
-                        
-                        -- Regresar a casa inmediatamente
-                        if homePosition and autoStealActive then
-                            statusLabel.Text = "🏠 Returning home..."
-                            floatToTarget(homePosition, true, nil)
-                        else
-                            cleanupEffects()
-                        end
-                    else
-                        cleanupEffects()
-                    end
-                    return
-                end
-                
-                -- Verificar obstáculos durante el movimiento
-                local currentObstacle = checkObstacle(humanoidRootPart.Position, finalTarget)
-                if currentObstacle and distance > 15 then
-                    -- Recalcular ruta si encontramos un obstáculo nuevo
-                    finalTarget = findAlternatePath(humanoidRootPart.Position, targetPosition)
-                end
-                
-                -- Calcular velocidad
-                direction = direction.Unit
-                local velocity = direction * floatSpeed
-                
-                -- Aplicar movimiento al jugador
-                if bodyVelocity and bodyVelocity.Parent then
-                    bodyVelocity.Velocity = velocity
-                end
-                
-                -- Mover las partes flotantes alrededor del jugador (EN EL SUELO)
-                for i, part in pairs(carrierParts) do
-                    if part and part.Parent and part:FindFirstChild("BodyVelocity") then
-                        local angle = (i - 1) * (math.pi * 2 / 6) + tick() * 1.5
-                        local radius = 4  -- Radio pequeño
-                        local targetPartPos = humanoidRootPart.Position + Vector3.new(
-                            math.cos(angle) * radius,
-                            0, -- COMPLETAMENTE en el suelo
-                            math.sin(angle) * radius
-                        )
-                        
-                        local partDirection = (targetPartPos - part.Position)
-                        -- Solo movimiento horizontal, Y = 0
-                        partDirection = Vector3.new(partDirection.X, 0, partDirection.Z).Unit
-                        part.BodyVelocity.Velocity = partDirection * (floatSpeed * 0.9)
-                    end
+                    createBrainrotInWorkspace(message, player)
+                    dropPlayerBody(player)
+                    
+                    print("🎮 " .. player.Name .. " agarró: " .. message)
                 end
             end
         end)
     end)
-end
+end)
 
--- Función para crear efectos visuales en el brainrot
-local function createBrainrotEffects(position)
-    for i = 1, 3 do
-        local effect = Instance.new("Part")
-        effect.Size = Vector3.new(1, 1, 1)
-        effect.Material = Enum.Material.Neon
-        effect.BrickColor = BrickColor.new("Bright green")
-        effect.CanCollide = false
-        effect.Anchored = true
-        effect.Shape = Enum.PartType.Ball
-        effect.Transparency = 0.3
-        
-        local angle = (i - 1) * (math.pi * 2 / 3)
-        local radius = 5
-        effect.Position = position + Vector3.new(
-            math.cos(angle) * radius,
-            math.random(1, 4),
-            math.sin(angle) * radius
-        )
-        
-        effect.Parent = workspace
-        
-        -- Animación de crecimiento y desvanecimiento
-        spawn(function()
-            for t = 0, 3, 0.1 do
-                if effect.Parent then
-                    effect.Size = Vector3.new(1 + t, 1 + t, 1 + t)
-                    effect.Transparency = 0.3 + (t / 3) * 0.7
-                    effect.Position = effect.Position + Vector3.new(0, 0.1, 0)
-                end
-                wait(0.1)
-            end
-            if effect.Parent then
-                effect:Destroy()
-            end
-        end)
-    end
-end
-
--- Función principal de auto steal
-local function autoStealLoop()
-    if not autoStealActive or isMoving then return end
+Players.PlayerRemoving:Connect(function(player)
+    playersWithBrainrots[player.UserId] = nil
     
-    local brainrots = findBrainrots()
-    countLabel.Text = "🎯 Found: " .. #brainrots .. " brainrots"
+    if chatConnections[player.UserId] then
+        chatConnections[player.UserId]:Disconnect()
+        chatConnections[player.UserId] = nil
+    end
     
-    if #brainrots > 0 then
-        local closestBrainrot = nil
-        local closestDistance = math.huge
-        
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local playerPos = player.Character.HumanoidRootPart.Position
-            
-            for _, brainrot in pairs(brainrots) do
-                local brainrotPos = getBrainrotPosition(brainrot)
-                if brainrotPos then
-                    local distance = (brainrotPos - playerPos).Magnitude
-                    if distance < closestDistance then
-                        closestDistance = distance
-                        closestBrainrot = brainrot
-                    end
-                end
-            end
-            
-            if closestBrainrot then
-                local targetPos = getBrainrotPosition(closestBrainrot)
-                if targetPos then
-                    statusLabel.Text = "🚀 Flying to: " .. closestBrainrot.Name
-                    createBrainrotEffects(targetPos)
-                    floatToTarget(targetPos, false)
-                end
-            end
-        end
-    else
-        statusLabel.Text = "🔍 Searching for brainrots..."
-    end
-end
-
--- Evento del botón principal
-button.MouseButton1Click:Connect(function()
-    autoStealActive = not autoStealActive
-    
-    if autoStealActive then
-        button.Text = "🟢 Auto Steal: ON"
-        button.BackgroundColor3 = Color3.fromRGB(46, 125, 50)
-        statusLabel.Text = "⚡ Active - Scanning..."
-        
-        -- Guardar posición inicial
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            homePosition = player.Character.HumanoidRootPart.Position
-        end
-        
-        -- Iniciar loop
-        currentConnection = RunService.Heartbeat:Connect(function()
-            wait(2) -- Reducido de 3 a 2 segundos para mayor velocidad
-            autoStealLoop()
-        end)
-    else
-        button.Text = "🔴 Auto Steal: OFF"
-        button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        statusLabel.Text = "💤 Status: Inactive"
-        countLabel.Text = "🎯 Found: 0 brainrots"
-        isMoving = false
-        
-        -- Limpiar todo
-        cleanupEffects()
-        
-        -- Detener loop
-        if currentConnection then
-            currentConnection:Disconnect()
-            currentConnection = nil
-        end
+    if droppedBodies[player.UserId] then
+        droppedBodies[player.UserId]:Destroy()
+        droppedBodies[player.UserId] = nil
     end
 end)
 
--- Hacer el panel arrastrable
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-    end
-end)
-
-frame.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-frame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
--- Función para limpiar al salir
-game.Players.PlayerRemoving:Connect(function(plr)
-    if plr == player then
-        if currentConnection then
-            currentConnection:Disconnect()
-        end
-        cleanupEffects()
-        if screenGui then
-            screenGui:Destroy()
-        end
-    end
-end)
-
--- Notificación de inicio
-spawn(function()
-    wait(1)
-    statusLabel.Text = "✅ Auto Steal Panel Ready!"
-    wait(2)
-    if not autoStealActive then
-        statusLabel.Text = "💤 Status: Inactive"
-    end
-end)
-
-print("🎮 Auto Steal Panel loaded successfully!")
-print("📋 Monitoring " .. #brainrotList .. " different brainrots")
-print("🚀 Float system activated with obstacle avoidance!")
-print("⚡ Speed controls: Use ➖ and ➕ buttons (Range: 10-200, steps of 5)")
-print("🧭 New features: Wall detection and faster collection!")
+print("🎮 Panel de Administración con Sistema Brainrot cargado!")
+print("🔑 Admins configurados: " .. #ADMINS)
