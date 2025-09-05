@@ -252,6 +252,30 @@ local function cleanupTransportParts()
     transportParts = {}
 end
 
+local function stopTransport()
+    -- Detener el transporte inmediatamente
+    isTransporting = false
+    
+    -- Limpiar BodyVelocity
+    local bodyVelocity = rootPart:FindFirstChild("BodyVelocity")
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+    end
+    
+    -- Limpiar partículas
+    cleanupTransportParts()
+    
+    -- Desactivar ragdoll
+    disableRagdoll()
+    
+    -- Asegurar estado normal
+    task.wait(0.1)
+    humanoid.PlatformStand = false
+    humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    
+    statusLabel.Text = "¡Flote completado!"
+end
+
 local function goToEstablishedPoint()
     if not targetPoint then
         statusLabel.Text = "No hay punto establecido"
@@ -290,7 +314,7 @@ local function goToEstablishedPoint()
             math.cos(math.rad(angle)) * radius,
             math.sin(i * 0.8) * 1.5,
             math.sin(math.rad(angle)) * radius
-        )
+                    )
         part.Position = rootPart.Position + offset
         
         table.insert(transportParts, part)
@@ -335,7 +359,7 @@ local function goToEstablishedPoint()
             
             -- Probar ir por la izquierda
             local leftPos = currentPos + leftDirection * 5
-                        local leftRaycast = workspace:Raycast(currentPos, (leftPos - currentPos), raycastParams)
+            local leftRaycast = workspace:Raycast(currentPos, (leftPos - currentPos), raycastParams)
             
             if not leftRaycast then
                 return leftDirection * floatSpeed
@@ -349,8 +373,21 @@ local function goToEstablishedPoint()
     end
     
     local effectConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        -- Verificar si el transporte fue cancelado
+        if not isTransporting then
+            effectConnection:Disconnect()
+            return
+        end
+        
         local currentPos = rootPart.Position
         local distanceToTarget = (endPos - currentPos).Magnitude
+        
+        -- Verificar si hemos llegado al destino
+        if distanceToTarget < 2 then
+            effectConnection:Disconnect()
+            stopTransport()
+            return
+        end
         
         -- Si estamos cerca del objetivo, ir directamente
         if distanceToTarget < 3 then
@@ -375,37 +412,6 @@ local function goToEstablishedPoint()
                 part.Position = currentPos + offset
                 part.Color = Color3.fromHSV(((tick() * 60 + i * 60) % 360) / 360, 0.7, 1)
             end
-        end
-        
-        -- Verificar si hemos llegado al destino
-        if distanceToTarget < 2 then
-            effectConnection:Disconnect()
-            
-            -- Detener movimiento inmediatamente
-            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-            
-            -- Esperar un frame para que se estabilice
-            RunService.Heartbeat:Wait()
-            
-            -- Limpiar BodyVelocity
-            bodyVelocity:Destroy()
-            
-            -- Limpiar partículas
-            cleanupTransportParts()
-            
-            -- Desactivar ragdoll DESPUÉS de limpiar todo
-            disableRagdoll()
-            
-            -- Esperar otro frame
-            RunService.Heartbeat:Wait()
-            
-            -- Asegurar que el personaje esté completamente normal
-            humanoid.PlatformStand = false
-            humanoid:ChangeState(Enum.HumanoidStateType.Running)
-            
-            -- Finalizar transporte
-            isTransporting = false
-            statusLabel.Text = "¡Flote completado!"
         end
     end)
 end
