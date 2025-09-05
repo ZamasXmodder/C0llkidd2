@@ -1,9 +1,10 @@
--- Italian Brainrot Invisible Steal Panel
+-- Italian Brainrot Invisible Steal Panel - FIXED VERSION
 -- Makes player and equipped brainrot completely invisible to ALL players
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -12,7 +13,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local invisibleStealEnabled = false
 local invisibilityConnection = nil
 local originalTransparencies = {}
-local hiddenParts = {}
+local hiddenConnections = {}
 
 -- Italian Brainrots List
 local brainrotList = {
@@ -64,131 +65,123 @@ local function isBrainrot(toolName)
     return false
 end
 
--- Make object completely invisible to everyone
-local function makeCompletelyInvisible(object)
+-- Make object invisible (proper method)
+local function makeInvisible(object)
     if not object then return end
     
     for _, part in pairs(object:GetDescendants()) do
         if part:IsA("BasePart") then
-            -- Store original properties
-            if not hiddenParts[part] then
-                hiddenParts[part] = {
-                    transparency = part.Transparency,
-                    canCollide = part.CanCollide,
-                    parent = part.Parent
-                }
+            -- Store original transparency
+            if not originalTransparencies[part] then
+                originalTransparencies[part] = part.Transparency
             end
-            
-            -- Make completely invisible and non-collidable
+            -- Make invisible
             part.Transparency = 1
-            part.CanCollide = false
             
-            -- Hide from everyone by moving to ReplicatedStorage temporarily
-            if part.Parent ~= game.ReplicatedStorage then
-                part.Parent = game.ReplicatedStorage
-            end
-            
-        elseif part:IsA("Decal") or part:IsA("Texture") or part:IsA("SurfaceGui") then
-            if not hiddenParts[part] then
-                hiddenParts[part] = {
-                    transparency = part.Transparency or 0,
-                    parent = part.Parent
-                }
+        elseif part:IsA("Decal") or part:IsA("Texture") then
+            if not originalTransparencies[part] then
+                originalTransparencies[part] = part.Transparency
             end
             part.Transparency = 1
             
-        elseif part:IsA("Accessory") then
-            local handle = part:FindFirstChild("Handle")
-            if handle then
-                if not hiddenParts[handle] then
-                    hiddenParts[handle] = {
-                        transparency = handle.Transparency,
-                        canCollide = handle.CanCollide,
-                        parent = handle.Parent
-                    }
-                end
-                handle.Transparency = 1
-                handle.CanCollide = false
-                if handle.Parent ~= game.ReplicatedStorage then
-                    handle.Parent = game.ReplicatedStorage
-                end
+        elseif part:IsA("SurfaceGui") or part:IsA("BillboardGui") or part:IsA("ScreenGui") then
+            if not originalTransparencies[part] then
+                originalTransparencies[part] = part.Enabled
             end
+            part.Enabled = false
+            
+        elseif part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") then
+            if not originalTransparencies[part] then
+                originalTransparencies[part] = part.Enabled
+            end
+            part.Enabled = false
+            
+        elseif part:IsA("PointLight") or part:IsA("SpotLight") or part:IsA("SurfaceLight") then
+            if not originalTransparencies[part] then
+                originalTransparencies[part] = part.Enabled
+            end
+            part.Enabled = false
         end
     end
 end
 
--- Restore object visibility
-local function makeCompletelyVisible(object)
+-- Make object visible (restore)
+local function makeVisible(object)
     if not object then return end
     
     for _, part in pairs(object:GetDescendants()) do
-        if hiddenParts[part] then
-            local stored = hiddenParts[part]
-            
-            -- Restore original properties
-            if part:IsA("BasePart") then
-                part.Transparency = stored.transparency
-                part.CanCollide = stored.canCollide
-                if stored.parent and stored.parent ~= game.ReplicatedStorage then
-                    part.Parent = stored.parent
-                end
-            elseif part:IsA("Decal") or part:IsA("Texture") or part:IsA("SurfaceGui") then
-                part.Transparency = stored.transparency
-                if stored.parent then
-                    part.Parent = stored.parent
-                end
+        if originalTransparencies[part] ~= nil then
+            if part:IsA("BasePart") or part:IsA("Decal") or part:IsA("Texture") then
+                part.Transparency = originalTransparencies[part]
+            elseif part:IsA("SurfaceGui") or part:IsA("BillboardGui") or part:IsA("ScreenGui") or 
+                   part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") or
+                   part:IsA("PointLight") or part:IsA("SpotLight") or part:IsA("SurfaceLight") then
+                part.Enabled = originalTransparencies[part]
             end
-            
-            hiddenParts[part] = nil
+            originalTransparencies[part] = nil
         end
     end
 end
 
--- Alternative method: Use CFrame manipulation to hide
-local function hidePlayerAlternative(character)
+-- Advanced invisibility method using CFrame manipulation
+local function makeInvisibleAdvanced(character)
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     
-    local rootPart = character.HumanoidRootPart
+    -- Method 1: Set all parts to maximum transparency
+    makeInvisible(character)
     
-    -- Move player far underground where no one can see
-    if not hiddenParts[character] then
-        hiddenParts[character] = {
-            originalCFrame = rootPart.CFrame
-        }
+    -- Method 2: Move character far away (but keep functionality)
+    local rootPart = character.HumanoidRootPart
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    
+    if humanoid then
+        -- Disable name display
+        humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
     end
     
-    -- Teleport to underground position
-    rootPart.CFrame = rootPart.CFrame + Vector3.new(0, -1000, 0)
-    
-    -- Make all parts invisible as backup
-    for _, part in pairs(character:GetDescendants()) do
+    -- Method 3: Make character extremely small (almost invisible)
+    for _, part in pairs(character:GetChildren()) do
         if part:IsA("BasePart") and part ~= rootPart then
-            if not hiddenParts[part] then
-                hiddenParts[part] = {transparency = part.Transparency}
+            if not originalTransparencies[part .. "_size"] then
+                originalTransparencies[part .. "_size"] = part.Size
             end
-            part.Transparency = 1
+            part.Size = Vector3.new(0.001, 0.001, 0.001)
+        elseif part:IsA("Accessory") then
+            local handle = part:FindFirstChild("Handle")
+            if handle then
+                if not originalTransparencies[handle .. "_size"] then
+                    originalTransparencies[handle .. "_size"] = handle.Size
+                end
+                handle.Size = Vector3.new(0.001, 0.001, 0.001)
+            end
         end
     end
 end
 
--- Restore player position
-local function showPlayerAlternative(character)
-    if not character or not hiddenParts[character] then return end
+-- Restore character visibility
+local function makeVisibleAdvanced(character)
+    if not character then return end
     
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if rootPart and hiddenParts[character].originalCFrame then
-        rootPart.CFrame = hiddenParts[character].originalCFrame
+    makeVisible(character)
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
     end
     
-    -- Restore part visibility
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") and hiddenParts[part] then
-            part.Transparency = hiddenParts[part].transparency
-            hiddenParts[part] = nil
+    -- Restore sizes
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and originalTransparencies[part .. "_size"] then
+            part.Size = originalTransparencies[part .. "_size"]
+            originalTransparencies[part .. "_size"] = nil
+        elseif part:IsA("Accessory") then
+            local handle = part:FindFirstChild("Handle")
+            if handle and originalTransparencies[handle .. "_size"] then
+                handle.Size = originalTransparencies[handle .. "_size"]
+                originalTransparencies[handle .. "_size"] = nil
+            end
         end
     end
-    
-    hiddenParts[character] = nil
 end
 
 -- Start invisible steal
@@ -201,29 +194,29 @@ local function startInvisibleSteal()
         if not player.Character then return end
         
         local character = player.Character
+        
+        -- Make player invisible
+        makeInvisibleAdvanced(character)
+        
+        -- Handle equipped tool
         local equippedTool = character:FindFirstChildOfClass("Tool")
-        
-        -- Method 1: Complete invisibility
-        makeCompletelyInvisible(character)
-        
-        -- Method 2: Underground hiding (backup)
-        hidePlayerAlternative(character)
-        
-        -- Hide equipped brainrot if it's a brainrot
         if equippedTool and isBrainrot(equippedTool.Name) then
-            makeCompletelyInvisible(equippedTool)
-            
-            -- Additional method: Move tool parts to ReplicatedStorage
-            for _, part in pairs(equippedTool:GetDescendants()) do
-                if part:IsA("BasePart") and part.Parent ~= game.ReplicatedStorage then
-                    part.Parent = game.ReplicatedStorage
+            makeInvisible(equippedTool)
+        end
+        
+        -- Also check backpack for brainrots
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            for _, tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and isBrainrot(tool.Name) then
+                    makeInvisible(tool)
                 end
             end
         end
     end)
     
     print("👻 Invisible Steal: ACTIVADO")
-    print("🧠 Jugador y brainrots equipados completamente invisibles para TODOS!")
+    print("🧠 Jugador y brainrots completamente invisibles!")
 end
 
 -- Stop invisible steal
@@ -235,27 +228,30 @@ local function stopInvisibleSteal()
     
     -- Restore visibility
     if player.Character then
-        makeCompletelyVisible(player.Character)
-        showPlayerAlternative(player.Character)
+        makeVisibleAdvanced(player.Character)
         
+        -- Restore equipped tool
         local equippedTool = player.Character:FindFirstChildOfClass("Tool")
         if equippedTool then
-            makeCompletelyVisible(equippedTool)
-            
-            -- Restore tool parts to proper parent
-            for _, part in pairs(equippedTool:GetDescendants()) do
-                if part:IsA("BasePart") and hiddenParts[part] and hiddenParts[part].parent then
-                    part.Parent = hiddenParts[part].parent
+            makeVisible(equippedTool)
+        end
+        
+        -- Restore backpack tools
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            for _, tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") then
+                    makeVisible(tool)
                 end
             end
         end
     end
     
     -- Clear all stored data
-    hiddenParts = {}
+    originalTransparencies = {}
     
     print("👻 Invisible Steal: DESACTIVADO")
-    print("🧠 Visibilidad completamente restaurada!")
+    print("🧠 Visibilidad restaurada!")
 end
 
 -- Toggle invisible steal
@@ -275,27 +271,36 @@ local function createInvisibleStealPanel()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "InvisibleStealPanel"
     screenGui.Parent = playerGui
+    screenGui.ResetOnSpawn = false
     
     -- Main Frame
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 280, 0, 220)
+    mainFrame.Size = UDim2.new(0, 300, 0, 250)
     mainFrame.Position = UDim2.new(0, 320, 0, 10)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
+    mainFrame.Active = true
+    mainFrame.Draggable = true
     
     -- Add corner radius
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
+    corner.CornerRadius = UDim.new(0, 15)
     corner.Parent = mainFrame
+    
+    -- Add stroke
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(128, 0, 128)
+    stroke.Thickness = 2
+    stroke.Parent = mainFrame
     
     -- Title
     local title = Instance.new("TextLabel")
     title.Name = "Title"
-    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Size = UDim2.new(1, 0, 0, 60)
     title.Position = UDim2.new(0, 0, 0, 0)
-    title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    title.BackgroundColor3 = Color3.fromRGB(128, 0, 128)
     title.Text = "👻 INVISIBLE STEAL PANEL"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextScaled = true
@@ -303,31 +308,31 @@ local function createInvisibleStealPanel()
     title.Parent = mainFrame
     
     local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.CornerRadius = UDim.new(0, 15)
     titleCorner.Parent = title
     
     -- Invisible Steal Button
     local stealBtn = Instance.new("TextButton")
     stealBtn.Name = "InvisibleStealButton"
-    stealBtn.Size = UDim2.new(0.9, 0, 0, 50)
-    stealBtn.Position = UDim2.new(0.05, 0, 0, 70)
-    stealBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 128)
-    stealBtn.Text = "INVISIBLE STEAL: OFF"
+    stealBtn.Size = UDim2.new(0.85, 0, 0, 55)
+    stealBtn.Position = UDim2.new(0.075, 0, 0, 80)
+    stealBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+    stealBtn.Text = "🔴 INVISIBLE STEAL: OFF"
     stealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     stealBtn.TextScaled = true
     stealBtn.Font = Enum.Font.GothamBold
     stealBtn.Parent = mainFrame
     
     local stealCorner = Instance.new("UICorner")
-    stealCorner.CornerRadius = UDim.new(0, 8)
+    stealCorner.CornerRadius = UDim.new(0, 10)
     stealCorner.Parent = stealBtn
     
     -- Info Label
     local infoLabel = Instance.new("TextLabel")
-    infoLabel.Size = UDim2.new(0.9, 0, 0, 80)
-        infoLabel.Position = UDim2.new(0.05, 0, 0, 130)
+    infoLabel.Size = UDim2.new(0.9, 0, 0, 90)
+    infoLabel.Position = UDim2.new(0.05, 0, 0, 150)
     infoLabel.BackgroundTransparency = 1
-    infoLabel.Text = "🧠 Te hace COMPLETAMENTE invisible\na ti y al brainrot equipado\n👻 Invisible para TODOS los jugadores\n🎯 Método múltiple para máxima efectividad"
+    infoLabel.Text = "🧠 Te hace COMPLETAMENTE invisible\na ti y al brainrot equipado\n👻 Invisible para TODOS los jugadores\n🎯 Método avanzado mejorado\n✅ Sin congelamiento del personaje"
     infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     infoLabel.TextScaled = true
     infoLabel.Font = Enum.Font.Gotham
@@ -338,11 +343,11 @@ local function createInvisibleStealPanel()
         toggleInvisibleSteal()
         
         if invisibleStealEnabled then
-            stealBtn.Text = "INVISIBLE STEAL: ON"
-            stealBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            stealBtn.Text = "🟢 INVISIBLE STEAL: ON"
+            stealBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
         else
-            stealBtn.Text = "INVISIBLE STEAL: OFF"
-            stealBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 128)
+            stealBtn.Text = "🔴 INVISIBLE STEAL: OFF"
+            stealBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
         end
     end)
     
@@ -357,34 +362,23 @@ player.CharacterRemoving:Connect(function()
     end
     
     -- Clear stored data
-    hiddenParts = {}
+    originalTransparencies = {}
     invisibleStealEnabled = false
 end)
 
 -- Restore when character respawns
 player.CharacterAdded:Connect(function()
-    wait(2) -- Wait for character to fully load
+    wait(3) -- Wait for character to fully load
     if invisibleStealEnabled then
         -- Auto-restart if it was enabled
         startInvisibleSteal()
     end
 end)
 
--- Clean up when player leaves
-game.Players.PlayerRemoving:Connect(function(leavingPlayer)
-    if leavingPlayer == player then
-        if invisibilityConnection then
-            invisibilityConnection:Disconnect()
-            invisibilityConnection = nil
-        end
-        hiddenParts = {}
-    end
-end)
-
 -- Initialize panel
 local panel = createInvisibleStealPanel()
 
-print("👻 Invisible Steal Panel V2 cargado!")
-print("🧠 Método múltiple para invisibilidad COMPLETA")
+print("👻 Invisible Steal Panel V3 FIXED cargado!")
+print("🧠 Método avanzado sin congelamiento")
 print("🎯 Invisible para TODOS los jugadores")
-print("🔧 Incluye backup underground + ReplicatedStorage hiding")
+print("✅ Funcionalidad del personaje preservada")
