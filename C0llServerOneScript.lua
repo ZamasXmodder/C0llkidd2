@@ -1,17 +1,10 @@
--- Server Script - Panel de Administración con Sistema Brainrot
+-- Server Script - Coloca en ServerScriptService
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
--- Configuración de administradores (agrega tu UserId aquí)
-local ADMINS = {
-    4622374080, -- Reemplaza con tu UserId
-    -- Agrega más UserIds de admins aquí
-}
-
--- Lista completa de todos los brainrots
+-- Lista completa de brainrots
 local BRAINROTS = {
     "Noobini Pizzanini", "Lirili Larila", "TIM Cheese", "Flurifura", "Talpa Di Fero",
     "Svinia Bombardino", "Pipi Kiwi", "Racooni Jandelini", "Pipi Corni", "Trippi Troppi",
@@ -42,182 +35,68 @@ local BRAINROTS = {
 }
 
 -- Variables del sistema
-local brainrotSystemEnabled = false
+local brainrotSystemEnabled = true -- Activado por defecto
 local playersWithBrainrots = {}
-local droppedBodies = {}
 local chatConnections = {}
 
--- Función para verificar si es admin
-local function isAdmin(player)
-    for _, adminId in pairs(ADMINS) do
-        if player.UserId == adminId then
-            return true
-        end
-    end
-    return false
-end
-
--- Función para crear el panel de administración
-local function createAdminPanel(player)
-    local playerGui = player:WaitForChild("PlayerGui")
-    
-    -- Crear ScreenGui
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AdminPanel"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = playerGui
-    
-    -- Frame principal
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 400, 0, 300)
-    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
-    mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Active = true
-    mainFrame.Draggable = true
-    mainFrame.Parent = screenGui
-    
-    -- Esquinas redondeadas
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = mainFrame
-    
-    -- Título
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Name = "Title"
-    titleLabel.Size = UDim2.new(1, -40, 0, 50)
-    titleLabel.Position = UDim2.new(0, 20, 0, 10)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "🎮 Panel de Administración"
-    titleLabel.TextColor3 = Color3.new(1, 1, 1)
-    titleLabel.TextScaled = true
-    titleLabel.Font = Enum.Font.SourceSansBold
-    titleLabel.Parent = mainFrame
-    
-    -- Botón de cerrar
-    local closeButton = Instance.new("TextButton")
-    closeButton.Name = "CloseButton"
-    closeButton.Size = UDim2.new(0, 30, 0, 30)
-    closeButton.Position = UDim2.new(1, -40, 0, 10)
-    closeButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
-    closeButton.Text = "✕"
-    closeButton.TextColor3 = Color3.new(1, 1, 1)
-    closeButton.TextScaled = true
-    closeButton.Font = Enum.Font.SourceSansBold
-    closeButton.Parent = mainFrame
-    
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 6)
-    closeCorner.Parent = closeButton
-    
-    -- Sección Brainrot
-    local brainrotSection = Instance.new("Frame")
-    brainrotSection.Name = "BrainrotSection"
-    brainrotSection.Size = UDim2.new(1, -40, 0, 80)
-    brainrotSection.Position = UDim2.new(0, 20, 0, 70)
-    brainrotSection.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
-    brainrotSection.BorderSizePixel = 0
-    brainrotSection.Parent = mainFrame
-    
-    local sectionCorner = Instance.new("UICorner")
-    sectionCorner.CornerRadius = UDim.new(0, 8)
-    sectionCorner.Parent = brainrotSection
-    
-    -- Título de sección
-    local sectionTitle = Instance.new("TextLabel")
-    sectionTitle.Size = UDim2.new(1, -20, 0, 30)
-    sectionTitle.Position = UDim2.new(0, 10, 0, 5)
-    sectionTitle.BackgroundTransparency = 1
-    sectionTitle.Text = "Sistema Brainrot Body Drop"
-    sectionTitle.TextColor3 = Color3.new(1, 1, 1)
-    sectionTitle.TextScaled = true
-    sectionTitle.Font = Enum.Font.SourceSans
-    sectionTitle.Parent = brainrotSection
-    
-    -- Toggle Brainrot System
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Name = "ToggleBrainrot"
-    toggleButton.Size = UDim2.new(0, 100, 0, 35)
-    toggleButton.Position = UDim2.new(0, 15, 0, 40)
-    toggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
-    toggleButton.Text = "DESACTIVADO"
-    toggleButton.TextColor3 = Color3.new(1, 1, 1)
-    toggleButton.TextScaled = true
-    toggleButton.Font = Enum.Font.SourceSansBold
-    toggleButton.Parent = brainrotSection
-    
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 6)
-    toggleCorner.Parent = toggleButton
-    
-    -- Status label
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(0, 200, 0, 35)
-    statusLabel.Position = UDim2.new(0, 125, 0, 40)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = "Los jugadores NO pueden usar brainrots"
-    statusLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
-    statusLabel.TextScaled = true
-    statusLabel.Font = Enum.Font.SourceSans
-    statusLabel.Parent = brainrotSection
-    
-    -- Información adicional
-    local infoLabel = Instance.new("TextLabel")
-    infoLabel.Size = UDim2.new(1, -40, 0, 80)
-    infoLabel.Position = UDim2.new(0, 20, 0, 160)
-    infoLabel.BackgroundTransparency = 1
-    infoLabel.Text = "ℹ️ Cuando esté activado:\n• Los jugadores pueden escribir nombres de brainrots en el chat\n• Su cuerpo se soltará y caerá por debajo del mapa\n• Podrán seguir caminando normalmente"
-    infoLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-    infoLabel.TextScaled = true
-    infoLabel.Font = Enum.Font.SourceSans
-    infoLabel.Parent = mainFrame
-    
-    -- Función para actualizar UI
-    local function updateUI()
-        if brainrotSystemEnabled then
-            toggleButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
-            toggleButton.Text = "ACTIVADO"
-            statusLabel.Text = "Los jugadores PUEDEN usar brainrots"
-            statusLabel.TextColor3 = Color3.new(0.2, 0.8, 0.2)
-        else
-            toggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
-            toggleButton.Text = "DESACTIVADO"
-            statusLabel.Text = "Los jugadores NO pueden usar brainrots"
-            statusLabel.TextColor3 = Color3.new(0.8, 0.2, 0.2)
-        end
-    end
-    
-    -- Eventos
-    toggleButton.MouseButton1Click:Connect(function()
-        brainrotSystemEnabled = not brainrotSystemEnabled
-        updateUI()
+-- Función para crear GUI en el cliente
+local function createPlayerGUI(player)
+    player.CharacterAdded:Connect(function(character)
+        wait(1) -- Esperar a que cargue
         
-        if brainrotSystemEnabled then
-            print("🎮 Sistema Brainrot ACTIVADO por " .. player.Name)
-        else
-            print("🎮 Sistema Brainrot DESACTIVADO por " .. player.Name)
-            -- Limpiar brainrots activos
-            local activeFolder = workspace:FindFirstChild("ActiveBrainrots")
-            if activeFolder then
-                activeFolder:ClearAllChildren()
+        local playerGui = player:WaitForChild("PlayerGui")
+        
+        -- Crear ScreenGui
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "BrainrotGUI"
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = playerGui
+        
+        -- Crear botón de toggle
+        local toggleButton = Instance.new("TextButton")
+        toggleButton.Size = UDim2.new(0, 150, 0, 40)
+        toggleButton.Position = UDim2.new(0, 10, 0, 10)
+        toggleButton.BackgroundColor3 = brainrotSystemEnabled and Color3.new(0.2, 0.8, 0.2) or Color3.new(0.8, 0.2, 0.2)
+        toggleButton.Text = brainrotSystemEnabled and "BRAINROT: ON" or "BRAINROT: OFF"
+        toggleButton.TextColor3 = Color3.new(1, 1, 1)
+        toggleButton.TextScaled = true
+        toggleButton.Font = Enum.Font.SourceSansBold
+        toggleButton.Parent = screenGui
+        
+        -- Esquinas redondeadas
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 8)
+        corner.Parent = toggleButton
+        
+        -- Info label
+        local infoLabel = Instance.new("TextLabel")
+        infoLabel.Size = UDim2.new(0, 300, 0, 60)
+        infoLabel.Position = UDim2.new(0, 10, 0, 60)
+        infoLabel.BackgroundTransparency = 1
+        infoLabel.Text = "Escribe cualquier brainrot en el chat\npara que tu cuerpo caiga al vacío"
+        infoLabel.TextColor3 = Color3.new(1, 1, 1)
+        infoLabel.TextScaled = true
+        infoLabel.Font = Enum.Font.SourceSans
+        infoLabel.Parent = screenGui
+        
+        -- Evento del botón
+        toggleButton.MouseButton1Click:Connect(function()
+            brainrotSystemEnabled = not brainrotSystemEnabled
+            
+            if brainrotSystemEnabled then
+                toggleButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
+                toggleButton.Text = "BRAINROT: ON"
+                print("🎮 Sistema Brainrot ACTIVADO")
+            else
+                toggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+                toggleButton.Text = "BRAINROT: OFF"
+                print("🎮 Sistema Brainrot DESACTIVADO")
             end
-        end
+        end)
     end)
-    
-    closeButton.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
-    end)
-    
-    -- Animación de entrada
-    mainFrame.Size = UDim2.new(0, 0, 0, 0)
-    local openTween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-        Size = UDim2.new(0, 400, 0, 300)
-    })
-    openTween:Play()
 end
 
--- Funciones del sistema Brainrot (las mismas de antes)
+-- Función para crear brainrot en workspace
 local function createBrainrotInWorkspace(brainrotName, player)
     local brainrotFolder = workspace:FindFirstChild("ActiveBrainrots")
     if not brainrotFolder then
@@ -226,38 +105,58 @@ local function createBrainrotInWorkspace(brainrotName, player)
         brainrotFolder.Parent = workspace
     end
     
+    -- Crear el brainrot visual flotante
     local brainrotPart = Instance.new("Part")
     brainrotPart.Name = brainrotName .. "_" .. player.Name
-    brainrotPart.Size = Vector3.new(2, 0.1, 4)
-    brainrotPart.Material = Enum.Material.Neon
+    brainrotPart.Size = Vector3.new(3, 0.2, 6)
+    brainrotPart.Material = Enum.Material.ForceField
     brainrotPart.BrickColor = BrickColor.new("Bright green")
     brainrotPart.Anchored = true
     brainrotPart.CanCollide = false
-    brainrotPart.Shape = Enum.PartType.Cylinder
+    brainrotPart.Shape = Enum.PartType.Block
+    brainrotPart.Transparency = 0.3
     
+    -- Efecto de brillo
+    local pointLight = Instance.new("PointLight")
+    pointLight.Color = Color3.new(0, 1, 0)
+    pointLight.Brightness = 2
+    pointLight.Range = 10
+    pointLight.Parent = brainrotPart
+    
+    -- Texto del brainrot
     local gui = Instance.new("BillboardGui")
-    gui.Size = UDim2.new(0, 200, 0, 50)
-    gui.StudsOffset = Vector3.new(0, 2, 0)
+    gui.Size = UDim2.new(0, 400, 0, 100)
+    gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.Parent = brainrotPart
     
     local textLabel = Instance.new("TextLabel")
     textLabel.Size = UDim2.new(1, 0, 1, 0)
     textLabel.BackgroundTransparency = 1
-    textLabel.Text = brainrotName
-    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.Text = "🧠 " .. brainrotName .. " 🧠"
+    textLabel.TextColor3 = Color3.new(0, 1, 0)
     textLabel.TextScaled = true
     textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextStrokeTransparency = 0
     textLabel.Parent = gui
     
+    -- Posicionar cerca del jugador
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        brainrotPart.Position = player.Character.HumanoidRootPart.Position + Vector3.new(0, 3, 0)
+        brainrotPart.Position = player.Character.HumanoidRootPart.Position + Vector3.new(0, 8, 0)
     end
     
     brainrotPart.Parent = brainrotFolder
+    
+    -- Animación flotante
+    local floatTween = TweenService:Create(brainrotPart, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+        Position = brainrotPart.Position + Vector3.new(0, 2, 0)
+    })
+    floatTween:Play()
+    
     return brainrotPart
 end
 
-local function dropPlayerBody(player)
+-- Función PRINCIPAL para dropear el cuerpo
+local function dropPlayerBody(player, brainrotName)
     if not player.Character then return end
     
     local character = player.Character
@@ -266,88 +165,144 @@ local function dropPlayerBody(player)
     
     if not humanoidRootPart or not humanoid then return end
     
+    -- 1. CREAR CUERPO QUE CAERÁ
     local bodyClone = character:Clone()
-    bodyClone.Name = character.Name .. "_DroppedBody"
+    bodyClone.Name = character.Name .. "_FallingBody"
     bodyClone.Parent = workspace
     
+    -- Limpiar scripts del clon
     for _, obj in pairs(bodyClone:GetDescendants()) do
         if obj:IsA("LocalScript") or obj:IsA("Script") then
             obj:Destroy()
         end
     end
     
+    -- Hacer que el cuerpo caiga DRAMÁTICAMENTE
     local cloneHRP = bodyClone:FindFirstChild("HumanoidRootPart")
     if cloneHRP then
         cloneHRP.Anchored = false
-        cloneHRP.CanCollide = true
+        cloneHRP.CanCollide = false -- Para que atraviese el suelo
         
+        -- IMPULSO FUERTE hacia abajo
         local bodyVelocity = Instance.new("BodyVelocity")
         bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-        bodyVelocity.Velocity = Vector3.new(0, -50, 0)
+        bodyVelocity.Velocity = Vector3.new(0, -100, 0) -- Caída súper rápida
         bodyVelocity.Parent = cloneHRP
         
-        game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+        -- Efecto visual en el cuerpo que cae
+        local fire = Instance.new("Fire")
+        fire.Size = 10
+        fire.Heat = 10
+        fire.Color = Color3.new(1, 0, 0)
+        fire.Parent = cloneHRP
+        
+        -- Sonido de caída (opcional)
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxasset://sounds/impact_water.mp3"
+        sound.Volume = 0.5
+        sound.Parent = cloneHRP
+        sound:Play()
     end
     
+    -- 2. CONVERTIR AL JUGADOR EN SOLO ROOTPART
     for _, part in pairs(character:GetChildren()) do
         if part:IsA("BasePart") and part ~= humanoidRootPart then
-            part.Transparency = 1
+            part:Destroy() -- Eliminar todas las partes excepto HumanoidRootPart
         elseif part:IsA("Accessory") then
-            local handle = part:FindFirstChild("Handle")
-            if handle then
-                handle.Transparency = 1
-            end
+            part:Destroy() -- Eliminar accesorios
+        elseif part:IsA("Clothing") then
+            part:Destroy() -- Eliminar ropa
         end
     end
     
-    droppedBodies[player.UserId] = bodyClone
-    game:GetService("Debris"):AddItem(bodyClone, 30)
+    -- Hacer el HumanoidRootPart más visible
+    humanoidRootPart.Material = Enum.Material.Neon
+    humanoidRootPart.BrickColor = BrickColor.new("Bright blue")
+    humanoidRootPart.Transparency = 0
+    humanoidRootPart.Shape = Enum.PartType.Block
+    humanoidRootPart.Size = Vector3.new(2, 2, 1) -- Hacer más grande para que se vea
+    
+    -- Agregar efecto visual al jugador
+    local playerLight = Instance.new("PointLight")
+    playerLight.Color = Color3.new(0, 0, 1)
+    playerLight.Brightness = 2
+    playerLight.Range = 8
+    playerLight.Parent = humanoidRootPart
+    
+    -- Mensaje de confirmación visible
+    local gui = Instance.new("BillboardGui")
+    gui.Size = UDim2.new(0, 200, 0, 50)
+    gui.StudsOffset = Vector3.new(0, 3, 0)
+    gui.Parent = humanoidRootPart
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.Name .. " (CUBO)"
+    nameLabel.TextColor3 = Color3.new(0, 0, 1)
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.Parent = gui
+    
+    -- Limpiar el cuerpo caído después de 20 segundos
+    game:GetService("Debris"):AddItem(bodyClone, 20)
+    
+    print("💀 " .. player.Name .. " se convirtió en cubo y su cuerpo cayó al vacío con: " .. brainrotName)
 end
 
+-- Función para verificar si es brainrot válido
 local function isValidBrainrot(name)
     for _, brainrot in pairs(BRAINROTS) do
         if string.lower(brainrot) == string.lower(name) then
-            return true
+            return brainrot -- Devolver el nombre exacto
         end
     end
-    return false
+    return nil
 end
 
--- Eventos de jugadores
+-- EVENTOS PRINCIPALES
 Players.PlayerAdded:Connect(function(player)
     playersWithBrainrots[player.UserId] = {}
     
-    -- Crear panel para admins
-    if isAdmin(player) then
-        player.CharacterAdded:Connect(function()
-            wait(2) -- Esperar a que cargue completamente
-            createAdminPanel(player)
-        end)
-    end
+    -- Crear GUI para el jugador
+    createPlayerGUI(player)
     
+    -- Conectar chat
     player.CharacterAdded:Connect(function(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        
-        -- Desconectar conexión anterior si existe
+        -- Desconectar conexión anterior
         if chatConnections[player.UserId] then
             chatConnections[player.UserId]:Disconnect()
         end
         
         chatConnections[player.UserId] = player.Chatted:Connect(function(message)
-            if brainrotSystemEnabled and isValidBrainrot(message) then
-                if not playersWithBrainrots[player.UserId][message] then
-                    playersWithBrainrots[player.UserId][message] = true
-                    
-                    createBrainrotInWorkspace(message, player)
-                    dropPlayerBody(player)
-                    
-                    print("🎮 " .. player.Name .. " agarró: " .. message)
+            if brainrotSystemEnabled then
+                local validBrainrot = isValidBrainrot(message)
+                if validBrainrot then
+                    -- Solo permitir un brainrot por jugador
+                    if not playersWithBrainrots[player.UserId][validBrainrot] then
+                        playersWithBrainrots[player.UserId][validBrainrot] = true
+                        
+                        -- Crear brainrot en workspace
+                        createBrainrotInWorkspace(validBrainrot, player)
+                        
+                        -- DROPEAR EL CUERPO
+                        dropPlayerBody(player, validBrainrot)
+                        
+                        -- Mensaje global
+                        for _, p in pairs(Players:GetPlayers()) do
+                            if p ~= player then
+                                -- Puedes agregar aquí notificaciones a otros jugadores
+                            end
+                        end
+                    end
                 end
             end
         end)
     end)
 end)
 
+-- Limpiar al salir
 Players.PlayerRemoving:Connect(function(player)
     playersWithBrainrots[player.UserId] = nil
     
@@ -355,12 +310,8 @@ Players.PlayerRemoving:Connect(function(player)
         chatConnections[player.UserId]:Disconnect()
         chatConnections[player.UserId] = nil
     end
-    
-    if droppedBodies[player.UserId] then
-        droppedBodies[player.UserId]:Destroy()
-        droppedBodies[player.UserId] = nil
-    end
 end)
 
-print("🎮 Panel de Administración con Sistema Brainrot cargado!")
-print("⌨️  Presiona 'F' para abrir/cerrar el panel de administración")
+print("🧠 Sistema Brainrot Body Drop cargado!")
+print("📝 Escribe cualquier brainrot en el chat para activar el efecto")
+print("🎮 Total de brainrots disponibles: " .. #BRAINROTS)
