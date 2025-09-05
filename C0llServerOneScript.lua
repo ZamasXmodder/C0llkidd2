@@ -18,9 +18,12 @@ local rainbowConnection = nil
 local godModeConnection = nil
 local savedStateConnection = nil
 
--- Variables de vuelo
+-- Variables de vuelo suave
 local flyDirection = Vector3.new(0, 0, 0)
 local keysPressed = {}
+local currentFloatHeight = 0
+local targetFloatHeight = 0
+local floatVelocity = Vector3.new(0, 0, 0)
 
 -- Variables de estado guardado
 local savedPosition = nil
@@ -31,7 +34,8 @@ local config = {
     floatSpeed = 16,
     jumpPower = 50,
     walkSpeed = 16,
-    flySpeed = 20,
+    flySpeed = 8, -- Más lento para ser menos detectable
+    floatHeight = 10, -- Altura de flotación
     partSize = Vector3.new(8, 1, 8),
     partColor = Color3.fromRGB(0, 162, 255),
     partTransparency = 0.3
@@ -45,7 +49,7 @@ screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 250, 0, 420)
+mainFrame.Size = UDim2.new(0, 250, 0, 470)
 mainFrame.Position = UDim2.new(1, -260, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 mainFrame.BorderSizePixel = 0
@@ -89,13 +93,13 @@ local toggleFloatCorner = Instance.new("UICorner")
 toggleFloatCorner.CornerRadius = UDim.new(0, 5)
 toggleFloatCorner.Parent = toggleFloatButton
 
--- Botón de activar/desactivar fly
+-- Botón de activar/desactivar fly suave
 local toggleFlyButton = Instance.new("TextButton")
 toggleFlyButton.Name = "ToggleFly"
 toggleFlyButton.Size = UDim2.new(0.9, 0, 0, 30)
 toggleFlyButton.Position = UDim2.new(0.05, 0, 0, 90)
 toggleFlyButton.BackgroundColor3 = Color3.fromRGB(255, 85, 255)
-toggleFlyButton.Text = "Fly Mode (WASD)"
+toggleFlyButton.Text = "Float Mode (WASD)"
 toggleFlyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleFlyButton.TextScaled = true
 toggleFlyButton.Font = Enum.Font.Gotham
@@ -223,12 +227,16 @@ createSlider("Walk Speed", 280, 1, 100, config.walkSpeed, function(value)
     end
 end)
 
-createSlider("Fly Speed", 335, 1, 100, config.flySpeed, function(value)
+createSlider("Float Speed", 335, 1, 30, config.flySpeed, function(value)
     config.flySpeed = value
 end)
 
--- Función para protección contra muerte
-local function enableGodMode()
+createSlider("Float Height", 390, 5, 50, config.floatHeight, function(value)
+    config.floatHeight = value
+end)
+
+-- Función para protección sutil contra muerte
+local function enableSubtleGodMode()
     if godModeConnection then
         godModeConnection:Disconnect()
     end
@@ -236,11 +244,10 @@ local function enableGodMode()
     godModeConnection = RunService.Heartbeat:Connect(function()
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             local humanoid = player.Character.Humanoid
-            humanoid.Health = humanoid.MaxHealth
             
-            -- Protección adicional
-            if player.Character:FindFirstChild("HumanoidRootPart") then
-                player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            -- Protección más sutil
+            if humanoid.Health < humanoid.MaxHealth * 0.1 then
+                humanoid.Health = humanoid.MaxHealth
             end
         end
     end)
@@ -270,43 +277,30 @@ local function createFloatPart()
     selectionBox.Parent = floatPart
 end
 
--- Función para crear la part de vuelo rainbow
+-- Función para crear la part de flotación rainbow (invisible para el jugador)
 local function createFlyPart()
     if flyPart then
         flyPart:Destroy()
     end
     
     flyPart = Instance.new("Part")
-    flyPart.Name = "FlyPart"
-    flyPart.Size = Vector3.new(6, 0.5, 6)
+    flyPart.Name = "FloatSupportPart"
+    flyPart.Size = Vector3.new(4, 0.2, 4)
     flyPart.Material = Enum.Material.ForceField
-    flyPart.Transparency = 0.2
+    flyPart.Transparency = 0.8 -- Más transparente
     flyPart.Anchored = true
-    flyPart.CanCollide = true
+    flyPart.CanCollide = false -- No colisiona para ser menos detectable
     flyPart.Parent = workspace
     
-    -- Efecto rainbow
+    -- Efecto rainbow sutil
     local hue = 0
     rainbowConnection = RunService.Heartbeat:Connect(function()
-        hue = (hue + 1) % 360
-        flyPart.Color = Color3.fromHSV(hue / 360, 1, 1)
-    end)
-    
-    local selectionBox = Instance.new("SelectionBox")
-    selectionBox.Adornee = flyPart
-    selectionBox.LineThickness = 0.3
-    selectionBox.Transparency = 0.3
-    selectionBox.Parent = flyPart
-    
-    spawn(function()
-        while flyPart and flyPart.Parent do
-            selectionBox.Color3 = flyPart.Color
-            wait(0.1)
-        end
+        hue = (hue + 0.5) % 360 -- Más lento
+        flyPart.Color = Color3.fromHSV(hue / 360, 0.8, 0.9)
     end)
 end
 
--- Función para forzar posición al estado guardado
+-- Función para forzar posición al estado guardado (más suave)
 local function forceToSavedPosition()
     if not savedPosition or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
@@ -314,22 +308,43 @@ local function forceToSavedPosition()
     
     local humanoidRootPart = player.Character.HumanoidRootPart
     
-    -- Teletransporte instantáneo y forzado
-    humanoidRootPart.CFrame = CFrame.new(savedPosition)
-    humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-    humanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+    -- Movimiento más suave hacia la posición guardada
+    local currentPos = humanoidRootPart.Position
+    local targetPos = savedPosition
+    local distance = (targetPos - currentPos).Magnitude
+    
+    if distance > 1 then
+        local direction = (targetPos - currentPos).Unit
+        local moveSpeed = math.min(distance * 0.1, 2) -- Velocidad adaptativa
+        
+        humanoidRootPart.CFrame = humanoidRootPart.CFrame + (direction * moveSpeed)
+        humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    else
+
+                -- Ya está cerca, posicionar exactamente
+        humanoidRootPart.CFrame = CFrame.new(savedPosition)
+        humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        
+        -- Detener el movimiento automático
+        isGoingToSavedState = false
+        goToStateButton.Text = "Ir al Estado"
+        goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
+        
+        if savedStateConnection then
+            savedStateConnection:Disconnect()
+            savedStateConnection = nil
+        end
+    end
     
     -- Asegurar que la fly part también esté en la posición correcta
     if isFlyActive and flyPart then
-        flyPart.Position = savedPosition - Vector3.new(0, 2, 0)
+        flyPart.Position = humanoidRootPart.Position - Vector3.new(0, config.floatHeight, 0)
     end
 end
 
 -- Función para ir al estado guardado
 local function goToSavedState()
     if not savedPosition then
-
-                -- Crear notificación si no hay estado guardado
         local notification = Instance.new("TextLabel")
         notification.Size = UDim2.new(0, 200, 0, 50)
         notification.Position = UDim2.new(0.5, -100, 0, 100)
@@ -344,18 +359,16 @@ local function goToSavedState()
         notifCorner.CornerRadius = UDim.new(0, 10)
         notifCorner.Parent = notification
         
-        -- Eliminar notificación después de 2 segundos
         game:GetService("Debris"):AddItem(notification, 2)
         return
     end
     
     if not isFlyActive then
-        -- Crear notificación si no está en modo fly
         local notification = Instance.new("TextLabel")
         notification.Size = UDim2.new(0, 250, 0, 50)
         notification.Position = UDim2.new(0.5, -125, 0, 100)
         notification.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
-        notification.Text = "¡Activa Fly Mode primero!"
+        notification.Text = "¡Activa Float Mode primero!"
         notification.TextColor3 = Color3.fromRGB(255, 255, 255)
         notification.TextScaled = true
         notification.Font = Enum.Font.GothamBold
@@ -373,7 +386,6 @@ local function goToSavedState()
     goToStateButton.Text = "Yendo..."
     goToStateButton.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
     
-    -- Conexión para forzar la posición constantemente
     if savedStateConnection then
         savedStateConnection:Disconnect()
     end
@@ -381,19 +393,6 @@ local function goToSavedState()
     savedStateConnection = RunService.Heartbeat:Connect(function()
         if isGoingToSavedState and savedPosition then
             forceToSavedPosition()
-        end
-    end)
-    
-    -- Detener después de 3 segundos o cuando llegue
-    spawn(function()
-        wait(3)
-        isGoingToSavedState = false
-        goToStateButton.Text = "Ir al Estado"
-        goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
-        
-        if savedStateConnection then
-            savedStateConnection:Disconnect()
-            savedStateConnection = nil
         end
     end)
 end
@@ -408,7 +407,6 @@ local function saveCurrentState()
     saveStateButton.Text = "Estado Guardado!"
     saveStateButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
     
-    -- Crear notificación de éxito
     local notification = Instance.new("TextLabel")
     notification.Size = UDim2.new(0, 200, 0, 50)
     notification.Position = UDim2.new(0.5, -100, 0, 100)
@@ -425,7 +423,6 @@ local function saveCurrentState()
     
     game:GetService("Debris"):AddItem(notification, 2)
     
-    -- Restaurar texto del botón después de 2 segundos
     spawn(function()
         wait(2)
         saveStateButton.Text = "Guardar Estado"
@@ -448,16 +445,17 @@ local function updateFloatPart()
     end
 end
 
--- Función para actualizar el vuelo
-local function updateFly()
+-- Función para actualizar el float suave (simula saltos lentos)
+local function updateSmoothFloat()
     if not isFlyActive or not flyPart or not player.Character then
         return
     end
     
     local character = player.Character
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
     
-    if humanoidRootPart then
+    if humanoidRootPart and humanoid then
         -- Si está yendo al estado guardado, no procesar controles WASD
         if isGoingToSavedState then
             return
@@ -480,18 +478,49 @@ local function updateFly()
             direction = direction + camera.CFrame.RightVector
         end
         
-        -- Normalizar dirección
+        -- Normalizar dirección horizontal
         if direction.Magnitude > 0 then
-            direction = direction.Unit
+            direction = Vector3.new(direction.X, 0, direction.Z).Unit
         end
         
-        -- Mover la part y el jugador
-        local targetPosition = flyPart.Position + (direction * config.flySpeed * 0.1)
-        flyPart.Position = targetPosition
+        -- Aplicar movimiento suave y natural
+        local currentVelocity = humanoidRootPart.Velocity
+        local targetVelocity = direction * config.flySpeed
         
-        -- Mantener al jugador en la part
-        humanoidRootPart.CFrame = CFrame.new(flyPart.Position + Vector3.new(0, 2, 0))
-        humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        -- Mantener flotación suave
+        local raycast = workspace:Raycast(humanoidRootPart.Position, Vector3.new(0, -100, 0))
+        local groundHeight = raycast and raycast.Position.Y or (humanoidRootPart.Position.Y - 50)
+        local targetHeight = groundHeight + config.floatHeight
+        
+        -- Ajuste suave de altura
+        local heightDifference = targetHeight - humanoidRootPart.Position.Y
+        local verticalVelocity = heightDifference * 0.1 -- Ajuste suave
+        
+        -- Aplicar velocidad combinada (más natural)
+        local newVelocity = Vector3.new(
+            targetVelocity.X,
+            math.clamp(verticalVelocity, -10, 10), -- Limitar velocidad vertical
+            targetVelocity.Z
+        )
+        
+        -- Usar BodyVelocity para movimiento más suave
+        local bodyVelocity = humanoidRootPart:FindFirstChild("FloatBodyVelocity")
+        if not bodyVelocity then
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Name = "FloatBodyVelocity"
+            bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVelocity.Parent = humanoidRootPart
+        end
+        
+        bodyVelocity.Velocity = newVelocity
+        
+        -- Posicionar la part de soporte
+        flyPart.Position = humanoidRootPart.Position - Vector3.new(0, config.floatHeight + 1, 0)
+        
+        -- Simular estado de salto para evitar detección
+        if math.abs(heightDifference) > 2 then
+            humanoid.Jump = false -- Evitar saltos reales
+        end
     end
 end
 
@@ -505,7 +534,7 @@ local function toggleFloatPart()
         toggleFloatButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
         
         floatConnection = RunService.Heartbeat:Connect(updateFloatPart)
-        enableGodMode()
+        enableSubtleGodMode()
         
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.JumpPower = config.jumpPower
@@ -532,21 +561,22 @@ local function toggleFloatPart()
     end
 end
 
--- Función para activar/desactivar fly mode
-local function toggleFlyMode()
+-- Función para activar/desactivar float mode suave
+local function toggleSmoothFloat()
     isFlyActive = not isFlyActive
     
     if isFlyActive then
         createFlyPart()
-        toggleFlyButton.Text = "Desactivar Fly"
+        toggleFlyButton.Text = "Desactivar Float"
         toggleFlyButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
         
-        flyConnection = RunService.Heartbeat:Connect(updateFly)
-        enableGodMode()
+        flyConnection = RunService.Heartbeat:Connect(updateSmoothFloat)
+        enableSubtleGodMode()
         
-        -- Posicionar la fly part inicialmente
+        -- Inicializar altura de flotación
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            flyPart.Position = player.Character.HumanoidRootPart.Position - Vector3.new(0, 2, 0)
+            currentFloatHeight = player.Character.HumanoidRootPart.Position.Y
+            targetFloatHeight = currentFloatHeight + config.floatHeight
         end
     else
         if flyPart then
@@ -564,6 +594,14 @@ local function toggleFlyMode()
             rainbowConnection = nil
         end
         
+        -- Limpiar BodyVelocity
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local bodyVelocity = player.Character.HumanoidRootPart:FindFirstChild("FloatBodyVelocity")
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+        end
+        
         if godModeConnection then
             godModeConnection:Disconnect()
             godModeConnection = nil
@@ -571,7 +609,7 @@ local function toggleFlyMode()
         
         -- Detener ir al estado guardado si está activo
         if isGoingToSavedState then
-            isGoingToSavedState = false
+                        isGoingToSavedState = false
             goToStateButton.Text = "Ir al Estado"
             goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
             
@@ -581,7 +619,7 @@ local function toggleFlyMode()
             end
         end
         
-        toggleFlyButton.Text = "Fly Mode (WASD)"
+        toggleFlyButton.Text = "Float Mode (WASD)"
         toggleFlyButton.BackgroundColor3 = Color3.fromRGB(255, 85, 255)
     end
 end
@@ -594,7 +632,7 @@ local function togglePanel()
         mainFrame.Visible = true
         local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
         local tween = TweenService:Create(mainFrame, tweenInfo, {
-            Size = UDim2.new(0, 250, 0, 420),
+            Size = UDim2.new(0, 250, 0, 470),
             Position = UDim2.new(1, -260, 0, 10)
         })
         tween:Play()
@@ -619,28 +657,44 @@ local function restoreStateAfterRespawn()
     if isFloatActive then
         createFloatPart()
         floatConnection = RunService.Heartbeat:Connect(updateFloatPart)
-        enableGodMode()
+        enableSubtleGodMode()
         
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.JumpPower = config.jumpPower
             player.Character.Humanoid.WalkSpeed = config.walkSpeed
         end
+        
+        -- Actualizar botón
+        toggleFloatButton.Text = "Desactivar Float (T)"
+        toggleFloatButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
     end
     
     if isFlyActive then
         createFlyPart()
-        flyConnection = RunService.Heartbeat:Connect(updateFly)
-        enableGodMode()
+        flyConnection = RunService.Heartbeat:Connect(updateSmoothFloat)
+        enableSubtleGodMode()
         
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            flyPart.Position = player.Character.HumanoidRootPart.Position - Vector3.new(0, 2, 0)
+            currentFloatHeight = player.Character.HumanoidRootPart.Position.Y
+            targetFloatHeight = currentFloatHeight + config.floatHeight
         end
+        
+        -- Actualizar botón
+        toggleFlyButton.Text = "Desactivar Float"
+        toggleFlyButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+    end
+    
+    -- Restaurar panel si estaba abierto
+    if panelOpen then
+        mainFrame.Visible = true
+        mainFrame.Size = UDim2.new(0, 250, 0, 470)
+        mainFrame.Position = UDim2.new(1, -260, 0, 10)
     end
 end
 
 -- Eventos de botones
 toggleFloatButton.MouseButton1Click:Connect(toggleFloatPart)
-toggleFlyButton.MouseButton1Click:Connect(toggleFlyMode)
+toggleFlyButton.MouseButton1Click:Connect(toggleSmoothFloat)
 saveStateButton.MouseButton1Click:Connect(saveCurrentState)
 goToStateButton.MouseButton1Click:Connect(goToSavedState)
 
@@ -658,7 +712,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         toggleFloatPart()
     end
     
-    -- Controles de vuelo WASD
+    -- Controles de flotación suave WASD
     if input.KeyCode == Enum.KeyCode.W or 
        input.KeyCode == Enum.KeyCode.A or 
        input.KeyCode == Enum.KeyCode.S or 
@@ -668,7 +722,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
-    -- Controles de vuelo WASD
+    -- Controles de flotación suave WASD
     if input.KeyCode == Enum.KeyCode.W or 
        input.KeyCode == Enum.KeyCode.A or 
        input.KeyCode == Enum.KeyCode.S or 
@@ -690,5 +744,23 @@ game.Players.PlayerRemoving:Connect(function(leavingPlayer)
         if rainbowConnection then rainbowConnection:Disconnect() end
         if godModeConnection then godModeConnection:Disconnect() end
         if savedStateConnection then savedStateConnection:Disconnect() end
+        
+        -- Limpiar BodyVelocity si existe
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local bodyVelocity = player.Character.HumanoidRootPart:FindFirstChild("FloatBodyVelocity")
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+        end
+    end
+end)
+
+-- Limpiar BodyVelocity al cambiar de personaje
+player.CharacterRemoving:Connect(function(character)
+    if character:FindFirstChild("HumanoidRootPart") then
+        local bodyVelocity = character.HumanoidRootPart:FindFirstChild("FloatBodyVelocity")
+        if bodyVelocity then
+            bodyVelocity:Destroy()
+        end
     end
 end)
