@@ -15,10 +15,16 @@ local panelOpen = false
 local floatConnection = nil
 local flyConnection = nil
 local rainbowConnection = nil
+local godModeConnection = nil
+local savedStateConnection = nil
 
 -- Variables de vuelo
 local flyDirection = Vector3.new(0, 0, 0)
 local keysPressed = {}
+
+-- Variables de estado guardado
+local savedPosition = nil
+local isGoingToSavedState = false
 
 -- Configuración por defecto
 local config = {
@@ -34,11 +40,12 @@ local config = {
 -- Crear la GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "FloatPartPanel"
+screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 250, 0, 350)
+mainFrame.Size = UDim2.new(0, 250, 0, 420)
 mainFrame.Position = UDim2.new(1, -260, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 mainFrame.BorderSizePixel = 0
@@ -97,6 +104,38 @@ toggleFlyButton.Parent = mainFrame
 local toggleFlyCorner = Instance.new("UICorner")
 toggleFlyCorner.CornerRadius = UDim.new(0, 5)
 toggleFlyCorner.Parent = toggleFlyButton
+
+-- Botón para guardar estado
+local saveStateButton = Instance.new("TextButton")
+saveStateButton.Name = "SaveState"
+saveStateButton.Size = UDim2.new(0.43, 0, 0, 30)
+saveStateButton.Position = UDim2.new(0.05, 0, 0, 130)
+saveStateButton.BackgroundColor3 = Color3.fromRGB(85, 170, 85)
+saveStateButton.Text = "Guardar Estado"
+saveStateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveStateButton.TextScaled = true
+saveStateButton.Font = Enum.Font.Gotham
+saveStateButton.Parent = mainFrame
+
+local saveStateCorner = Instance.new("UICorner")
+saveStateCorner.CornerRadius = UDim.new(0, 5)
+saveStateCorner.Parent = saveStateButton
+
+-- Botón para ir al estado guardado
+local goToStateButton = Instance.new("TextButton")
+goToStateButton.Name = "GoToState"
+goToStateButton.Size = UDim2.new(0.43, 0, 0, 30)
+goToStateButton.Position = UDim2.new(0.52, 0, 0, 130)
+goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
+goToStateButton.Text = "Ir al Estado"
+goToStateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+goToStateButton.TextScaled = true
+goToStateButton.Font = Enum.Font.Gotham
+goToStateButton.Parent = mainFrame
+
+local goToStateCorner = Instance.new("UICorner")
+goToStateCorner.CornerRadius = UDim.new(0, 5)
+goToStateCorner.Parent = goToStateButton
 
 -- Función para crear sliders más pequeños
 local function createSlider(name, yPos, minVal, maxVal, defaultVal, callback)
@@ -166,27 +205,46 @@ local function createSlider(name, yPos, minVal, maxVal, defaultVal, callback)
 end
 
 -- Crear sliders
-createSlider("Float Speed", 130, 1, 50, config.floatSpeed, function(value)
+createSlider("Float Speed", 170, 1, 50, config.floatSpeed, function(value)
     config.floatSpeed = value
 end)
 
-createSlider("Jump Power", 185, 10, 150, config.jumpPower, function(value)
+createSlider("Jump Power", 225, 10, 150, config.jumpPower, function(value)
     config.jumpPower = value
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.JumpPower = value
     end
 end)
 
-createSlider("Walk Speed", 240, 1, 100, config.walkSpeed, function(value)
+createSlider("Walk Speed", 280, 1, 100, config.walkSpeed, function(value)
     config.walkSpeed = value
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.WalkSpeed = value
     end
 end)
 
-createSlider("Fly Speed", 295, 1, 100, config.flySpeed, function(value)
+createSlider("Fly Speed", 335, 1, 100, config.flySpeed, function(value)
     config.flySpeed = value
 end)
+
+-- Función para protección contra muerte
+local function enableGodMode()
+    if godModeConnection then
+        godModeConnection:Disconnect()
+    end
+    
+    godModeConnection = RunService.Heartbeat:Connect(function()
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            humanoid.Health = humanoid.MaxHealth
+            
+            -- Protección adicional
+            if player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end)
+end
 
 -- Función para crear la part flotante
 local function createFloatPart()
@@ -240,12 +298,138 @@ local function createFlyPart()
     selectionBox.Transparency = 0.3
     selectionBox.Parent = flyPart
     
-    -- Actualizar color del selectionBox también
     spawn(function()
         while flyPart and flyPart.Parent do
             selectionBox.Color3 = flyPart.Color
             wait(0.1)
         end
+    end)
+end
+
+-- Función para forzar posición al estado guardado
+local function forceToSavedPosition()
+    if not savedPosition or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    local humanoidRootPart = player.Character.HumanoidRootPart
+    
+    -- Teletransporte instantáneo y forzado
+    humanoidRootPart.CFrame = CFrame.new(savedPosition)
+    humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    humanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+    
+    -- Asegurar que la fly part también esté en la posición correcta
+    if isFlyActive and flyPart then
+        flyPart.Position = savedPosition - Vector3.new(0, 2, 0)
+    end
+end
+
+-- Función para ir al estado guardado
+local function goToSavedState()
+    if not savedPosition then
+
+                -- Crear notificación si no hay estado guardado
+        local notification = Instance.new("TextLabel")
+        notification.Size = UDim2.new(0, 200, 0, 50)
+        notification.Position = UDim2.new(0.5, -100, 0, 100)
+        notification.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+        notification.Text = "¡No hay estado guardado!"
+        notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+        notification.TextScaled = true
+        notification.Font = Enum.Font.GothamBold
+        notification.Parent = screenGui
+        
+        local notifCorner = Instance.new("UICorner")
+        notifCorner.CornerRadius = UDim.new(0, 10)
+        notifCorner.Parent = notification
+        
+        -- Eliminar notificación después de 2 segundos
+        game:GetService("Debris"):AddItem(notification, 2)
+        return
+    end
+    
+    if not isFlyActive then
+        -- Crear notificación si no está en modo fly
+        local notification = Instance.new("TextLabel")
+        notification.Size = UDim2.new(0, 250, 0, 50)
+        notification.Position = UDim2.new(0.5, -125, 0, 100)
+        notification.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
+        notification.Text = "¡Activa Fly Mode primero!"
+        notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+        notification.TextScaled = true
+        notification.Font = Enum.Font.GothamBold
+        notification.Parent = screenGui
+        
+        local notifCorner = Instance.new("UICorner")
+        notifCorner.CornerRadius = UDim.new(0, 10)
+        notifCorner.Parent = notification
+        
+        game:GetService("Debris"):AddItem(notification, 2)
+        return
+    end
+    
+    isGoingToSavedState = true
+    goToStateButton.Text = "Yendo..."
+    goToStateButton.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
+    
+    -- Conexión para forzar la posición constantemente
+    if savedStateConnection then
+        savedStateConnection:Disconnect()
+    end
+    
+    savedStateConnection = RunService.Heartbeat:Connect(function()
+        if isGoingToSavedState and savedPosition then
+            forceToSavedPosition()
+        end
+    end)
+    
+    -- Detener después de 3 segundos o cuando llegue
+    spawn(function()
+        wait(3)
+        isGoingToSavedState = false
+        goToStateButton.Text = "Ir al Estado"
+        goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
+        
+        if savedStateConnection then
+            savedStateConnection:Disconnect()
+            savedStateConnection = nil
+        end
+    end)
+end
+
+-- Función para guardar estado actual
+local function saveCurrentState()
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    savedPosition = player.Character.HumanoidRootPart.Position
+    saveStateButton.Text = "Estado Guardado!"
+    saveStateButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+    
+    -- Crear notificación de éxito
+    local notification = Instance.new("TextLabel")
+    notification.Size = UDim2.new(0, 200, 0, 50)
+    notification.Position = UDim2.new(0.5, -100, 0, 100)
+    notification.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+    notification.Text = "¡Estado guardado!"
+    notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notification.TextScaled = true
+    notification.Font = Enum.Font.GothamBold
+    notification.Parent = screenGui
+    
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 10)
+    notifCorner.Parent = notification
+    
+    game:GetService("Debris"):AddItem(notification, 2)
+    
+    -- Restaurar texto del botón después de 2 segundos
+    spawn(function()
+        wait(2)
+        saveStateButton.Text = "Guardar Estado"
+        saveStateButton.BackgroundColor3 = Color3.fromRGB(85, 170, 85)
     end)
 end
 
@@ -274,6 +458,11 @@ local function updateFly()
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     
     if humanoidRootPart then
+        -- Si está yendo al estado guardado, no procesar controles WASD
+        if isGoingToSavedState then
+            return
+        end
+        
         -- Calcular dirección basada en las teclas presionadas
         local camera = workspace.CurrentCamera
         local direction = Vector3.new(0, 0, 0)
@@ -316,6 +505,7 @@ local function toggleFloatPart()
         toggleFloatButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
         
         floatConnection = RunService.Heartbeat:Connect(updateFloatPart)
+        enableGodMode()
         
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.JumpPower = config.jumpPower
@@ -332,6 +522,11 @@ local function toggleFloatPart()
             floatConnection = nil
         end
         
+        if godModeConnection then
+            godModeConnection:Disconnect()
+            godModeConnection = nil
+        end
+        
         toggleFloatButton.Text = "Float Part (T)"
         toggleFloatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
     end
@@ -344,9 +539,10 @@ local function toggleFlyMode()
     if isFlyActive then
         createFlyPart()
         toggleFlyButton.Text = "Desactivar Fly"
-                toggleFlyButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+        toggleFlyButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
         
         flyConnection = RunService.Heartbeat:Connect(updateFly)
+        enableGodMode()
         
         -- Posicionar la fly part inicialmente
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -368,6 +564,23 @@ local function toggleFlyMode()
             rainbowConnection = nil
         end
         
+        if godModeConnection then
+            godModeConnection:Disconnect()
+            godModeConnection = nil
+        end
+        
+        -- Detener ir al estado guardado si está activo
+        if isGoingToSavedState then
+            isGoingToSavedState = false
+            goToStateButton.Text = "Ir al Estado"
+            goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
+            
+            if savedStateConnection then
+                savedStateConnection:Disconnect()
+                savedStateConnection = nil
+            end
+        end
+        
         toggleFlyButton.Text = "Fly Mode (WASD)"
         toggleFlyButton.BackgroundColor3 = Color3.fromRGB(255, 85, 255)
     end
@@ -381,7 +594,7 @@ local function togglePanel()
         mainFrame.Visible = true
         local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
         local tween = TweenService:Create(mainFrame, tweenInfo, {
-            Size = UDim2.new(0, 250, 0, 350),
+            Size = UDim2.new(0, 250, 0, 420),
             Position = UDim2.new(1, -260, 0, 10)
         })
         tween:Play()
@@ -399,9 +612,37 @@ local function togglePanel()
     end
 end
 
+-- Función para restaurar estado después de respawn
+local function restoreStateAfterRespawn()
+    wait(1) -- Esperar a que el personaje se cargue
+    
+    if isFloatActive then
+        createFloatPart()
+        floatConnection = RunService.Heartbeat:Connect(updateFloatPart)
+        enableGodMode()
+        
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = config.jumpPower
+            player.Character.Humanoid.WalkSpeed = config.walkSpeed
+        end
+    end
+    
+    if isFlyActive then
+        createFlyPart()
+        flyConnection = RunService.Heartbeat:Connect(updateFly)
+        enableGodMode()
+        
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            flyPart.Position = player.Character.HumanoidRootPart.Position - Vector3.new(0, 2, 0)
+        end
+    end
+end
+
 -- Eventos de botones
 toggleFloatButton.MouseButton1Click:Connect(toggleFloatPart)
 toggleFlyButton.MouseButton1Click:Connect(toggleFlyMode)
+saveStateButton.MouseButton1Click:Connect(saveCurrentState)
+goToStateButton.MouseButton1Click:Connect(goToSavedState)
 
 -- Input para controles
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -436,32 +677,18 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
--- Limpiar al cambiar de personaje
-player.CharacterAdded:Connect(function()
-    wait(1) -- Esperar a que el personaje se cargue completamente
-    if isFloatActive and player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.JumpPower = config.jumpPower
-        player.Character.Humanoid.WalkSpeed = config.walkSpeed
-    end
-end)
+-- Restaurar estado al respawnear
+player.CharacterAdded:Connect(restoreStateAfterRespawn)
 
 -- Limpiar al salir del juego
 game.Players.PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
-        if floatPart then
-            floatPart:Destroy()
-        end
-        if flyPart then
-            flyPart:Destroy()
-        end
-        if floatConnection then
-            floatConnection:Disconnect()
-        end
-        if flyConnection then
-            flyConnection:Disconnect()
-        end
-        if rainbowConnection then
-            rainbowConnection:Disconnect()
-        end
+        if floatPart then floatPart:Destroy() end
+        if flyPart then flyPart:Destroy() end
+        if floatConnection then floatConnection:Disconnect() end
+        if flyConnection then flyConnection:Disconnect() end
+        if rainbowConnection then rainbowConnection:Disconnect() end
+        if godModeConnection then godModeConnection:Disconnect() end
+        if savedStateConnection then savedStateConnection:Disconnect() end
     end
 end)
