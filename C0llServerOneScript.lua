@@ -210,8 +210,8 @@ local function createSlider(name, yPos, minVal, maxVal, defaultVal, callback)
 end
 
 -- Crear sliders
-createSlider("Float Speed", 170, 1, 50, config.floatSpeed, function(value)
-    config.floatSpeed = value
+createSlider("Float Speed", 335, 1, 50, config.flySpeed, function(value)
+    config.flySpeed = value
 end)
 
 createSlider("Jump Power", 225, 10, 150, config.jumpPower, function(value)
