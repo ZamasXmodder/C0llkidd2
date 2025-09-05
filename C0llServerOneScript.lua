@@ -1,30 +1,4 @@
--- Función de flote suave para ir al punto
-local function goToEstablishedPoint()
-    if not targetPoint then
-        statusLabel.Text = "No hay punto establecido"
-        return
-    end
-    
-    if isTransporting then
-        statusLabel.Text = "Ya transportando..."
-        return
-    end
-    
-    isTransporting = true
-    statusLabel.Text = "Iniciando flote hacia el punto..."
-    
-    cleanupTransportParts()
-    
-    -- Crear 6 parts suaves que flotan alrededor del jugador
-    local partCount = 6
-    local radius = 3
-    
-    for i = 1, partCount do
-        local part = Instance.new("Part")
-        part.Name = "FloatPart" .. i
-        part.Size = Vector3.new(1.2, 1.2, 1.2)
-        part.Material = Enum.Material.ForceField
-        part.Color = Color3.fromHSV((i-1) / partCount, 0.7local Players = game:GetService("Players")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local PathfindingService = game:GetService("PathfindingService")
@@ -44,6 +18,7 @@ local flyMode = false
 local flyConnection = nil
 local ladderPart = nil
 local climbAnimationTrack = nil
+local floatSpeed = 50 -- Velocidad de flote por defecto
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -51,7 +26,7 @@ screenGui.Name = "RainbowPanel"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 250)
+frame.Size = UDim2.new(0, 300, 0, 310)
 frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 frame.BorderSizePixel = 2
@@ -112,10 +87,36 @@ flyButton.TextScaled = true
 flyButton.Font = Enum.Font.SourceSans
 flyButton.Parent = frame
 
+-- Slider de velocidad
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0.9, 0, 0, 20)
+speedLabel.Position = UDim2.new(0.05, 0, 0, 200)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Velocidad de Flote: " .. floatSpeed
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.SourceSans
+speedLabel.Parent = frame
+
+local speedSliderFrame = Instance.new("Frame")
+speedSliderFrame.Size = UDim2.new(0.9, 0, 0, 20)
+speedSliderFrame.Position = UDim2.new(0.05, 0, 0, 225)
+speedSliderFrame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+speedSliderFrame.BorderSizePixel = 1
+speedSliderFrame.BorderColor3 = Color3.fromRGB(200, 200, 200)
+speedSliderFrame.Parent = frame
+
+local speedSlider = Instance.new("TextButton")
+speedSlider.Size = UDim2.new(0, 20, 1, 0)
+speedSlider.Position = UDim2.new((floatSpeed - 20) / 80, -10, 0, 0) -- Escala de 20-100
+speedSlider.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+speedSlider.Text = ""
+speedSlider.Parent = speedSliderFrame
+
 -- Label de estado
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 200)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 250)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Listo"
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -126,7 +127,7 @@ statusLabel.Parent = frame
 -- Instrucciones de vuelo
 local flyInstructions = Instance.new("TextLabel")
 flyInstructions.Size = UDim2.new(0.9, 0, 0, 20)
-flyInstructions.Position = UDim2.new(0.05, 0, 0, 220)
+flyInstructions.Position = UDim2.new(0.05, 0, 0, 275)
 flyInstructions.BackgroundTransparency = 1
 flyInstructions.Text = "WASD + Space/Shift para volar"
 flyInstructions.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -145,6 +146,53 @@ local function createClimbAnimation()
     climbAnimationTrack.Priority = Enum.AnimationPriority.Action
     
     return climbAnimationTrack
+end
+
+-- Función para activar ragdoll
+local function enableRagdoll()
+    for _, joint in pairs(character:GetDescendants()) do
+        if joint:IsA("Motor6D") then
+            local attachment0 = Instance.new("Attachment")
+            local attachment1 = Instance.new("Attachment")
+            
+            attachment0.Parent = joint.Part0
+            attachment1.Parent = joint.Part1
+            
+            attachment0.CFrame = joint.C0
+            attachment1.CFrame = joint.C1
+            
+            local ballSocket = Instance.new("BallSocketConstraint")
+            ballSocket.Attachment0 = attachment0
+            ballSocket.Attachment1 = attachment1
+            ballSocket.Parent = joint.Part0
+            
+            joint.Enabled = false
+        end
+    end
+    humanoid.PlatformStand = true
+end
+
+-- Función para desactivar ragdoll
+local function disableRagdoll()
+    for _, constraint in pairs(character:GetDescendants()) do
+        if constraint:IsA("BallSocketConstraint") then
+            constraint:Destroy()
+        end
+    end
+    
+    for _, attachment in pairs(character:GetDescendants()) do
+        if attachment:IsA("Attachment") and attachment.Parent ~= rootPart then
+            attachment:Destroy()
+        end
+    end
+    
+    for _, joint in pairs(character:GetDescendants()) do
+        if joint:IsA("Motor6D") then
+            joint.Enabled = true
+        end
+    end
+    
+    humanoid.PlatformStand = false
 end
 
 -- Función para verificar si hay obstáculos entre dos puntos
@@ -340,7 +388,7 @@ local function cleanupTransportParts()
     transportParts = {}
 end
 
--- Función de flote suave para ir al punto
+-- Función de flote suave para ir al punto con ragdoll
 local function goToEstablishedPoint()
     if not targetPoint then
         statusLabel.Text = "No hay punto establecido"
@@ -357,17 +405,143 @@ local function goToEstablishedPoint()
     
     cleanupTransportParts()
     
+    -- Activar ragdoll al iniciar el transporte
+    enableRagdoll()
+    
     -- Crear 6 parts suaves que flotan alrededor del jugador
     local partCount = 6
-    local radius = 4
+    local radius = 3
     
     for i = 1, partCount do
         local part = Instance.new("Part")
         part.Name = "FloatPart" .. i
-        part.Size = Vector3.new(1.5, 1.5, 1.5)
+        part.Size = Vector3.new(1.2, 1.2, 1.2)
         part.Material = Enum.Material.ForceField
-        part.Color = Color3.fromHSV((i-1) / partCount, 0.8, 1)
-        part.Anchore
+        part.Color = Color3.fromHSV((i-1) / partCount, 0.7, 1)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Shape = Enum.PartType.Ball
+        part.Transparency = 0.3
+        part.Parent = workspace
+        
+        local angle = (i-1) * (360 / partCount)
+        local offset = Vector3.new(
+            math.cos(math.rad(angle)) * radius,
+            math.sin(i * 0.8) * 1.5, -- Movimiento vertical suave
+            math.sin(math.rad(angle)) * radius
+        )
+        part.Position = rootPart.Position + offset
+        
+        table.insert(transportParts, part)
+    end
+    
+    -- Crear BodyPosition para controlar el movimiento suave
+    local bodyPosition = Instance.new("BodyPosition")
+    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyPosition.Position = rootPart.Position
+    bodyPosition.D = 2000 -- Amortiguación para suavidad
+    bodyPosition.P = 8000 -- Potencia
+    bodyPosition.Parent = rootPart
+    
+    local startPos = rootPart.Position
+    local endPos = targetPoint
+    local totalDistance = (endPos - startPos).Magnitude
+    local totalTime = totalDistance / floatSpeed
+    
+    statusLabel.Text = string.format("Flotando %.0f metros... (Ragdoll)", totalDistance)
+    
+    -- Efecto de partículas flotantes durante el transporte
+    local floatTime = 0
+    local effectConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        floatTime = floatTime + deltaTime
+        
+        -- Actualizar posición del jugador gradualmente
+        local progress = math.min(floatTime / totalTime, 1)
+        local currentPos = startPos:Lerp(endPos, progress)
+        bodyPosition.Position = currentPos + Vector3.new(0, 2, 0) -- Flotar ligeramente arriba
+        
+        -- Actualizar partículas flotantes
+        for i, part in pairs(transportParts) do
+            if part and part.Parent then
+                local angle = (i-1) * (360 / partCount) + (floatTime * 30)
+                local bobbing = math.sin(floatTime * 2 + i) * 1
+                local offset = Vector3.new(
+                    math.cos(math.rad(angle)) * radius,
+                    bobbing,
+                    math.sin(math.rad(angle)) * radius
+                )
+                part.Position = currentPos + offset
+                
+                -- Cambiar color suavemente
+                part.Color = Color3.fromHSV(((floatTime * 60 + i * 60) % 360) / 360, 0.7, 1)
+            end
+        end
+        
+        -- Verificar si llegamos al destino
+        if progress >= 1 then
+            effectConnection:Disconnect()
+            
+            -- Desactivar ragdoll al llegar
+            disableRagdoll()
+            
+            bodyPosition:Destroy()
+            cleanupTransportParts()
+            isTransporting = false
+            statusLabel.Text = "¡Flote completado!"
+            
+            -- Efecto de llegada suave
+            local arrivalPart = Instance.new("Part")
+            arrivalPart.Name = "ArrivalEffect"
+            arrivalPart.Size = Vector3.new(6, 0.2, 6)
+            arrivalPart.Material = Enum.Material.ForceField
+            arrivalPart.Color = Color3.fromRGB(100, 255, 100)
+            arrivalPart.Anchored = true
+            arrivalPart.CanCollide = false
+            arrivalPart.Position = endPos - Vector3.new(0, 2, 0)
+            arrivalPart.Transparency = 0.5
+            arrivalPart.Parent = workspace
+            
+            -- Tween para desvanecer el efecto de llegada
+            local fadeTween = TweenService:Create(
+                arrivalPart,
+                TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+                {Transparency = 1, Size = Vector3.new(12, 0.1, 12)}
+            )
+            
+            fadeTween:Play()
+            fadeTween.Completed:Connect(function()
+                arrivalPart:Destroy()
+            end)
+        end
+    end)
+end
+
+-- Función para manejar el slider de velocidad
+local function setupSpeedSlider()
+    local dragging = false
+    
+    speedSlider.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local frameSize = speedSliderFrame.AbsoluteSize.X
+            local mousePos = input.Position.X - speedSliderFrame.AbsolutePosition.X
+            local percentage = math.clamp(mousePos / frameSize, 0, 1)
+            
+            speedSlider.Position = UDim2.new(percentage, -10, 0, 0)
+            floatSpeed = math.floor(20 + (percentage * 80)) -- Rango de 20 a 100
+            speedLabel.Text = "Velocidad de Flote: " .. floatSpeed
+        end
+    end)
+end
 
 -- Eventos de botones
 local walkActive = false
@@ -391,7 +565,7 @@ end)
 
 setPointButton.MouseButton1Click:Connect(function()
     targetPoint = rootPart.Position
-    statusLabel.Text = "Punto establecido - Listo para transporte rápido"
+    statusLabel.Text = "Punto establecido - Listo para flote con ragdoll"
     
     -- Efecto visual al establecer punto
     local pointMarker = Instance.new("Part")
@@ -414,7 +588,7 @@ setPointButton.MouseButton1Click:Connect(function()
     pulseTween:Play()
     
     -- Eliminar el marcador después de 3 segundos
-    wait(3)
+    task.wait(3)
     pulseTween:Cancel()
     pointMarker:Destroy()
 end)
