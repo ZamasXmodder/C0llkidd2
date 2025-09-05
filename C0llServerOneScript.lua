@@ -246,7 +246,7 @@ local function createTeleportCapsule(position)
     end
     teleportCapsule = {}
     
-    local capsuleSize = Vector3.new(8, 12, 8)
+        local capsuleSize = Vector3.new(8, 12, 8)
     local wallThickness = 1
     
     -- Crear las 6 paredes de la cápsula
@@ -260,7 +260,7 @@ local function createTeleportCapsule(position)
     }
     
     for _, wallData in pairs(walls) do
-                local wall = Instance.new("Part")
+        local wall = Instance.new("Part")
         wall.Name = "TeleportCapsule_" .. wallData.name
         wall.Size = wallData.size
         wall.Position = position + wallData.offset
@@ -330,7 +330,6 @@ local function enableAbsoluteGodMode()
             humanoid.PlatformStand = true -- Evita que caiga o se mueva
             
             if humanoidRootPart then
-                humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
                 humanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
                 humanoidRootPart.Anchored = true -- Completamente inmóvil
             end
@@ -410,17 +409,18 @@ local function createFlyPart()
     end)
 end
 
--- Función para teletransporte seguro con cápsula
-local function safeteleportToSavedState()
+-- Función para vuelo automático con cápsula protectora
+local function safeFloatToSavedState()
     if not savedPosition or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
     
     local humanoidRootPart = player.Character.HumanoidRootPart
     local humanoid = player.Character.Humanoid
+    local startPosition = humanoidRootPart.Position
     
-    -- Crear cápsula de protección en posición actual
-    createTeleportCapsule(humanoidRootPart.Position)
+    -- Crear cápsula de protección móvil
+    createTeleportCapsule(startPosition)
     
     -- Activar protección absoluta
     enableAbsoluteGodMode()
@@ -430,7 +430,7 @@ local function safeteleportToSavedState()
     notification.Size = UDim2.new(0, 300, 0, 50)
     notification.Position = UDim2.new(0.5, -150, 0, 100)
     notification.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
-    notification.Text = "🛡️ Cápsula Activada - Teletransportando..."
+    notification.Text = "🛡️ Cápsula Activada - Volando al destino..."
     notification.TextColor3 = Color3.fromRGB(255, 255, 255)
     notification.TextScaled = true
     notification.Font = Enum.Font.GothamBold
@@ -440,26 +440,181 @@ local function safeteleportToSavedState()
     notifCorner.CornerRadius = UDim.new(0, 10)
     notifCorner.Parent = notification
     
-    -- Esperar 2 segundos para asegurar protección
-    wait(2)
+    -- Configuración del vuelo automático
+    local flySpeed = 25 -- Velocidad de vuelo (ajustable)
+    local currentPos = startPosition
+    local targetPos = savedPosition
+    local totalDistance = (targetPos - startPosition).Magnitude
+    local progress = 0
     
-    -- Teletransporte instantáneo
-    humanoidRootPart.CFrame = CFrame.new(savedPosition)
-    humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-    humanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+    -- Crear BodyVelocity para movimiento suave
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "AutoFloatVelocity"
+    bodyVelocity.MaxForce = Vector3.new(8000, 8000, 8000)
+    bodyVelocity.Parent = humanoidRootPart
     
-    -- Crear nueva cápsula en destino
-    destroyTeleportCapsule()
-    createTeleportCapsule(savedPosition)
+    -- Crear BodyPosition para estabilidad adicional
+    local bodyPosition = Instance.new("BodyPosition")
+    bodyPosition.Name = "AutoFloatPosition"
+    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyPosition.P = 3000
+    bodyPosition.D = 500
+    bodyPosition.Parent = humanoidRootPart
     
-    -- Actualizar notificación
-    notification.Text = "✅ Teletransporte Completado"
-    notification.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+    -- Función para actualizar la posición de la cápsula
+    local function updateCapsulePosition(position)
+        for i, wall in pairs(teleportCapsule) do
+            if wall and wall.Parent then
+                local wallData = {
+                    {offset = Vector3.new(0, -6, 0)}, -- Bottom
+                    {offset = Vector3.new(0, 6, 0)},  -- Top
+                    {offset = Vector3.new(0, 0, -4)}, -- Front
+                    {offset = Vector3.new(0, 0, 4)},  -- Back
+                    {offset = Vector3.new(-4, 0, 0)}, -- Left
+                    {offset = Vector3.new(4, 0, 0)}   -- Right
+                }
+                
+                if wallData[i] then
+                    wall.Position = position + wallData[i].offset
+                end
+            end
+        end
+    end
     
-    -- Esperar 2 segundos más para estabilizar
-    wait(2)
+    -- Bucle de vuelo automático
+    local flyConnection
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not isGoingToSavedState or not humanoidRootPart.Parent then
+            flyConnection:Disconnect()
+            return
+        end
+        
+        currentPos = humanoidRootPart.Position
+        local direction = (targetPos - currentPos)
+        local distance = direction.Magnitude
+        
+        -- Calcular progreso
+        progress = 1 - (distance / totalDistance)
+        
+        -- Actualizar notificación con progreso
+        local progressPercent = math.floor(progress * 100)
+        notification.Text = string.format("🚀 Volando... %d%% (%d studs restantes)", 
+            progressPercent, math.floor(distance))
+        
+        if distance > 3 then
+            -- Calcular velocidad adaptativa (más lento al acercarse)
+            local adaptiveSpeed = flySpeed
+            if distance < 20 then
+                adaptiveSpeed = flySpeed * (distance / 20) * 0.5 + flySpeed * 0.5
+            end
+            
+            -- Normalizar dirección y aplicar velocidad
+            direction = direction.Unit
+            local targetVelocity = direction * adaptiveSpeed
+            
+            -- Aplicar movimiento suave
+            bodyVelocity.Velocity = targetVelocity
+            bodyPosition.Position = currentPos + (direction * 2)
+            
+            -- Actualizar posición de la cápsula
+            updateCapsulePosition(currentPos)
+
+                            -- Actualizar fly part si está activa
+            if isFlyActive and flyPart then
+                flyPart.Position = currentPos - Vector3.new(0, config.floatHeight + 1, 0)
+            end
+        else
+            -- Llegamos al destino
+            flyConnection:Disconnect()
+            
+            -- Posición final exacta
+            humanoidRootPart.CFrame = CFrame.new(targetPos)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyPosition.Position = targetPos
+            
+            -- Actualizar cápsula a posición final
+            updateCapsulePosition(targetPos)
+            
+            -- Actualizar notificación
+            notification.Text = "✅ Destino Alcanzado - Estabilizando..."
+            notification.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+            
+            -- Esperar estabilización
+            spawn(function()
+                wait(2)
+                
+                -- Limpiar BodyVelocity y BodyPosition
+                if bodyVelocity and bodyVelocity.Parent then
+                    bodyVelocity:Destroy()
+                end
+                if bodyPosition and bodyPosition.Parent then
+                    bodyPosition:Destroy()
+                end
+                
+                -- Destruir cápsula
+                destroyTeleportCapsule()
+                
+                -- Restaurar protección normal
+                if isFlyActive or isFloatActive then
+                    enableSubtleGodMode()
+                else
+                    if godModeConnection then
+                        godModeConnection:Disconnect()
+                        godModeConnection = nil
+                    end
+                end
+                
+                -- Restaurar controles normales
+                humanoidRootPart.Anchored = false
+                humanoid.PlatformStand = false
+                
+                -- Asegurar que la fly part esté en la posición correcta
+                if isFlyActive and flyPart then
+                    flyPart.Position = targetPos - Vector3.new(0, config.floatHeight + 1, 0)
+                end
+                
+                -- Eliminar notificación
+                game:GetService("Debris"):AddItem(notification, 2)
+                
+                -- Restaurar botón
+                isGoingToSavedState = false
+                goToStateButton.Text = "Ir al Estado"
+                goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
+            end)
+        end
+    end)
+end
+
+-- Función para cancelar vuelo automático
+local function cancelAutoFlight()
+    if not isGoingToSavedState then
+        return
+    end
     
-    -- Destruir cápsula y restaurar estado normal
+    isGoingToSavedState = false
+    
+    -- Limpiar BodyVelocity y BodyPosition si existen
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoidRootPart = player.Character.HumanoidRootPart
+        
+        local bodyVelocity = humanoidRootPart:FindFirstChild("AutoFloatVelocity")
+        if bodyVelocity then
+            bodyVelocity:Destroy()
+        end
+        
+        local bodyPosition = humanoidRootPart:FindFirstChild("AutoFloatPosition")
+        if bodyPosition then
+            bodyPosition:Destroy()
+        end
+        
+        -- Restaurar controles
+        humanoidRootPart.Anchored = false
+        if player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.PlatformStand = false
+        end
+    end
+    
+    -- Destruir cápsula
     destroyTeleportCapsule()
     
     -- Restaurar protección normal
@@ -472,16 +627,25 @@ local function safeteleportToSavedState()
         end
     end
     
-    -- Restaurar controles normales
-    humanoidRootPart.Anchored = false
-    humanoid.PlatformStand = false
+    -- Restaurar botón
+    goToStateButton.Text = "Ir al Estado"
+    goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
     
-    -- Asegurar que la fly part esté en la posición correcta
-    if isFlyActive and flyPart then
-        flyPart.Position = savedPosition - Vector3.new(0, config.floatHeight + 1, 0)
-    end
+    -- Notificación de cancelación
+    local notification = Instance.new("TextLabel")
+    notification.Size = UDim2.new(0, 200, 0, 50)
+    notification.Position = UDim2.new(0.5, -100, 0, 100)
+    notification.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
+    notification.Text = "🚫 Vuelo Cancelado"
+    notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notification.TextScaled = true
+    notification.Font = Enum.Font.GothamBold
+    notification.Parent = screenGui
     
-    -- Eliminar notificación
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 10)
+    notifCorner.Parent = notification
+    
     game:GetService("Debris"):AddItem(notification, 2)
 end
 
@@ -510,23 +674,19 @@ local function goToSavedState()
         return
     end
     
-    -- Evitar múltiples activaciones
+    -- Si ya está volando, cancelar
     if isGoingToSavedState then
+        cancelAutoFlight()
         return
     end
     
     isGoingToSavedState = true
-    goToStateButton.Text = "Teletransportando..."
-    goToStateButton.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
+    goToStateButton.Text = "Cancelar Vuelo"
+    goToStateButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
     
-    -- Ejecutar teletransporte seguro en un hilo separado
+    -- Ejecutar vuelo automático seguro
     spawn(function()
-        safeteleportToSavedState()
-        
-        -- Restaurar botón
-        isGoingToSavedState = false
-        goToStateButton.Text = "Ir al Estado"
-        goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
+        safeFloatToSavedState()
     end)
 end
 
@@ -545,7 +705,7 @@ local function saveCurrentState()
     notification.Position = UDim2.new(0.5, -100, 0, 100)
     notification.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
     notification.Text = "💾 Estado guardado!"
-        notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notification.TextColor3 = Color3.fromRGB(255, 255, 255)
     notification.TextScaled = true
     notification.Font = Enum.Font.GothamBold
     notification.Parent = screenGui
@@ -646,7 +806,7 @@ local function updateSmoothFloat()
         end
         
         bodyVelocity.Velocity = newVelocity
-        
+
         -- Posicionar la part de soporte
         flyPart.Position = humanoidRootPart.Position - Vector3.new(0, config.floatHeight + 1, 0)
         
@@ -742,16 +902,7 @@ local function toggleSmoothFloat()
         
         -- Detener ir al estado guardado si está activo
         if isGoingToSavedState then
-            isGoingToSavedState = false
-            goToStateButton.Text = "Ir al Estado"
-            goToStateButton.BackgroundColor3 = Color3.fromRGB(170, 85, 170)
-            
-            destroyTeleportCapsule()
-            
-            if savedStateConnection then
-                savedStateConnection:Disconnect()
-                savedStateConnection = nil
-            end
+            cancelAutoFlight()
         end
         
         toggleFlyButton.Text = "Float Mode (WASD)"
@@ -838,7 +989,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         togglePanel()
     end
     
-        if input.KeyCode == Enum.KeyCode.T then
+    if input.KeyCode == Enum.KeyCode.T then
         toggleFloatPart()
     end
     
@@ -883,6 +1034,16 @@ game.Players.PlayerRemoving:Connect(function(leavingPlayer)
             if bodyVelocity then
                 bodyVelocity:Destroy()
             end
+            
+            local autoVelocity = player.Character.HumanoidRootPart:FindFirstChild("AutoFloatVelocity")
+            if autoVelocity then
+                autoVelocity:Destroy()
+            end
+            
+            local autoPosition = player.Character.HumanoidRootPart:FindFirstChild("AutoFloatPosition")
+            if autoPosition then
+                autoPosition:Destroy()
+            end
         end
     end
 end)
@@ -895,6 +1056,16 @@ player.CharacterRemoving:Connect(function(character)
         local bodyVelocity = character.HumanoidRootPart:FindFirstChild("FloatBodyVelocity")
         if bodyVelocity then
             bodyVelocity:Destroy()
+        end
+        
+        local autoVelocity = character.HumanoidRootPart:FindFirstChild("AutoFloatVelocity")
+        if autoVelocity then
+            autoVelocity:Destroy()
+        end
+        
+        local autoPosition = character.HumanoidRootPart:FindFirstChild("AutoFloatPosition")
+        if autoPosition then
+            autoPosition:Destroy()
         end
     end
 end)
@@ -910,9 +1081,20 @@ local function emergencyCleanup()
         
         if humanoidRootPart then
             humanoidRootPart.Anchored = false
+            
             local bodyVelocity = humanoidRootPart:FindFirstChild("FloatBodyVelocity")
             if bodyVelocity then
                 bodyVelocity:Destroy()
+            end
+            
+            local autoVelocity = humanoidRootPart:FindFirstChild("AutoFloatVelocity")
+            if autoVelocity then
+                autoVelocity:Destroy()
+            end
+            
+            local autoPosition = humanoidRootPart:FindFirstChild("AutoFloatPosition")
+            if autoPosition then
+                autoPosition:Destroy()
             end
         end
         
@@ -932,11 +1114,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.E and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
         emergencyCleanup()
         
+        -- Notificación de limpieza de emergencia
         local notification = Instance.new("TextLabel")
-        notification.Size = UDim2.new(0, 250, 0, 50)
-        notification.Position = UDim2.new(0.5, -125, 0, 100)
+        notification.Size = UDim2.new(0, 300, 0, 50)
+        notification.Position = UDim2.new(0.5, -150, 0, 100)
         notification.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
-        notification.Text = "🚨 Limpieza de emergencia activada"
+        notification.Text = "🚨 Limpieza de Emergencia Activada"
         notification.TextColor3 = Color3.fromRGB(255, 255, 255)
         notification.TextScaled = true
         notification.Font = Enum.Font.GothamBold
@@ -948,4 +1131,32 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         
         game:GetService("Debris"):AddItem(notification, 3)
     end
+end)
+
+-- Mensaje de inicio
+spawn(function()
+    wait(1)
+    local welcomeNotification = Instance.new("TextLabel")
+    welcomeNotification.Size = UDim2.new(0, 400, 0, 60)
+    welcomeNotification.Position = UDim2.new(0.5, -200, 0, 50)
+    welcomeNotification.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
+    welcomeNotification.Text = "🚀 Float & Fly Panel Cargado! Presiona 'F' para abrir"
+    welcomeNotification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    welcomeNotification.TextScaled = true
+    welcomeNotification.Font = Enum.Font.GothamBold
+    welcomeNotification.Parent = screenGui
+    
+    local welcomeCorner = Instance.new("UICorner")
+    welcomeCorner.CornerRadius = UDim.new(0, 15)
+    welcomeCorner.Parent = welcomeNotification
+    
+    -- Animación de entrada
+    welcomeNotification.Position = UDim2.new(0.5, -200, 0, -70)
+    local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(welcomeNotification, tweenInfo, {
+        Position = UDim2.new(0.5, -200, 0, 50)
+    })
+    tween:Play()
+    
+    game:GetService("Debris"):AddItem(welcomeNotification, 5)
 end)
