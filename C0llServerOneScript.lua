@@ -413,14 +413,14 @@ local function floatToTarget(targetPosition, isReturningHome)
                     bodyVelocity.Velocity = velocity
                 end
                 
-                -- Mover las partes flotantes alrededor del jugador
+                -- Mover las partes flotantes alrededor del jugador (más pegadas al suelo)
                 for i, part in pairs(carrierParts) do
                     if part and part.Parent and part:FindFirstChild("BodyVelocity") then
                         local angle = (i - 1) * (math.pi * 2 / 6) + tick() * 2
-                        local radius = 8
+                        local radius = 6  -- Reducido de 8 a 6
                         local targetPartPos = humanoidRootPart.Position + Vector3.new(
                             math.cos(angle) * radius,
-                            5 + math.sin(tick() * 3 + i) * 2,
+                            2 + math.sin(tick() * 3 + i) * 1, -- Reducido la altura: de 5 + sin*2 a 2 + sin*1
                             math.sin(angle) * radius
                         )
                         
