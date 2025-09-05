@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -42,10 +41,9 @@ local autoStealActive = false
 local currentConnection = nil
 local homePosition = nil
 local isMoving = false
-local floatSpeed = 50
+local floatSpeed = 50 -- Velocidad inicial
 local carrierParts = {}
 local bodyVelocity = nil
-local isCollecting = false
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -100,12 +98,12 @@ speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.Gotham
 speedLabel.Parent = frame
 
--- Botones de velocidad (cambio de 5 en 5)
+-- Botones de velocidad
 local speedDownButton = Instance.new("TextButton")
 speedDownButton.Size = UDim2.new(0, 40, 0, 25)
 speedDownButton.Position = UDim2.new(0, 10, 0, 110)
 speedDownButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-speedDownButton.Text = "➖5"
+speedDownButton.Text = "➖"
 speedDownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedDownButton.TextScaled = true
 speedDownButton.Font = Enum.Font.GothamBold
@@ -119,7 +117,7 @@ local speedUpButton = Instance.new("TextButton")
 speedUpButton.Size = UDim2.new(0, 40, 0, 25)
 speedUpButton.Position = UDim2.new(1, -50, 0, 110)
 speedUpButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-speedUpButton.Text = "➕5"
+speedUpButton.Text = "➕"
 speedUpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedUpButton.TextScaled = true
 speedUpButton.Font = Enum.Font.GothamBold
@@ -171,14 +169,14 @@ countLabel.TextScaled = true
 countLabel.Font = Enum.Font.Gotham
 countLabel.Parent = frame
 
--- Función para actualizar la velocidad (cambio de 5 en 5)
+-- Función para actualizar la velocidad (cambiado de 10 a 5)
 local function updateSpeed(newSpeed)
     floatSpeed = math.clamp(newSpeed, 10, 200)
     speedLabel.Text = "⚡ Float Speed: " .. floatSpeed
-        speedBar.Size = UDim2.new((floatSpeed - 10) / 190, 0, 1, 0)
+    speedBar.Size = UDim2.new((floatSpeed - 10) / 190, 0, 1, 0)
 end
 
--- Eventos de los botones de velocidad (cambio de 5 en 5)
+-- Eventos de los botones de velocidad (ahora de 5 en 5)
 speedDownButton.MouseButton1Click:Connect(function()
     updateSpeed(floatSpeed - 5)
 end)
@@ -187,56 +185,38 @@ speedUpButton.MouseButton1Click:Connect(function()
     updateSpeed(floatSpeed + 5)
 end)
 
--- Función para detectar obstáculos con raycast
-local function checkForObstacles(startPos, endPos)
+-- Función para detectar obstáculos usando raycast
+local function checkObstacle(from, to)
+    local rayDirection = (to - from)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.FilterDescendantsInstances = {player.Character, unpack(carrierParts)}
     
-    local raycastResult = workspace:Raycast(startPos, (endPos - startPos))
-    
-    if raycastResult then
-        local hit = raycastResult.Instance
-        -- Solo considerar obstáculos si son partes visibles (no transparentes)
-        if hit and hit.Transparency < 0.5 and hit.CanCollide then
-            return true, raycastResult.Position, raycastResult.Normal
-        end
-    end
-    
-    return false, nil, nil
+    local raycastResult = workspace:Raycast(from, rayDirection, raycastParams)
+    return raycastResult
 end
 
--- Función para encontrar ruta alternativa cuando hay obstáculos
+-- Función para encontrar una ruta alternativa cuando hay obstáculo
 local function findAlternatePath(startPos, targetPos)
-    local hasObstacle, hitPos, normal = checkForObstacles(startPos, targetPos)
+    -- Intentar diferentes alturas para evitar obstáculos
+    local testPositions = {
+        targetPos + Vector3.new(0, 10, 0), -- Más alto
+        targetPos + Vector3.new(5, 5, 0),  -- Lateral derecho
+        targetPos + Vector3.new(-5, 5, 0), -- Lateral izquierdo
+        targetPos + Vector3.new(0, 5, 5),  -- Lateral adelante
+        targetPos + Vector3.new(0, 5, -5), -- Lateral atrás
+        targetPos + Vector3.new(0, 15, 0)  -- Mucho más alto
+    }
     
-    if hasObstacle then
-        -- Intentar ir por arriba del obstáculo
-        local upwardPath = targetPos + Vector3.new(0, 20, 0)
-        local hasUpObstacle = checkForObstacles(startPos, upwardPath)
-        
-        if not hasUpObstacle then
-            return upwardPath
+    for _, testPos in pairs(testPositions) do
+        local obstacle = checkObstacle(startPos, testPos)
+        if not obstacle then
+            return testPos
         end
-        
-        -- Intentar ir por los lados
-        local rightPath = targetPos + (normal:Cross(Vector3.new(0, 1, 0)).Unit * 15)
-        local leftPath = targetPos + (normal:Cross(Vector3.new(0, -1, 0)).Unit * 15)
-        
-        local hasRightObstacle = checkForObstacles(startPos, rightPath)
-        local hasLeftObstacle = checkForObstacles(startPos, leftPath)
-        
-        if not hasRightObstacle then
-            return rightPath
-        elseif not hasLeftObstacle then
-            return leftPath
-        end
-        
-        -- Si todo está bloqueado, ir hacia arriba
-        return startPos + Vector3.new(0, 25, 0)
     end
     
-    return targetPos
+    -- Si no encuentra ruta, volar muy alto
+    return targetPos + Vector3.new(0, 25, 0)
 end
 
 -- Función para encontrar brainrots en workspace
@@ -288,8 +268,6 @@ local function cleanupEffects()
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.PlatformStand = false
     end
-    
-    isCollecting = false
 end
 
 -- Función para crear las partes que llevarán al jugador
@@ -358,70 +336,8 @@ local function createCarrierParts()
     end
 end
 
--- Función para simular recolección instantánea
-local function collectBrainrot(brainrot)
-    if isCollecting then return end
-    isCollecting = true
-    
-    statusLabel.Text = "✨ Collecting: " .. brainrot.Name
-    
-    -- Efecto de recolección
-    local brainrotPos = getBrainrotPosition(brainrot)
-    if brainrotPos then
-        for i = 1, 8 do
-            local collectEffect = Instance.new("Part")
-            collectEffect.Size = Vector3.new(0.5, 0.5, 0.5)
-            collectEffect.Material = Enum.Material.Neon
-            collectEffect.BrickColor = BrickColor.new("Bright yellow")
-            collectEffect.CanCollide = false
-            collectEffect.Anchored = true
-            collectEffect.Shape = Enum.PartType.Ball
-            
-            local angle = (i - 1) * (math.pi * 2 / 8)
-            collectEffect.Position = brainrotPos + Vector3.new(
-                math.cos(angle) * 3,
-                math.random(1, 3),
-                math.sin(angle) * 3
-            )
-            
-            collectEffect.Parent = workspace
-            
-            -- Animación hacia el jugador
-            spawn(function()
-                local playerPos = player.Character.HumanoidRootPart.Position
-                local startPos = collectEffect.Position
-                
-                for t = 0, 1, 0.05 do
-                    if collectEffect.Parent then
-                        collectEffect.Position = startPos:Lerp(playerPos, t)
-                        collectEffect.Size = Vector3.new(0.5 + t, 0.5 + t, 0.5 + t)
-                        collectEffect.Transparency = t
-                    end
-                    wait(0.05)
-                end
-                
-                if collectEffect.Parent then
-                    collectEffect:Destroy()
-                end
-            end)
-        end
-    end
-    
-    -- Proceso de recolección instantáneo (sin espera)
-    wait(0.5) -- Solo medio segundo para los efectos visuales
-    
-    -- Ir inmediatamente a casa
-    if homePosition and autoStealActive then
-        statusLabel.Text = "🏠 Returning home..."
-        floatToTarget(homePosition)
-    else
-        cleanupEffects()
-        statusLabel.Text = "✅ Collection complete!"
-    end
-end
-
--- Función para mover flotando hacia el objetivo
-local function floatToTarget(targetPosition)
+-- Función para mover flotando hacia el objetivo (mejorada con detección de obstáculos)
+local function floatToTarget(targetPosition, isReturningHome)
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
@@ -432,14 +348,22 @@ local function floatToTarget(targetPosition)
     -- Crear las partes que llevarán al jugador
     createCarrierParts()
     
-    -- Movimiento flotante con detección de obstáculos
+    -- Verificar si hay obstáculos y encontrar ruta alternativa
+    local obstacle = checkObstacle(humanoidRootPart.Position, targetPosition)
+    local finalTarget = targetPosition
+    
+    if obstacle then
+        finalTarget = findAlternatePath(humanoidRootPart.Position, targetPosition)
+        statusLabel.Text = "🧭 Avoiding obstacles..."
+    end
+    
+    -- Movimiento flotante
     spawn(function()
         local startTime = tick()
         local connection
-        local currentTarget = targetPosition
         
         connection = RunService.Heartbeat:Connect(function()
-            if not autoStealActive or tick() - startTime > 20 then
+            if not autoStealActive or tick() - startTime > 20 then -- Aumentado el tiempo límite
                 connection:Disconnect()
                 isMoving = false
                 cleanupEffects()
@@ -447,11 +371,7 @@ local function floatToTarget(targetPosition)
             end
             
             if humanoidRootPart and humanoidRootPart.Parent then
-                -- Verificar obstáculos y ajustar ruta
-                local playerPos = humanoidRootPart.Position
-                currentTarget = findAlternatePath(playerPos, targetPosition)
-                
-                local direction = (currentTarget - playerPos)
+                local direction = (finalTarget - humanoidRootPart.Position)
                 local distance = direction.Magnitude
                 
                 if distance < 8 then
@@ -459,24 +379,32 @@ local function floatToTarget(targetPosition)
                     connection:Disconnect()
                     isMoving = false
                     
-                    -- Si estamos cerca del brainrot, recolectar inmediatamente
-                    if not isCollecting and (currentTarget - targetPosition).Magnitude < 15 then
-                        -- Buscar el brainrot más cercano para recolectar
-                        local brainrots = findBrainrots()
-                        for _, brainrot in pairs(brainrots) do
-                            local brainrotPos = getBrainrotPosition(brainrot)
-                            if brainrotPos and (brainrotPos - playerPos).Magnitude < 15 then
-                                collectBrainrot(brainrot)
-                                return
-                            end
+                    if not isReturningHome then
+                        -- Simular recolección más rápida (reducido de 2 a 0.5 segundos)
+                        statusLabel.Text = "✨ Collecting brainrot..."
+                        wait(0.5)
+                        
+                        -- Regresar a casa inmediatamente
+                        if homePosition and autoStealActive then
+                            statusLabel.Text = "🏠 Returning home..."
+                            floatToTarget(homePosition, true, nil)
+                        else
+                            cleanupEffects()
                         end
+                    else
+                        cleanupEffects()
                     end
-                    
-                    cleanupEffects()
                     return
                 end
                 
-                -- Calcular velocidad con ajuste por obstáculos
+                -- Verificar obstáculos durante el movimiento
+                local currentObstacle = checkObstacle(humanoidRootPart.Position, finalTarget)
+                if currentObstacle and distance > 15 then
+                    -- Recalcular ruta si encontramos un obstáculo nuevo
+                    finalTarget = findAlternatePath(humanoidRootPart.Position, targetPosition)
+                end
+                
+                -- Calcular velocidad
                 direction = direction.Unit
                 local velocity = direction * floatSpeed
                 
@@ -497,7 +425,7 @@ local function floatToTarget(targetPosition)
                         )
                         
                         local partDirection = (targetPartPos - part.Position).Unit
-                                                part.BodyVelocity.Velocity = partDirection * (floatSpeed * 0.8)
+                        part.BodyVelocity.Velocity = partDirection * (floatSpeed * 0.8)
                     end
                 end
             end
@@ -546,7 +474,7 @@ end
 
 -- Función principal de auto steal
 local function autoStealLoop()
-    if not autoStealActive or isMoving or isCollecting then return end
+    if not autoStealActive or isMoving then return end
     
     local brainrots = findBrainrots()
     countLabel.Text = "🎯 Found: " .. #brainrots .. " brainrots"
@@ -574,7 +502,7 @@ local function autoStealLoop()
                 if targetPos then
                     statusLabel.Text = "🚀 Flying to: " .. closestBrainrot.Name
                     createBrainrotEffects(targetPos)
-                    floatToTarget(targetPos)
+                    floatToTarget(targetPos, false)
                 end
             end
         end
@@ -597,9 +525,9 @@ button.MouseButton1Click:Connect(function()
             homePosition = player.Character.HumanoidRootPart.Position
         end
         
-        -- Iniciar loop con menor tiempo de espera para respuesta más rápida
+        -- Iniciar loop
         currentConnection = RunService.Heartbeat:Connect(function()
-            wait(1) -- Reducido a 1 segundo para respuesta más rápida
+            wait(2) -- Reducido de 3 a 2 segundos para mayor velocidad
             autoStealLoop()
         end)
     else
@@ -671,7 +599,6 @@ end)
 
 print("🎮 Auto Steal Panel loaded successfully!")
 print("📋 Monitoring " .. #brainrotList .. " different brainrots")
-print("🚀 Float system with obstacle detection activated!")
-print("⚡ Speed controls: ➖5 and ➕5 (Range: 10-200)")
-print("🧱 Raycast system: Avoids visible walls automatically")
-print("⚡ Instant collection: No delays when reaching brainrots")
+print("🚀 Float system activated with obstacle avoidance!")
+print("⚡ Speed controls: Use ➖ and ➕ buttons (Range: 10-200, steps of 5)")
+print("🧭 New features: Wall detection and faster collection!")
