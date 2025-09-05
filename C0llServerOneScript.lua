@@ -245,6 +245,154 @@ local function cleanupTransportParts()
     transportParts = {}
 end
 
+local function goToEstablishedPoint()
+    if not targetPoint then
+        statusLabel.Text = "No hay punto establecido"
+        return
+    end
+    
+    if isTransporting then
+        statusLabel.Text = "Ya transportando..."
+        return
+    end
+    
+    isTransporting = true
+    statusLabel.Text = "Iniciando flote con ragdoll..."
+    
+    cleanupTransportParts()
+    enableRagdoll()
+    
+    -- Crear partículas flotantes
+    local partCount = 6
+    local radius = 3
+    
+    for i = 1, partCount do
+        local part = Instance.new("Part")
+        part.Name = "FloatPart" .. i
+        part.Size = Vector3.new(1.2, 1.2, 1.2)
+        part.Material = Enum.Material.ForceField
+        part.Color = Color3.fromHSV((i-1) / partCount, 0.7, 1)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Shape = Enum.PartType.Ball
+        part.Transparency = 0.3
+        part.Parent = workspace
+        
+        local angle = (i-1) * (360 / partCount)
+        local offset = Vector3.new(
+            math.cos(math.rad(angle)) * radius,
+            math.sin(i * 0.8) * 1.5,
+            math.sin(math.rad(angle)) * radius
+        )
+        part.Position = rootPart.Position + offset
+        
+        table.insert(transportParts, part)
+    end
+    
+    -- Sistema de transporte mejorado
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+    
+    local startPos = rootPart.Position
+    local endPos = targetPoint
+    local totalDistance = (endPos - startPos).Magnitude
+    
+    statusLabel.Text = string.format("Flotando %.0f metros...", totalDistance)
+    
+    -- Función para detectar obstáculos
+    local function checkForObstacles(currentPos, targetPos)
+        local direction = (targetPos - currentPos).Unit
+        local distance = (targetPos - currentPos).Magnitude
+        
+        -- Raycast para detectar obstáculos
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {character}
+        
+        local raycastResult = workspace:Raycast(currentPos, direction * math.min(distance, 10), raycastParams)
+        
+        if raycastResult then
+            -- Si hay obstáculo, intentar ir por los lados
+            local rightDirection = direction:Cross(Vector3.new(0, 1, 0)).Unit
+            local leftDirection = -rightDirection
+            
+            -- Probar ir por la derecha
+            local rightPos = currentPos + rightDirection * 5
+            local rightRaycast = workspace:Raycast(currentPos, (rightPos - currentPos), raycastParams)
+            
+            if not rightRaycast then
+                return rightDirection * floatSpeed
+            end
+            
+            -- Probar ir por la izquierda
+            local leftPos = currentPos + leftDirection * 5
+            local leftRaycast = workspace:Raycast(currentPos, (leftPos - currentPos), raycastParams)
+            
+            if not leftRaycast then
+                return leftDirection * floatSpeed
+            end
+            
+            -- Si ambos lados están bloqueados, ir hacia arriba
+            return Vector3.new(0, floatSpeed, 0)
+        end
+        
+        return direction * floatSpeed
+    end
+    
+    local effectConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        local currentPos = rootPart.Position
+                local distanceToTarget = (endPos - currentPos).Magnitude
+        
+        -- Si estamos cerca del objetivo, ir directamente
+        if distanceToTarget < 3 then
+            local direction = (endPos - currentPos).Unit
+            bodyVelocity.Velocity = direction * floatSpeed
+        else
+            -- Usar detección de obstáculos
+            local moveDirection = checkForObstacles(currentPos, endPos)
+            bodyVelocity.Velocity = moveDirection
+        end
+        
+        -- Actualizar partículas
+        for i, part in pairs(transportParts) do
+            if part and part.Parent then
+                local angle = (i-1) * (360 / partCount) + (tick() * 30)
+                local bobbing = math.sin(tick() * 2 + i) * 1
+                local offset = Vector3.new(
+                    math.cos(math.rad(angle)) * radius,
+                    bobbing,
+                    math.sin(math.rad(angle)) * radius
+                )
+                part.Position = currentPos + offset
+                part.Color = Color3.fromHSV(((tick() * 60 + i * 60) % 360) / 360, 0.7, 1)
+            end
+        end
+        
+        -- Verificar si hemos llegado al destino
+        if distanceToTarget < 2 then
+            effectConnection:Disconnect()
+            
+            -- Asegurar que se desactive el ragdoll al llegar
+            wait(0.1) -- Pequeña pausa para estabilizar
+            disableRagdoll()
+            
+            -- Limpiar todo
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+            cleanupTransportParts()
+            isTransporting = false
+            statusLabel.Text = "¡Flote completado!"
+            
+            -- Asegurar que el personaje esté en estado normal
+            wait(0.2)
+            humanoid.PlatformStand = false
+        end
+    end)
+end
+
 local function toggleFlyMode()
     flyMode = not flyMode
     
@@ -320,99 +468,6 @@ local function toggleFlyMode()
         flyInstructions.Visible = false
         statusLabel.Text = "Modo escalera desactivado"
     end
-end
-
-local function goToEstablishedPoint()
-    if not targetPoint then
-        statusLabel.Text = "No hay punto establecido"
-        return
-    end
-    
-    if isTransporting then
-        statusLabel.Text = "Ya transportando..."
-        return
-    end
-    
-    isTransporting = true
-    statusLabel.Text = "Iniciando flote con ragdoll..."
-    
-    cleanupTransportParts()
-    enableRagdoll()
-    
-    -- Crear partículas flotantes
-    local partCount = 6
-    local radius = 3
-    
-    for i = 1, partCount do
-        local part = Instance.new("Part")
-        part.Name = "FloatPart" .. i
-        part.Size = Vector3.new(1.2, 1.2, 1.2)
-        part.Material = Enum.Material.ForceField
-        part.Color = Color3.fromHSV((i-1) / partCount, 0.7, 1)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Shape = Enum.PartType.Ball
-        part.Transparency = 0.3
-        part.Parent = workspace
-        
-        local angle = (i-1) * (360 / partCount)
-        local offset = Vector3.new(
-            math.cos(math.rad(angle)) * radius,
-            math.sin(i * 0.8) * 1.5,
-            math.sin(math.rad(angle)) * radius
-        )
-        part.Position = rootPart.Position + offset
-        
-        table.insert(transportParts, part)
-    end
-    
-    -- Sistema de transporte
-    local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyPosition.Position = rootPart.Position
-    bodyPosition.D = 2000
-    bodyPosition.P = 8000
-    bodyPosition.Parent = rootPart
-    
-    local startPos = rootPart.Position
-    local endPos = targetPoint
-    local totalDistance = (endPos - startPos).Magnitude
-    local totalTime = totalDistance / floatSpeed
-    
-    statusLabel.Text = string.format("Flotando %.0f metros...", totalDistance)
-    
-    local floatTime = 0
-    local effectConnection = RunService.Heartbeat:Connect(function(deltaTime)
-        floatTime = floatTime + deltaTime
-        
-        local progress = math.min(floatTime / totalTime, 1)
-        local currentPos = startPos:Lerp(endPos, progress)
-        bodyPosition.Position = currentPos + Vector3.new(0, 2, 0)
-        
-        -- Actualizar partículas
-        for i, part in pairs(transportParts) do
-            if part and part.Parent then
-                local angle = (i-1) * (360 / partCount) + (floatTime * 30)
-                local bobbing = math.sin(floatTime * 2 + i) * 1
-                local offset = Vector3.new(
-                    math.cos(math.rad(angle)) * radius,
-                    bobbing,
-                    math.sin(math.rad(angle)) * radius
-                )
-                part.Position = currentPos + offset
-                part.Color = Color3.fromHSV(((floatTime * 60 + i * 60) % 360) / 360, 0.7, 1)
-            end
-        end
-        
-        if progress >= 1 then
-            effectConnection:Disconnect()
-            disableRagdoll()
-            bodyPosition:Destroy()
-            cleanupTransportParts()
-            isTransporting = false
-            statusLabel.Text = "¡Flote completado!"
-        end
-    end)
 end
 
 -- Configurar slider
