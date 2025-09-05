@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local PathfindingService = game:GetService("PathfindingService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
@@ -18,7 +17,7 @@ local flyMode = false
 local flyConnection = nil
 local ladderPart = nil
 local climbAnimationTrack = nil
-local floatSpeed = 50 -- Velocidad de flote por defecto
+local floatSpeed = 50
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -26,13 +25,14 @@ screenGui.Name = "RainbowPanel"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 310)
+frame.Size = UDim2.new(0, 300, 0, 320)
 frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 frame.BorderSizePixel = 2
 frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
 frame.Parent = screenGui
 
+-- Título
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 0)
@@ -43,7 +43,7 @@ title.TextScaled = true
 title.Font = Enum.Font.SourceSansBold
 title.Parent = frame
 
--- Botón para activar/desactivar caminar
+-- Botón caminar rainbow
 local walkButton = Instance.new("TextButton")
 walkButton.Size = UDim2.new(0.9, 0, 0, 30)
 walkButton.Position = UDim2.new(0.05, 0, 0, 40)
@@ -54,7 +54,7 @@ walkButton.TextScaled = true
 walkButton.Font = Enum.Font.SourceSans
 walkButton.Parent = frame
 
--- Botón para establecer punto
+-- Botón establecer punto
 local setPointButton = Instance.new("TextButton")
 setPointButton.Size = UDim2.new(0.9, 0, 0, 30)
 setPointButton.Position = UDim2.new(0.05, 0, 0, 80)
@@ -65,7 +65,7 @@ setPointButton.TextScaled = true
 setPointButton.Font = Enum.Font.SourceSans
 setPointButton.Parent = frame
 
--- Botón para ir al punto
+-- Botón ir al punto
 local goToPointButton = Instance.new("TextButton")
 goToPointButton.Size = UDim2.new(0.9, 0, 0, 30)
 goToPointButton.Position = UDim2.new(0.05, 0, 0, 120)
@@ -76,7 +76,7 @@ goToPointButton.TextScaled = true
 goToPointButton.Font = Enum.Font.SourceSans
 goToPointButton.Parent = frame
 
--- Botón para modo escalera/vuelo
+-- Botón escalera
 local flyButton = Instance.new("TextButton")
 flyButton.Size = UDim2.new(0.9, 0, 0, 30)
 flyButton.Position = UDim2.new(0.05, 0, 0, 160)
@@ -87,17 +87,18 @@ flyButton.TextScaled = true
 flyButton.Font = Enum.Font.SourceSans
 flyButton.Parent = frame
 
--- Slider de velocidad
+-- Label velocidad
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(0.9, 0, 0, 20)
 speedLabel.Position = UDim2.new(0.05, 0, 0, 200)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Velocidad de Flote: " .. floatSpeed
+speedLabel.Text = "Velocidad: " .. floatSpeed
 speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.SourceSans
 speedLabel.Parent = frame
 
+-- Frame del slider
 local speedSliderFrame = Instance.new("Frame")
 speedSliderFrame.Size = UDim2.new(0.9, 0, 0, 20)
 speedSliderFrame.Position = UDim2.new(0.05, 0, 0, 225)
@@ -106,9 +107,10 @@ speedSliderFrame.BorderSizePixel = 1
 speedSliderFrame.BorderColor3 = Color3.fromRGB(200, 200, 200)
 speedSliderFrame.Parent = frame
 
+-- Botón del slider
 local speedSlider = Instance.new("TextButton")
 speedSlider.Size = UDim2.new(0, 20, 1, 0)
-speedSlider.Position = UDim2.new((floatSpeed - 20) / 80, -10, 0, 0) -- Escala de 20-100
+speedSlider.Position = UDim2.new(0.375, -10, 0, 0) -- Posición inicial en el medio
 speedSlider.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 speedSlider.Text = ""
 speedSlider.Parent = speedSliderFrame
@@ -136,88 +138,7 @@ flyInstructions.Font = Enum.Font.SourceSans
 flyInstructions.Visible = false
 flyInstructions.Parent = frame
 
--- Función para crear animación de escalada
-local function createClimbAnimation()
-    local animation = Instance.new("Animation")
-    animation.AnimationId = "rbxassetid://507765644" -- ID de animación de escalada
-    
-    climbAnimationTrack = humanoid:LoadAnimation(animation)
-    climbAnimationTrack.Looped = true
-    climbAnimationTrack.Priority = Enum.AnimationPriority.Action
-    
-    return climbAnimationTrack
-end
-
--- Función para activar ragdoll
-local function enableRagdoll()
-    for _, joint in pairs(character:GetDescendants()) do
-        if joint:IsA("Motor6D") then
-            local attachment0 = Instance.new("Attachment")
-            local attachment1 = Instance.new("Attachment")
-            
-            attachment0.Parent = joint.Part0
-            attachment1.Parent = joint.Part1
-            
-            attachment0.CFrame = joint.C0
-            attachment1.CFrame = joint.C1
-            
-            local ballSocket = Instance.new("BallSocketConstraint")
-            ballSocket.Attachment0 = attachment0
-            ballSocket.Attachment1 = attachment1
-            ballSocket.Parent = joint.Part0
-            
-            joint.Enabled = false
-        end
-    end
-    humanoid.PlatformStand = true
-end
-
--- Función para desactivar ragdoll
-local function disableRagdoll()
-    for _, constraint in pairs(character:GetDescendants()) do
-        if constraint:IsA("BallSocketConstraint") then
-            constraint:Destroy()
-        end
-    end
-    
-    for _, attachment in pairs(character:GetDescendants()) do
-        if attachment:IsA("Attachment") and attachment.Parent ~= rootPart then
-            attachment:Destroy()
-        end
-    end
-    
-    for _, joint in pairs(character:GetDescendants()) do
-        if joint:IsA("Motor6D") then
-            joint.Enabled = true
-        end
-    end
-    
-    humanoid.PlatformStand = false
-end
-
--- Función para verificar si hay obstáculos entre dos puntos
-local function isPathClear(startPos, endPos)
-    local direction = (endPos - startPos).Unit
-    local distance = (endPos - startPos).Magnitude
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {character, rainbowPart}
-    
-    -- Hacer múltiples raycasts para verificar el camino
-    for i = 0, distance, 2 do
-        local currentPos = startPos + direction * i
-        local rayResult = workspace:Raycast(currentPos, direction * 2, raycastParams)
-        
-        if rayResult and rayResult.Instance.CanCollide then
-            return false
-        end
-    end
-    
-    return true
-end
-
--- Función para crear part rainbow
+-- Funciones
 local function createRainbowPart()
     if rainbowPart then
         rainbowPart:Destroy()
@@ -231,24 +152,18 @@ local function createRainbowPart()
     rainbowPart.CanCollide = true
     rainbowPart.Parent = workspace
     
-    -- Efecto rainbow
     local hue = 0
-    local rainbowConnection
-    rainbowConnection = RunService.Heartbeat:Connect(function()
+    local rainbowConnection = RunService.Heartbeat:Connect(function()
         if rainbowPart and rainbowPart.Parent then
             hue = (hue + 2) % 360
             rainbowPart.Color = Color3.fromHSV(hue / 360, 1, 1)
-            
-            -- Posicionar debajo del jugador
-            local newPosition = rootPart.Position - Vector3.new(0, 3, 0)
-            rainbowPart.Position = newPosition
+            rainbowPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
         else
             rainbowConnection:Disconnect()
         end
     end)
 end
 
--- Función mejorada para crear escalera invisible con animación de escalada
 local function createLadder()
     if ladderPart then
         ladderPart:Destroy()
@@ -264,36 +179,72 @@ local function createLadder()
     ladderPart.CanCollide = true
     ladderPart.Parent = workspace
     
-    -- Crear y reproducir animación de escalada
-    if not climbAnimationTrack then
-        createClimbAnimation()
-    end
-    
-    -- Posicionar la escalera
-    local ladderConnection
-    ladderConnection = RunService.Heartbeat:Connect(function()
+    local ladderConnection = RunService.Heartbeat:Connect(function()
         if ladderPart and ladderPart.Parent and flyMode then
             ladderPart.Position = rootPart.Position
-            
-            -- Reproducir animación cuando el jugador esté escalando
-            local isClimbing = UserInputService:IsKeyDown(Enum.KeyCode.Space) or 
-                              UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
-            
-            if isClimbing and climbAnimationTrack and not climbAnimationTrack.IsPlaying then
-                climbAnimationTrack:Play()
-            elseif not isClimbing and climbAnimationTrack and climbAnimationTrack.IsPlaying then
-                climbAnimationTrack:Stop()
-            end
         elseif not flyMode then
-            if climbAnimationTrack and climbAnimationTrack.IsPlaying then
-                climbAnimationTrack:Stop()
-            end
             ladderConnection:Disconnect()
         end
     end)
 end
 
--- Función para modo vuelo mejorado
+local function enableRagdoll()
+    pcall(function()
+        for _, joint in pairs(character:GetDescendants()) do
+            if joint:IsA("Motor6D") then
+                local attachment0 = Instance.new("Attachment")
+                local attachment1 = Instance.new("Attachment")
+                
+                attachment0.Parent = joint.Part0
+                attachment1.Parent = joint.Part1
+                attachment0.CFrame = joint.C0
+                attachment1.CFrame = joint.C1
+                
+                local ballSocket = Instance.new("BallSocketConstraint")
+                ballSocket.Attachment0 = attachment0
+                ballSocket.Attachment1 = attachment1
+                ballSocket.Parent = joint.Part0
+                
+                joint.Enabled = false
+            end
+        end
+        humanoid.PlatformStand = true
+    end)
+end
+
+local function disableRagdoll()
+    pcall(function()
+        for _, constraint in pairs(character:GetDescendants()) do
+            if constraint:IsA("BallSocketConstraint") then
+                constraint:Destroy()
+            end
+        end
+        
+        for _, attachment in pairs(character:GetDescendants()) do
+            if attachment:IsA("Attachment") and attachment.Parent ~= rootPart then
+                attachment:Destroy()
+            end
+        end
+        
+        for _, joint in pairs(character:GetDescendants()) do
+            if joint:IsA("Motor6D") then
+                joint.Enabled = true
+            end
+        end
+        
+        humanoid.PlatformStand = false
+    end)
+end
+
+local function cleanupTransportParts()
+    for _, part in pairs(transportParts) do
+        if part and part.Parent then
+            part:Destroy()
+        end
+    end
+    transportParts = {}
+end
+
 local function toggleFlyMode()
     flyMode = not flyMode
     
@@ -309,21 +260,19 @@ local function toggleFlyMode()
         flyButton.Text = "Desactivar Modo Escalera"
         flyButton.BackgroundColor3 = Color3.fromRGB(150, 150, 0)
         flyInstructions.Visible = true
-        statusLabel.Text = "Modo vuelo activado - Usa Space/Shift para subir/bajar"
+        statusLabel.Text = "Modo escalera activado"
         
         flyConnection = RunService.Heartbeat:Connect(function()
             if not flyMode then return end
             
             local camera = workspace.CurrentCamera
             local moveVector = Vector3.new(0, 0, 0)
-            local speed = 60 -- Velocidad aumentada
+            local speed = 60
             
-            -- Obtener dirección de la cámara
             local cameraCFrame = camera.CFrame
             local forward = cameraCFrame.LookVector
             local right = cameraCFrame.RightVector
             
-            -- Controles de movimiento
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then
                 moveVector = moveVector + forward
             end
@@ -343,7 +292,6 @@ local function toggleFlyMode()
                 moveVector = moveVector - Vector3.new(0, 1, 0)
             end
             
-            -- Aplicar velocidad
             if bodyVelocity then
                 bodyVelocity.Velocity = moveVector * speed
             end
@@ -355,10 +303,6 @@ local function toggleFlyMode()
         if ladderPart then
             ladderPart:Destroy()
             ladderPart = nil
-        end
-        
-        if climbAnimationTrack then
-            climbAnimationTrack:Stop()
         end
         
         local bodyVelocity = rootPart:FindFirstChild("BodyVelocity")
@@ -374,21 +318,10 @@ local function toggleFlyMode()
         flyButton.Text = "Activar Modo Escalera"
         flyButton.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
         flyInstructions.Visible = false
-        statusLabel.Text = "Modo vuelo desactivado"
+        statusLabel.Text = "Modo escalera desactivado"
     end
 end
 
--- Función para limpiar parts de transporte
-local function cleanupTransportParts()
-    for _, part in pairs(transportParts) do
-        if part and part.Parent then
-            part:Destroy()
-        end
-    end
-    transportParts = {}
-end
-
--- Función de flote suave para ir al punto con ragdoll
 local function goToEstablishedPoint()
     if not targetPoint then
         statusLabel.Text = "No hay punto establecido"
@@ -401,14 +334,12 @@ local function goToEstablishedPoint()
     end
     
     isTransporting = true
-    statusLabel.Text = "Iniciando flote hacia el punto..."
+    statusLabel.Text = "Iniciando flote con ragdoll..."
     
     cleanupTransportParts()
-    
-    -- Activar ragdoll al iniciar el transporte
     enableRagdoll()
     
-    -- Crear 6 parts suaves que flotan alrededor del jugador
+    -- Crear partículas flotantes
     local partCount = 6
     local radius = 3
     
@@ -427,7 +358,7 @@ local function goToEstablishedPoint()
         local angle = (i-1) * (360 / partCount)
         local offset = Vector3.new(
             math.cos(math.rad(angle)) * radius,
-            math.sin(i * 0.8) * 1.5, -- Movimiento vertical suave
+            math.sin(i * 0.8) * 1.5,
             math.sin(math.rad(angle)) * radius
         )
         part.Position = rootPart.Position + offset
@@ -435,12 +366,12 @@ local function goToEstablishedPoint()
         table.insert(transportParts, part)
     end
     
-    -- Crear BodyPosition para controlar el movimiento suave
+    -- Sistema de transporte
     local bodyPosition = Instance.new("BodyPosition")
     bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
     bodyPosition.Position = rootPart.Position
-    bodyPosition.D = 2000 -- Amortiguación para suavidad
-    bodyPosition.P = 8000 -- Potencia
+    bodyPosition.D = 2000
+    bodyPosition.P = 8000
     bodyPosition.Parent = rootPart
     
     local startPos = rootPart.Position
@@ -448,19 +379,17 @@ local function goToEstablishedPoint()
     local totalDistance = (endPos - startPos).Magnitude
     local totalTime = totalDistance / floatSpeed
     
-    statusLabel.Text = string.format("Flotando %.0f metros... (Ragdoll)", totalDistance)
+    statusLabel.Text = string.format("Flotando %.0f metros...", totalDistance)
     
-    -- Efecto de partículas flotantes durante el transporte
     local floatTime = 0
     local effectConnection = RunService.Heartbeat:Connect(function(deltaTime)
         floatTime = floatTime + deltaTime
         
-        -- Actualizar posición del jugador gradualmente
         local progress = math.min(floatTime / totalTime, 1)
         local currentPos = startPos:Lerp(endPos, progress)
-        bodyPosition.Position = currentPos + Vector3.new(0, 2, 0) -- Flotar ligeramente arriba
+        bodyPosition.Position = currentPos + Vector3.new(0, 2, 0)
         
-        -- Actualizar partículas flotantes
+        -- Actualizar partículas
         for i, part in pairs(transportParts) do
             if part and part.Parent then
                 local angle = (i-1) * (360 / partCount) + (floatTime * 30)
@@ -471,52 +400,22 @@ local function goToEstablishedPoint()
                     math.sin(math.rad(angle)) * radius
                 )
                 part.Position = currentPos + offset
-                
-                -- Cambiar color suavemente
                 part.Color = Color3.fromHSV(((floatTime * 60 + i * 60) % 360) / 360, 0.7, 1)
             end
         end
         
-        -- Verificar si llegamos al destino
         if progress >= 1 then
             effectConnection:Disconnect()
-            
-            -- Desactivar ragdoll al llegar
             disableRagdoll()
-            
             bodyPosition:Destroy()
             cleanupTransportParts()
             isTransporting = false
             statusLabel.Text = "¡Flote completado!"
-            
-            -- Efecto de llegada suave
-            local arrivalPart = Instance.new("Part")
-            arrivalPart.Name = "ArrivalEffect"
-            arrivalPart.Size = Vector3.new(6, 0.2, 6)
-            arrivalPart.Material = Enum.Material.ForceField
-            arrivalPart.Color = Color3.fromRGB(100, 255, 100)
-            arrivalPart.Anchored = true
-            arrivalPart.CanCollide = false
-            arrivalPart.Position = endPos - Vector3.new(0, 2, 0)
-            arrivalPart.Transparency = 0.5
-            arrivalPart.Parent = workspace
-            
-            -- Tween para desvanecer el efecto de llegada
-            local fadeTween = TweenService:Create(
-                arrivalPart,
-                TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-                {Transparency = 1, Size = Vector3.new(12, 0.1, 12)}
-            )
-            
-            fadeTween:Play()
-            fadeTween.Completed:Connect(function()
-                arrivalPart:Destroy()
-            end)
         end
     end)
 end
 
--- Función para manejar el slider de velocidad
+-- Configurar slider
 local function setupSpeedSlider()
     local dragging = false
     
@@ -537,8 +436,8 @@ local function setupSpeedSlider()
             local percentage = math.clamp(mousePos / frameSize, 0, 1)
             
             speedSlider.Position = UDim2.new(percentage, -10, 0, 0)
-            floatSpeed = math.floor(20 + (percentage * 80)) -- Rango de 20 a 100
-            speedLabel.Text = "Velocidad de Flote: " .. floatSpeed
+            floatSpeed = math.floor(20 + (percentage * 80))
+            speedLabel.Text = "Velocidad: " .. floatSpeed
         end
     end)
 end
@@ -565,32 +464,7 @@ end)
 
 setPointButton.MouseButton1Click:Connect(function()
     targetPoint = rootPart.Position
-    statusLabel.Text = "Punto establecido - Listo para flote con ragdoll"
-    
-    -- Efecto visual al establecer punto
-    local pointMarker = Instance.new("Part")
-    pointMarker.Name = "PointMarker"
-    pointMarker.Size = Vector3.new(4, 8, 4)
-    pointMarker.Material = Enum.Material.ForceField
-    pointMarker.Color = Color3.fromRGB(255, 255, 0)
-    pointMarker.Anchored = true
-    pointMarker.CanCollide = false
-    pointMarker.Position = targetPoint + Vector3.new(0, 4, 0)
-    pointMarker.Parent = workspace
-    
-    -- Efecto de pulso
-    local pulseTween = TweenService:Create(
-        pointMarker,
-        TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {Size = Vector3.new(6, 10, 6), Transparency = 0.5}
-    )
-    
-    pulseTween:Play()
-    
-    -- Eliminar el marcador después de 3 segundos
-    task.wait(3)
-    pulseTween:Cancel()
-    pointMarker:Destroy()
+    statusLabel.Text = "Punto establecido!"
 end)
 
 goToPointButton.MouseButton1Click:Connect(function()
@@ -601,42 +475,6 @@ flyButton.MouseButton1Click:Connect(function()
     toggleFlyMode()
 end)
 
--- Configurar el slider de velocidad
 setupSpeedSlider()
 
--- Limpiar al morir o cambiar de personaje
-character.Humanoid.Died:Connect(function()
-    if rainbowPart then
-        rainbowPart:Destroy()
-    end
-    if climbAnimationTrack then
-        climbAnimationTrack:Stop()
-    end
-    cleanupTransportParts()
-    if flyMode then
-        toggleFlyMode()
-    end
-end)
-
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
-    
-    -- Recrear animación de escalada para el nuevo personaje
-    climbAnimationTrack = nil
-    
-    -- Reconectar eventos de muerte
-    character.Humanoid.Died:Connect(function()
-        if rainbowPart then
-            rainbowPart:Destroy()
-        end
-        if climbAnimationTrack then
-            climbAnimationTrack:Stop()
-        end
-        cleanupTransportParts()
-        if flyMode then
-            toggleFlyMode()
-        end
-    end)
-end)
+print("Panel Rainbow cargado correctamente!")
