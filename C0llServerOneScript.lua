@@ -8,15 +8,24 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- Variables principales
 local floatPart = nil
+local flyPart = nil
 local isFloatActive = false
+local isFlyActive = false
 local panelOpen = false
-local connection = nil
+local floatConnection = nil
+local flyConnection = nil
+local rainbowConnection = nil
+
+-- Variables de vuelo
+local flyDirection = Vector3.new(0, 0, 0)
+local keysPressed = {}
 
 -- Configuración por defecto
 local config = {
     floatSpeed = 16,
     jumpPower = 50,
     walkSpeed = 16,
+    flySpeed = 20,
     partSize = Vector3.new(8, 1, 8),
     partColor = Color3.fromRGB(0, 162, 255),
     partTransparency = 0.3
@@ -29,8 +38,8 @@ screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.Size = UDim2.new(0, 250, 0, 350)
+mainFrame.Position = UDim2.new(1, -260, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
@@ -44,10 +53,10 @@ corner.Parent = mainFrame
 -- Título
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "Title"
-titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-titleLabel.Text = "Float Part Panel"
+titleLabel.Text = "Float & Fly Panel"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
@@ -58,32 +67,48 @@ titleCorner.CornerRadius = UDim.new(0, 10)
 titleCorner.Parent = titleLabel
 
 -- Botón de activar/desactivar float
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleFloat"
-toggleButton.Size = UDim2.new(0.8, 0, 0, 40)
-toggleButton.Position = UDim2.new(0.1, 0, 0, 70)
-toggleButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
-toggleButton.Text = "Activar Float Part"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.Gotham
-toggleButton.Parent = mainFrame
+local toggleFloatButton = Instance.new("TextButton")
+toggleFloatButton.Name = "ToggleFloat"
+toggleFloatButton.Size = UDim2.new(0.9, 0, 0, 30)
+toggleFloatButton.Position = UDim2.new(0.05, 0, 0, 50)
+toggleFloatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+toggleFloatButton.Text = "Float Part (T)"
+toggleFloatButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleFloatButton.TextScaled = true
+toggleFloatButton.Font = Enum.Font.Gotham
+toggleFloatButton.Parent = mainFrame
 
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 5)
-toggleCorner.Parent = toggleButton
+local toggleFloatCorner = Instance.new("UICorner")
+toggleFloatCorner.CornerRadius = UDim.new(0, 5)
+toggleFloatCorner.Parent = toggleFloatButton
 
--- Función para crear sliders
+-- Botón de activar/desactivar fly
+local toggleFlyButton = Instance.new("TextButton")
+toggleFlyButton.Name = "ToggleFly"
+toggleFlyButton.Size = UDim2.new(0.9, 0, 0, 30)
+toggleFlyButton.Position = UDim2.new(0.05, 0, 0, 90)
+toggleFlyButton.BackgroundColor3 = Color3.fromRGB(255, 85, 255)
+toggleFlyButton.Text = "Fly Mode (WASD)"
+toggleFlyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleFlyButton.TextScaled = true
+toggleFlyButton.Font = Enum.Font.Gotham
+toggleFlyButton.Parent = mainFrame
+
+local toggleFlyCorner = Instance.new("UICorner")
+toggleFlyCorner.CornerRadius = UDim.new(0, 5)
+toggleFlyCorner.Parent = toggleFlyButton
+
+-- Función para crear sliders más pequeños
 local function createSlider(name, yPos, minVal, maxVal, defaultVal, callback)
     local sliderFrame = Instance.new("Frame")
     sliderFrame.Name = name .. "Frame"
-    sliderFrame.Size = UDim2.new(0.8, 0, 0, 60)
-    sliderFrame.Position = UDim2.new(0.1, 0, 0, yPos)
+    sliderFrame.Size = UDim2.new(0.9, 0, 0, 45)
+    sliderFrame.Position = UDim2.new(0.05, 0, 0, yPos)
     sliderFrame.BackgroundTransparency = 1
     sliderFrame.Parent = mainFrame
     
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Size = UDim2.new(1, 0, 0, 15)
     label.Position = UDim2.new(0, 0, 0, 0)
     label.BackgroundTransparency = 1
     label.Text = name .. ": " .. defaultVal
@@ -93,18 +118,18 @@ local function createSlider(name, yPos, minVal, maxVal, defaultVal, callback)
     label.Parent = sliderFrame
     
     local sliderBg = Instance.new("Frame")
-    sliderBg.Size = UDim2.new(1, 0, 0, 20)
-    sliderBg.Position = UDim2.new(0, 0, 0, 25)
+    sliderBg.Size = UDim2.new(1, 0, 0, 15)
+    sliderBg.Position = UDim2.new(0, 0, 0, 20)
     sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     sliderBg.Parent = sliderFrame
     
     local sliderBgCorner = Instance.new("UICorner")
-    sliderBgCorner.CornerRadius = UDim.new(0, 10)
+    sliderBgCorner.CornerRadius = UDim.new(0, 7)
     sliderBgCorner.Parent = sliderBg
     
     local sliderButton = Instance.new("TextButton")
-    sliderButton.Size = UDim2.new(0, 20, 1, 0)
-    sliderButton.Position = UDim2.new((defaultVal - minVal) / (maxVal - minVal), -10, 0, 0)
+    sliderButton.Size = UDim2.new(0, 15, 1, 0)
+    sliderButton.Position = UDim2.new((defaultVal - minVal) / (maxVal - minVal), -7, 0, 0)
     sliderButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
     sliderButton.Text = ""
     sliderButton.Parent = sliderBg
@@ -131,7 +156,7 @@ local function createSlider(name, yPos, minVal, maxVal, defaultVal, callback)
             local relativeX = mouse.X - sliderBg.AbsolutePosition.X
             local percentage = math.clamp(relativeX / sliderBg.AbsoluteSize.X, 0, 1)
             
-            sliderButton.Position = UDim2.new(percentage, -10, 0, 0)
+            sliderButton.Position = UDim2.new(percentage, -7, 0, 0)
             
             local value = math.floor(minVal + (maxVal - minVal) * percentage)
             label.Text = name .. ": " .. value
@@ -141,22 +166,26 @@ local function createSlider(name, yPos, minVal, maxVal, defaultVal, callback)
 end
 
 -- Crear sliders
-createSlider("Velocidad Float", 130, 1, 50, config.floatSpeed, function(value)
+createSlider("Float Speed", 130, 1, 50, config.floatSpeed, function(value)
     config.floatSpeed = value
 end)
 
-createSlider("Poder de Salto", 200, 10, 150, config.jumpPower, function(value)
+createSlider("Jump Power", 185, 10, 150, config.jumpPower, function(value)
     config.jumpPower = value
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.JumpPower = value
     end
 end)
 
-createSlider("Velocidad Caminar", 270, 1, 100, config.walkSpeed, function(value)
+createSlider("Walk Speed", 240, 1, 100, config.walkSpeed, function(value)
     config.walkSpeed = value
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.WalkSpeed = value
     end
+end)
+
+createSlider("Fly Speed", 295, 1, 100, config.flySpeed, function(value)
+    config.flySpeed = value
 end)
 
 -- Función para crear la part flotante
@@ -175,7 +204,6 @@ local function createFloatPart()
     floatPart.CanCollide = true
     floatPart.Parent = workspace
     
-    -- Efecto visual
     local selectionBox = Instance.new("SelectionBox")
     selectionBox.Adornee = floatPart
     selectionBox.Color3 = config.partColor
@@ -184,7 +212,44 @@ local function createFloatPart()
     selectionBox.Parent = floatPart
 end
 
--- Función para actualizar la posición de la part
+-- Función para crear la part de vuelo rainbow
+local function createFlyPart()
+    if flyPart then
+        flyPart:Destroy()
+    end
+    
+    flyPart = Instance.new("Part")
+    flyPart.Name = "FlyPart"
+    flyPart.Size = Vector3.new(6, 0.5, 6)
+    flyPart.Material = Enum.Material.ForceField
+    flyPart.Transparency = 0.2
+    flyPart.Anchored = true
+    flyPart.CanCollide = true
+    flyPart.Parent = workspace
+    
+    -- Efecto rainbow
+    local hue = 0
+    rainbowConnection = RunService.Heartbeat:Connect(function()
+        hue = (hue + 1) % 360
+        flyPart.Color = Color3.fromHSV(hue / 360, 1, 1)
+    end)
+    
+    local selectionBox = Instance.new("SelectionBox")
+    selectionBox.Adornee = flyPart
+    selectionBox.LineThickness = 0.3
+    selectionBox.Transparency = 0.3
+    selectionBox.Parent = flyPart
+    
+    -- Actualizar color del selectionBox también
+    spawn(function()
+        while flyPart and flyPart.Parent do
+            selectionBox.Color3 = flyPart.Color
+            wait(0.1)
+        end
+    end)
+end
+
+-- Función para actualizar la posición de la float part
 local function updateFloatPart()
     if not isFloatActive or not floatPart or not player.Character then
         return
@@ -199,18 +264,59 @@ local function updateFloatPart()
     end
 end
 
+-- Función para actualizar el vuelo
+local function updateFly()
+    if not isFlyActive or not flyPart or not player.Character then
+        return
+    end
+    
+    local character = player.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if humanoidRootPart then
+        -- Calcular dirección basada en las teclas presionadas
+        local camera = workspace.CurrentCamera
+        local direction = Vector3.new(0, 0, 0)
+        
+        if keysPressed[Enum.KeyCode.W] then
+            direction = direction + camera.CFrame.LookVector
+        end
+        if keysPressed[Enum.KeyCode.S] then
+            direction = direction - camera.CFrame.LookVector
+        end
+        if keysPressed[Enum.KeyCode.A] then
+            direction = direction - camera.CFrame.RightVector
+        end
+        if keysPressed[Enum.KeyCode.D] then
+            direction = direction + camera.CFrame.RightVector
+        end
+        
+        -- Normalizar dirección
+        if direction.Magnitude > 0 then
+            direction = direction.Unit
+        end
+        
+        -- Mover la part y el jugador
+        local targetPosition = flyPart.Position + (direction * config.flySpeed * 0.1)
+        flyPart.Position = targetPosition
+        
+        -- Mantener al jugador en la part
+        humanoidRootPart.CFrame = CFrame.new(flyPart.Position + Vector3.new(0, 2, 0))
+        humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    end
+end
+
 -- Función para activar/desactivar float part
 local function toggleFloatPart()
     isFloatActive = not isFloatActive
     
     if isFloatActive then
         createFloatPart()
-        toggleButton.Text = "Desactivar Float Part"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+        toggleFloatButton.Text = "Desactivar Float (T)"
+        toggleFloatButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
         
-        connection = RunService.Heartbeat:Connect(updateFloatPart)
+        floatConnection = RunService.Heartbeat:Connect(updateFloatPart)
         
-        -- Aplicar configuraciones al personaje
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.JumpPower = config.jumpPower
             player.Character.Humanoid.WalkSpeed = config.walkSpeed
@@ -221,13 +327,49 @@ local function toggleFloatPart()
             floatPart = nil
         end
         
-        if connection then
-            connection:Disconnect()
-            connection = nil
+        if floatConnection then
+            floatConnection:Disconnect()
+            floatConnection = nil
         end
         
-        toggleButton.Text = "Activar Float Part"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+        toggleFloatButton.Text = "Float Part (T)"
+        toggleFloatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+    end
+end
+
+-- Función para activar/desactivar fly mode
+local function toggleFlyMode()
+    isFlyActive = not isFlyActive
+    
+    if isFlyActive then
+        createFlyPart()
+        toggleFlyButton.Text = "Desactivar Fly"
+                toggleFlyButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+        
+        flyConnection = RunService.Heartbeat:Connect(updateFly)
+        
+        -- Posicionar la fly part inicialmente
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            flyPart.Position = player.Character.HumanoidRootPart.Position - Vector3.new(0, 2, 0)
+        end
+    else
+        if flyPart then
+            flyPart:Destroy()
+            flyPart = nil
+        end
+        
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+        
+        if rainbowConnection then
+            rainbowConnection:Disconnect()
+            rainbowConnection = nil
+        end
+        
+        toggleFlyButton.Text = "Fly Mode (WASD)"
+        toggleFlyButton.BackgroundColor3 = Color3.fromRGB(255, 85, 255)
     end
 end
 
@@ -239,15 +381,15 @@ local function togglePanel()
         mainFrame.Visible = true
         local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
         local tween = TweenService:Create(mainFrame, tweenInfo, {
-            Size = UDim2.new(0, 300, 0, 400),
-            Position = UDim2.new(0.5, -150, 0.5, -200)
+            Size = UDim2.new(0, 250, 0, 350),
+            Position = UDim2.new(1, -260, 0, 10)
         })
         tween:Play()
     else
         local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
         local tween = TweenService:Create(mainFrame, tweenInfo, {
             Size = UDim2.new(0, 0, 0, 0),
-            Position = UDim2.new(0.5, 0, 0.5, 0)
+            Position = UDim2.new(1, 0, 0, 10)
         })
         tween:Play()
         
@@ -257,15 +399,49 @@ local function togglePanel()
     end
 end
 
--- Eventos
-toggleButton.MouseButton1Click:Connect(toggleFloatPart)
+-- Eventos de botones
+toggleFloatButton.MouseButton1Click:Connect(toggleFloatPart)
+toggleFlyButton.MouseButton1Click:Connect(toggleFlyMode)
 
--- Input para abrir/cerrar con F
+-- Input para controles
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
+    -- Panel con F
     if input.KeyCode == Enum.KeyCode.F then
         togglePanel()
+    end
+    
+    -- Float part con T
+    if input.KeyCode == Enum.KeyCode.T then
+        toggleFloatPart()
+    end
+    
+    -- Controles de vuelo WASD
+    if input.KeyCode == Enum.KeyCode.W or 
+       input.KeyCode == Enum.KeyCode.A or 
+       input.KeyCode == Enum.KeyCode.S or 
+       input.KeyCode == Enum.KeyCode.D then
+        keysPressed[input.KeyCode] = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    -- Controles de vuelo WASD
+    if input.KeyCode == Enum.KeyCode.W or 
+       input.KeyCode == Enum.KeyCode.A or 
+       input.KeyCode == Enum.KeyCode.S or 
+       input.KeyCode == Enum.KeyCode.D then
+        keysPressed[input.KeyCode] = false
+    end
+end)
+
+-- Limpiar al cambiar de personaje
+player.CharacterAdded:Connect(function()
+    wait(1) -- Esperar a que el personaje se cargue completamente
+    if isFloatActive and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.JumpPower = config.jumpPower
+        player.Character.Humanoid.WalkSpeed = config.walkSpeed
     end
 end)
 
@@ -275,8 +451,17 @@ game.Players.PlayerRemoving:Connect(function(leavingPlayer)
         if floatPart then
             floatPart:Destroy()
         end
-        if connection then
-            connection:Disconnect()
+        if flyPart then
+            flyPart:Destroy()
+        end
+        if floatConnection then
+            floatConnection:Disconnect()
+        end
+        if flyConnection then
+            flyConnection:Disconnect()
+        end
+        if rainbowConnection then
+            rainbowConnection:Disconnect()
         end
     end
 end)
