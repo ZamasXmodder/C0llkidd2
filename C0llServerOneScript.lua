@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local PathfindingService = game:GetService("PathfindingService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -13,6 +14,9 @@ local rainbowPart = nil
 local targetPoint = nil
 local transportParts = {}
 local isTransporting = false
+local flyMode = false
+local flyConnection = nil
+local ladderPart = nil
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
@@ -20,7 +24,7 @@ screenGui.Name = "RainbowPanel"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 200)
+frame.Size = UDim2.new(0, 300, 0, 250)
 frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 frame.BorderSizePixel = 2
@@ -70,16 +74,61 @@ goToPointButton.TextScaled = true
 goToPointButton.Font = Enum.Font.SourceSans
 goToPointButton.Parent = frame
 
+-- Botón para modo escalera/vuelo
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(0.9, 0, 0, 30)
+flyButton.Position = UDim2.new(0.05, 0, 0, 160)
+flyButton.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
+flyButton.Text = "Activar Modo Escalera"
+flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyButton.TextScaled = true
+flyButton.Font = Enum.Font.SourceSans
+flyButton.Parent = frame
+
 -- Label de estado
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 160)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 200)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Listo"
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.SourceSans
 statusLabel.Parent = frame
+
+-- Instrucciones de vuelo
+local flyInstructions = Instance.new("TextLabel")
+flyInstructions.Size = UDim2.new(0.9, 0, 0, 20)
+flyInstructions.Position = UDim2.new(0.05, 0, 0, 220)
+flyInstructions.BackgroundTransparency = 1
+flyInstructions.Text = "WASD + Space/Shift para volar"
+flyInstructions.TextColor3 = Color3.fromRGB(200, 200, 200)
+flyInstructions.TextScaled = true
+flyInstructions.Font = Enum.Font.SourceSans
+flyInstructions.Visible = false
+flyInstructions.Parent = frame
+
+-- Función para verificar si hay obstáculos entre dos puntos
+local function isPathClear(startPos, endPos)
+    local direction = (endPos - startPos).Unit
+    local distance = (endPos - startPos).Magnitude
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {character, rainbowPart}
+    
+    -- Hacer múltiples raycasts para verificar el camino
+    for i = 0, distance, 2 do
+        local currentPos = startPos + direction * i
+        local rayResult = workspace:Raycast(currentPos, direction * 2, raycastParams)
+        
+        if rayResult and rayResult.Instance.CanCollide then
+            return false
+        end
+    end
+    
+    return true
+end
 
 -- Función para crear part rainbow
 local function createRainbowPart()
@@ -112,6 +161,114 @@ local function createRainbowPart()
     end)
 end
 
+-- Función para crear escalera invisible
+local function createLadder()
+    if ladderPart then
+        ladderPart:Destroy()
+    end
+    
+    ladderPart = Instance.new("TrussPart")
+    ladderPart.Name = "InvisibleLadder"
+    ladderPart.Size = Vector3.new(4, 20, 1)
+    ladderPart.Material = Enum.Material.ForceField
+    ladderPart.Transparency = 0.8
+    ladderPart.Color = Color3.fromRGB(0, 255, 255)
+    ladderPart.Anchored = true
+    ladderPart.CanCollide = true
+    ladderPart.Parent = workspace
+    
+    -- Posicionar la escalera
+    local ladderConnection
+    ladderConnection = RunService.Heartbeat:Connect(function()
+        if ladderPart and ladderPart.Parent and flyMode then
+            ladderPart.Position = rootPart.Position
+        elseif not flyMode then
+            ladderConnection:Disconnect()
+        end
+    end)
+end
+
+-- Función para modo vuelo
+local function toggleFlyMode()
+    flyMode = not flyMode
+    
+    if flyMode then
+        createLadder()
+        humanoid.PlatformStand = true
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = rootPart
+        
+        flyButton.Text = "Desactivar Modo Escalera"
+        flyButton.BackgroundColor3 = Color3.fromRGB(150, 150, 0)
+        flyInstructions.Visible = true
+        statusLabel.Text = "Modo vuelo activado"
+        
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyMode then return end
+            
+            local camera = workspace.CurrentCamera
+            local moveVector = Vector3.new(0, 0, 0)
+            local speed = 50
+            
+            -- Obtener dirección de la cámara
+            local cameraCFrame = camera.CFrame
+            local forward = cameraCFrame.LookVector
+            local right = cameraCFrame.RightVector
+            
+            -- Controles de movimiento
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                moveVector = moveVector + forward
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                moveVector = moveVector - forward
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                moveVector = moveVector - right
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                moveVector = moveVector + right
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                moveVector = moveVector + Vector3.new(0, 1, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                moveVector = moveVector - Vector3.new(0, 1, 0)
+            end
+            
+            -- Aplicar velocidad
+            if bodyVelocity then
+                bodyVelocity.Velocity = moveVector * speed
+            end
+        end)
+        
+    else
+        humanoid.PlatformStand = false
+        
+        if ladderPart then
+            ladderPart:Destroy()
+            ladderPart = nil
+        end
+        
+        local bodyVelocity = rootPart:FindFirstChild("BodyVelocity")
+        if bodyVelocity then
+            bodyVelocity:Destroy()
+        end
+        
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+        
+        flyButton.Text = "Activar Modo Escalera"
+        flyButton.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
+        flyInstructions.Visible = false
+        statusLabel.Text = "Modo vuelo desactivado"
+    end
+end
+
 -- Función para limpiar parts de transporte
 local function cleanupTransportParts()
     for _, part in pairs(transportParts) do
@@ -122,36 +279,59 @@ local function cleanupTransportParts()
     transportParts = {}
 end
 
--- Función para crear path con pathfinding
-local function createPathToPoint(startPos, endPos)
+-- Función mejorada para crear path respetando obstáculos
+local function createSmartPath(startPos, endPos)
+    -- Configuración más precisa del pathfinding
     local path = PathfindingService:CreatePath({
         AgentRadius = 2,
         AgentHeight = 5,
         AgentCanJump = true,
-        WaypointSpacing = 4
+        AgentCanClimb = false,
+        WaypointSpacing = 3,
+        Costs = {
+            Water = 20,
+            DangerousLava = math.huge,
+            Cracked = 5
+        }
     })
     
-    path:ComputeAsync(startPos, endPos)
+    local success, errorMessage = pcall(function()
+        path:ComputeAsync(startPos, endPos)
+    end)
     
-    if path.Status == Enum.PathStatus.Success then
-        return path:GetWaypoints()
-    else
-        -- Si falla el pathfinding, crear línea recta
-        local distance = (endPos - startPos).Magnitude
-        local direction = (endPos - startPos).Unit
-        local waypoints = {}
+    if success and path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
         
-        for i = 0, math.floor(distance / 8) do
-            local pos = startPos + direction * (i * 8)
-            table.insert(waypoints, {Position = pos, Action = Enum.PathWaypointAction.Walk})
+        -- Verificar que cada segmento del path sea válido
+        local validWaypoints = {waypoints[1]}
+        
+        for i = 2, #waypoints do
+            local prevPos = validWaypoints[#validWaypoints].Position
+            local currentPos = waypoints[i].Position
+            
+            -- Verificar si el camino está libre
+            if isPathClear(prevPos, currentPos) then
+                table.insert(validWaypoints, waypoints[i])
+            else
+                -- Si hay obstáculo, intentar encontrar ruta alternativa
+                statusLabel.Text = "Buscando ruta alternativa..."
+                break
+            end
         end
         
-        table.insert(waypoints, {Position = endPos, Action = Enum.PathWaypointAction.Walk})
-        return waypoints
+        return validWaypoints
+    else
+        -- Si falla el pathfinding, usar humanoid pathfinding como respaldo
+        statusLabel.Text = "Usando navegación básica..."
+        humanoid:MoveTo(endPos)
+        
+        -- Crear waypoints básicos siguiendo al humanoid
+        return {{Position = startPos, Action = Enum.PathWaypointAction.Walk}, 
+                {Position = endPos, Action = Enum.PathWaypointAction.Walk}}
     end
 end
 
--- Función para ir al punto establecido
+-- Función para ir al punto establecido con navegación inteligente
 local function goToEstablishedPoint()
     if not targetPoint then
         statusLabel.Text = "No hay punto establecido"
@@ -164,12 +344,20 @@ local function goToEstablishedPoint()
     end
     
     isTransporting = true
-    statusLabel.Text = "Transportando..."
+    statusLabel.Text = "Calculando ruta..."
     
     cleanupTransportParts()
     
     local startPos = rootPart.Position
-    local waypoints = createPathToPoint(startPos, targetPoint)
+    local waypoints = createSmartPath(startPos, targetPoint)
+    
+    if not waypoints or #waypoints < 2 then
+                statusLabel.Text = "No se pudo encontrar ruta válida"
+        isTransporting = false
+        return
+    end
+    
+    statusLabel.Text = "Transportando..."
     
     -- Crear 6 parts que forman un círculo alrededor del jugador
     local angles = {0, 60, 120, 180, 240, 300}
@@ -192,16 +380,18 @@ local function goToEstablishedPoint()
         table.insert(transportParts, part)
     end
     
-    -- Mover las parts y el jugador a través del path
+    -- Mover las parts y el jugador a través del path respetando obstáculos
     local currentWaypoint = 1
     local moveConnection
+    local stuckTimer = 0
+    local lastPosition = rootPart.Position
     
     moveConnection = RunService.Heartbeat:Connect(function()
         if currentWaypoint > #waypoints then
             moveConnection:Disconnect()
             cleanupTransportParts()
             isTransporting = false
-            statusLabel.Text = "Llegaste al punto!"
+            statusLabel.Text = "¡Llegaste al punto!"
             return
         end
         
@@ -209,23 +399,48 @@ local function goToEstablishedPoint()
         local currentPos = rootPart.Position
         local distance = (targetPos - currentPos).Magnitude
         
-        if distance < 3 then
+        -- Verificar si estamos atascados
+        if (currentPos - lastPosition).Magnitude < 1 then
+            stuckTimer = stuckTimer + RunService.Heartbeat:Wait()
+            if stuckTimer > 2 then -- Si estamos atascados por 2 segundos
+                statusLabel.Text = "Obstáculo detectado, recalculando..."
+                currentWaypoint = currentWaypoint + 1
+                stuckTimer = 0
+            end
+        else
+            stuckTimer = 0
+            lastPosition = currentPos
+        end
+        
+        if distance < 5 then
             currentWaypoint = currentWaypoint + 1
         else
             local direction = (targetPos - currentPos).Unit
-            local speed = 16 -- Velocidad rápida
-            local newPos = currentPos + direction * speed * RunService.Heartbeat:Wait()
+            local speed = 60 -- Velocidad rápida pero controlada
+            local deltaTime = RunService.Heartbeat:Wait()
             
-            -- Mover jugador
-            rootPart.CFrame = CFrame.new(newPos, newPos + direction)
+            -- Verificar que el próximo movimiento no atraviese paredes
+            local nextPos = currentPos + direction * speed * deltaTime
             
-            -- Mover parts alrededor del jugador
-            for i, part in pairs(transportParts) do
-                if part and part.Parent then
-                    local angle = math.rad(angles[i])
-                    local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
-                    part.Position = newPos + offset
+            if isPathClear(currentPos, nextPos) then
+                -- Mover jugador
+                rootPart.CFrame = CFrame.new(nextPos, nextPos + direction)
+                
+                -- Mover parts alrededor del jugador
+                for i, part in pairs(transportParts) do
+                    if part and part.Parent then
+                        local angle = math.rad(angles[i])
+                        local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+                        part.Position = nextPos + offset
+                        
+                        -- Efecto de rotación en las parts
+                        part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(5), 0)
+                    end
                 end
+            else
+                -- Si hay obstáculo, saltar al siguiente waypoint
+                currentWaypoint = currentWaypoint + 1
+                statusLabel.Text = "Evitando obstáculo..."
             end
         end
     end)
@@ -260,10 +475,34 @@ goToPointButton.MouseButton1Click:Connect(function()
     goToEstablishedPoint()
 end)
 
--- Limpiar al morir
+flyButton.MouseButton1Click:Connect(function()
+    toggleFlyMode()
+end)
+
+-- Limpiar al morir o cambiar de personaje
 character.Humanoid.Died:Connect(function()
     if rainbowPart then
         rainbowPart:Destroy()
     end
     cleanupTransportParts()
+    if flyMode then
+        toggleFlyMode()
+    end
+end)
+
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Reconectar eventos de muerte
+    character.Humanoid.Died:Connect(function()
+        if rainbowPart then
+            rainbowPart:Destroy()
+        end
+        cleanupTransportParts()
+        if flyMode then
+            toggleFlyMode()
+        end
+    end)
 end)
