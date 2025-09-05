@@ -2,7 +2,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -52,7 +52,7 @@ screenGui.Name = "AutoStealPanel"
 screenGui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 180)
+frame.Size = UDim2.new(0, 280, 0, 200)
 frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BorderSizePixel = 0
@@ -75,7 +75,7 @@ titleLabel.Parent = frame
 
 -- Botón principal
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(1, -20, 0, 35)
+button.Size = UDim2.new(1, -20, 0, 40)
 button.Position = UDim2.new(0, 10, 0, 35)
 button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 button.Text = "🔄 Auto Steal: OFF"
@@ -91,7 +91,7 @@ buttonCorner.Parent = button
 -- Control de velocidad
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1, -20, 0, 20)
-speedLabel.Position = UDim2.new(0, 10, 0, 80)
+speedLabel.Position = UDim2.new(0, 10, 0, 85)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "⚡ Float Speed: " .. floatSpeed
 speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -99,31 +99,60 @@ speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.Gotham
 speedLabel.Parent = frame
 
-local speedSlider = Instance.new("Frame")
-speedSlider.Size = UDim2.new(1, -20, 0, 15)
-speedSlider.Position = UDim2.new(0, 10, 0, 105)
-speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedSlider.Parent = frame
+-- Botones de velocidad
+local speedDownButton = Instance.new("TextButton")
+speedDownButton.Size = UDim2.new(0, 40, 0, 25)
+speedDownButton.Position = UDim2.new(0, 10, 0, 110)
+speedDownButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+speedDownButton.Text = "➖"
+speedDownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedDownButton.TextScaled = true
+speedDownButton.Font = Enum.Font.GothamBold
+speedDownButton.Parent = frame
 
-local speedSliderCorner = Instance.new("UICorner")
-speedSliderCorner.CornerRadius = UDim.new(0, 7)
-speedSliderCorner.Parent = speedSlider
+local speedDownCorner = Instance.new("UICorner")
+speedDownCorner.CornerRadius = UDim.new(0, 6)
+speedDownCorner.Parent = speedDownButton
 
-local speedHandle = Instance.new("TextButton")
-speedHandle.Size = UDim2.new(0, 20, 1, 0)
-speedHandle.Position = UDim2.new((floatSpeed - 10) / 190, -10, 0, 0)
-speedHandle.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-speedHandle.Text = ""
-speedHandle.Parent = speedSlider
+local speedUpButton = Instance.new("TextButton")
+speedUpButton.Size = UDim2.new(0, 40, 0, 25)
+speedUpButton.Position = UDim2.new(1, -50, 0, 110)
+speedUpButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+speedUpButton.Text = "➕"
+speedUpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedUpButton.TextScaled = true
+speedUpButton.Font = Enum.Font.GothamBold
+speedUpButton.Parent = frame
 
-local speedHandleCorner = Instance.new("UICorner")
-speedHandleCorner.CornerRadius = UDim.new(0, 7)
-speedHandleCorner.Parent = speedHandle
+local speedUpCorner = Instance.new("UICorner")
+speedUpCorner.CornerRadius = UDim.new(0, 6)
+speedUpCorner.Parent = speedUpButton
+
+-- Indicador de velocidad visual
+local speedIndicator = Instance.new("Frame")
+speedIndicator.Size = UDim2.new(0, 170, 0, 25)
+speedIndicator.Position = UDim2.new(0, 60, 0, 110)
+speedIndicator.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedIndicator.Parent = frame
+
+local speedIndicatorCorner = Instance.new("UICorner")
+speedIndicatorCorner.CornerRadius = UDim.new(0, 6)
+speedIndicatorCorner.Parent = speedIndicator
+
+local speedBar = Instance.new("Frame")
+speedBar.Size = UDim2.new((floatSpeed - 10) / 190, 0, 1, 0)
+speedBar.Position = UDim2.new(0, 0, 0, 0)
+speedBar.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+speedBar.Parent = speedIndicator
+
+local speedBarCorner = Instance.new("UICorner")
+speedBarCorner.CornerRadius = UDim.new(0, 6)
+speedBarCorner.Parent = speedBar
 
 -- Status labels
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -20, 0, 20)
-statusLabel.Position = UDim2.new(0, 10, 0, 130)
+statusLabel.Position = UDim2.new(0, 10, 0, 145)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "💤 Status: Inactive"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -133,7 +162,7 @@ statusLabel.Parent = frame
 
 local countLabel = Instance.new("TextLabel")
 countLabel.Size = UDim2.new(1, -20, 0, 18)
-countLabel.Position = UDim2.new(0, 10, 0, 155)
+countLabel.Position = UDim2.new(0, 10, 0, 170)
 countLabel.BackgroundTransparency = 1
 countLabel.Text = "🎯 Found: 0 brainrots"
 countLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -141,36 +170,21 @@ countLabel.TextScaled = true
 countLabel.Font = Enum.Font.Gotham
 countLabel.Parent = frame
 
--- Función para el slider de velocidad
-local function updateSpeedSlider()
-    local mouse = Players.LocalPlayer:GetMouse()
-    local connection
-    
-    connection = mouse.Button1Up:Connect(function()
-        connection:Disconnect()
-    end)
-    
-    local moveConnection
-    moveConnection = mouse.Move:Connect(function()
-        if mouse.Target == speedHandle or mouse.Target == speedSlider then
-            local relativeX = mouse.X - speedSlider.AbsolutePosition.X
-            local percentage = math.clamp(relativeX / speedSlider.AbsoluteSize.X, 0, 1)
-            
-            floatSpeed = math.floor(10 + (percentage * 190)) -- Rango de 10 a 200
-            speedHandle.Position = UDim2.new(percentage, -10, 0, 0)
-            speedLabel.Text = "⚡ Float Speed: " .. floatSpeed
-        end
-    end)
-    
-    mouse.Button1Up:Connect(function()
-        if moveConnection then
-            moveConnection:Disconnect()
-        end
-    end)
+-- Función para actualizar la velocidad
+local function updateSpeed(newSpeed)
+    floatSpeed = math.clamp(newSpeed, 10, 200)
+    speedLabel.Text = "⚡ Float Speed: " .. floatSpeed
+    speedBar.Size = UDim2.new((floatSpeed - 10) / 190, 0, 1, 0)
 end
 
-speedHandle.MouseButton1Down:Connect(updateSpeedSlider)
-speedSlider.MouseButton1Down:Connect(updateSpeedSlider)
+-- Eventos de los botones de velocidad
+speedDownButton.MouseButton1Click:Connect(function()
+    updateSpeed(floatSpeed - 10)
+end)
+
+speedUpButton.MouseButton1Click:Connect(function()
+    updateSpeed(floatSpeed + 10)
+end)
 
 -- Función para encontrar brainrots en workspace
 local function findBrainrots()
@@ -204,8 +218,27 @@ local function getBrainrotPosition(brainrot)
     return nil
 end
 
+-- Función para limpiar efectos
+local function cleanupEffects()
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+        bodyVelocity = nil
+    end
+    
+    for _, part in pairs(carrierParts) do
+        if part and part.Parent then
+            part:Destroy()
+        end
+    end
+    carrierParts = {}
+    
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.PlatformStand = false
+    end
+end
+
 -- Función para crear las partes que llevarán al jugador
-local function createCarrierParts(targetPosition)
+local function createCarrierParts()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
@@ -213,12 +246,7 @@ local function createCarrierParts(targetPosition)
     local humanoidRootPart = player.Character.HumanoidRootPart
     
     -- Limpiar partes anteriores
-    for _, part in pairs(carrierParts) do
-        if part and part.Parent then
-            part:Destroy()
-        end
-    end
-    carrierParts = {}
+    cleanupEffects()
     
     -- Crear 6 partes flotantes
     for i = 1, 6 do
@@ -243,7 +271,7 @@ local function createCarrierParts(targetPosition)
         part.Parent = workspace
         table.insert(carrierParts, part)
         
-        -- Efecto de brillo
+                -- Efecto de brillo
         local pointLight = Instance.new("PointLight")
         pointLight.Color = Color3.fromRGB(0, 162, 255)
         pointLight.Brightness = 3
@@ -264,16 +292,12 @@ local function createCarrierParts(targetPosition)
     end
     
     -- Crear BodyVelocity para el jugador
-    if bodyVelocity then
-        bodyVelocity:Destroy()
-    end
-    
     bodyVelocity = Instance.new("BodyVelocity")
     bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
     bodyVelocity.Velocity = Vector3.new(0, 0, 0)
     bodyVelocity.Parent = humanoidRootPart
     
-        -- Inmovilizar al jugador
+    -- Inmovilizar al jugador
     if player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.PlatformStand = true
     end
@@ -289,7 +313,7 @@ local function floatToTarget(targetPosition)
     local humanoidRootPart = player.Character.HumanoidRootPart
     
     -- Crear las partes que llevarán al jugador
-    createCarrierParts(targetPosition)
+    createCarrierParts()
     
     -- Movimiento flotante
     spawn(function()
@@ -300,24 +324,7 @@ local function floatToTarget(targetPosition)
             if not autoStealActive or tick() - startTime > 15 then
                 connection:Disconnect()
                 isMoving = false
-                
-                -- Limpiar efectos
-                if bodyVelocity then
-                    bodyVelocity:Destroy()
-                    bodyVelocity = nil
-                end
-                
-                for _, part in pairs(carrierParts) do
-                    if part and part.Parent then
-                        part:Destroy()
-                    end
-                end
-                carrierParts = {}
-                
-                -- Restaurar control del jugador
-                if player.Character and player.Character:FindFirstChild("Humanoid") then
-                    player.Character.Humanoid.PlatformStand = false
-                end
+                cleanupEffects()
                 return
             end
             
@@ -339,23 +346,7 @@ local function floatToTarget(targetPosition)
                         statusLabel.Text = "🏠 Returning home..."
                         floatToTarget(homePosition)
                     else
-                        -- Limpiar efectos
-                        if bodyVelocity then
-                            bodyVelocity:Destroy()
-                            bodyVelocity = nil
-                        end
-                        
-                        for _, part in pairs(carrierParts) do
-                            if part and part.Parent then
-                                part:Destroy()
-                            end
-                        end
-                        carrierParts = {}
-                        
-                        -- Restaurar control del jugador
-                        if player.Character and player.Character:FindFirstChild("Humanoid") then
-                            player.Character.Humanoid.PlatformStand = false
-                        end
+                        cleanupEffects()
                     end
                     return
                 end
@@ -365,7 +356,7 @@ local function floatToTarget(targetPosition)
                 local velocity = direction * floatSpeed
                 
                 -- Aplicar movimiento al jugador
-                if bodyVelocity then
+                if bodyVelocity and bodyVelocity.Parent then
                     bodyVelocity.Velocity = velocity
                 end
                 
@@ -494,22 +485,7 @@ button.MouseButton1Click:Connect(function()
         isMoving = false
         
         -- Limpiar todo
-        if bodyVelocity then
-            bodyVelocity:Destroy()
-            bodyVelocity = nil
-        end
-        
-        for _, part in pairs(carrierParts) do
-            if part and part.Parent then
-                part:Destroy()
-            end
-        end
-        carrierParts = {}
-        
-        -- Restaurar control del jugador
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.PlatformStand = false
-        end
+        cleanupEffects()
         
         -- Detener loop
         if currentConnection then
@@ -551,6 +527,7 @@ game.Players.PlayerRemoving:Connect(function(plr)
         if currentConnection then
             currentConnection:Disconnect()
         end
+        cleanupEffects()
         if screenGui then
             screenGui:Destroy()
         end
@@ -570,4 +547,4 @@ end)
 print("🎮 Auto Steal Panel loaded successfully!")
 print("📋 Monitoring " .. #brainrotList .. " different brainrots")
 print("🚀 Float system activated - Player will be carried by magical parts!")
-print("⚡ Adjustable speed: 10-200 units")
+print("⚡ Speed controls: Use ➖ and ➕ buttons (Range: 10-200)")
