@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -42,7 +41,7 @@ local autoStealActive = false
 local currentConnection = nil
 local homePosition = nil
 local isMoving = false
-local floatSpeed = 50
+local floatSpeed = 50 -- Velocidad inicial
 local carrierParts = {}
 local bodyVelocity = nil
 
@@ -170,21 +169,55 @@ countLabel.TextScaled = true
 countLabel.Font = Enum.Font.Gotham
 countLabel.Parent = frame
 
--- Función para actualizar la velocidad
+-- Función para actualizar la velocidad (cambiado de 10 a 5)
 local function updateSpeed(newSpeed)
     floatSpeed = math.clamp(newSpeed, 10, 200)
     speedLabel.Text = "⚡ Float Speed: " .. floatSpeed
     speedBar.Size = UDim2.new((floatSpeed - 10) / 190, 0, 1, 0)
 end
 
--- Eventos de los botones de velocidad
+-- Eventos de los botones de velocidad (ahora de 5 en 5)
 speedDownButton.MouseButton1Click:Connect(function()
-    updateSpeed(floatSpeed - 10)
+    updateSpeed(floatSpeed - 5)
 end)
 
 speedUpButton.MouseButton1Click:Connect(function()
-    updateSpeed(floatSpeed + 10)
+    updateSpeed(floatSpeed + 5)
 end)
+
+-- Función para detectar obstáculos usando raycast
+local function checkObstacle(from, to)
+    local rayDirection = (to - from)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {player.Character, unpack(carrierParts)}
+    
+    local raycastResult = workspace:Raycast(from, rayDirection, raycastParams)
+    return raycastResult
+end
+
+-- Función para encontrar una ruta alternativa cuando hay obstáculo
+local function findAlternatePath(startPos, targetPos)
+    -- Intentar diferentes alturas para evitar obstáculos
+    local testPositions = {
+        targetPos + Vector3.new(0, 10, 0), -- Más alto
+        targetPos + Vector3.new(5, 5, 0),  -- Lateral derecho
+        targetPos + Vector3.new(-5, 5, 0), -- Lateral izquierdo
+        targetPos + Vector3.new(0, 5, 5),  -- Lateral adelante
+        targetPos + Vector3.new(0, 5, -5), -- Lateral atrás
+        targetPos + Vector3.new(0, 15, 0)  -- Mucho más alto
+    }
+    
+    for _, testPos in pairs(testPositions) do
+        local obstacle = checkObstacle(startPos, testPos)
+        if not obstacle then
+            return testPos
+        end
+    end
+    
+    -- Si no encuentra ruta, volar muy alto
+    return targetPos + Vector3.new(0, 25, 0)
+end
 
 -- Función para encontrar brainrots en workspace
 local function findBrainrots()
@@ -271,7 +304,7 @@ local function createCarrierParts()
         part.Parent = workspace
         table.insert(carrierParts, part)
         
-                -- Efecto de brillo
+        -- Efecto de brillo
         local pointLight = Instance.new("PointLight")
         pointLight.Color = Color3.fromRGB(0, 162, 255)
         pointLight.Brightness = 3
@@ -303,8 +336,8 @@ local function createCarrierParts()
     end
 end
 
--- Función para mover flotando hacia el objetivo
-local function floatToTarget(targetPosition)
+-- Función para mover flotando hacia el objetivo (mejorada con detección de obstáculos)
+local function floatToTarget(targetPosition, isReturningHome)
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
@@ -315,13 +348,22 @@ local function floatToTarget(targetPosition)
     -- Crear las partes que llevarán al jugador
     createCarrierParts()
     
+    -- Verificar si hay obstáculos y encontrar ruta alternativa
+    local obstacle = checkObstacle(humanoidRootPart.Position, targetPosition)
+    local finalTarget = targetPosition
+    
+    if obstacle then
+        finalTarget = findAlternatePath(humanoidRootPart.Position, targetPosition)
+        statusLabel.Text = "🧭 Avoiding obstacles..."
+    end
+    
     -- Movimiento flotante
     spawn(function()
         local startTime = tick()
         local connection
         
         connection = RunService.Heartbeat:Connect(function()
-            if not autoStealActive or tick() - startTime > 15 then
+            if not autoStealActive or tick() - startTime > 20 then -- Aumentado el tiempo límite
                 connection:Disconnect()
                 isMoving = false
                 cleanupEffects()
@@ -329,7 +371,7 @@ local function floatToTarget(targetPosition)
             end
             
             if humanoidRootPart and humanoidRootPart.Parent then
-                local direction = (targetPosition - humanoidRootPart.Position)
+                local direction = (finalTarget - humanoidRootPart.Position)
                 local distance = direction.Magnitude
                 
                 if distance < 8 then
@@ -337,18 +379,29 @@ local function floatToTarget(targetPosition)
                     connection:Disconnect()
                     isMoving = false
                     
-                    -- Simular recolección
-                    statusLabel.Text = "✨ Collecting brainrot..."
-                    wait(2)
-                    
-                    -- Regresar a casa
-                    if homePosition and autoStealActive then
-                        statusLabel.Text = "🏠 Returning home..."
-                        floatToTarget(homePosition)
+                    if not isReturningHome then
+                        -- Simular recolección más rápida (reducido de 2 a 0.5 segundos)
+                        statusLabel.Text = "✨ Collecting brainrot..."
+                        wait(0.5)
+                        
+                        -- Regresar a casa inmediatamente
+                        if homePosition and autoStealActive then
+                            statusLabel.Text = "🏠 Returning home..."
+                            floatToTarget(homePosition, true)
+                        else
+                            cleanupEffects()
+                        end
                     else
                         cleanupEffects()
                     end
                     return
+                end
+                
+                -- Verificar obstáculos durante el movimiento
+                local currentObstacle = checkObstacle(humanoidRootPart.Position, finalTarget)
+                if currentObstacle and distance > 15 then
+                    -- Recalcular ruta si encontramos un obstáculo nuevo
+                    finalTarget = findAlternatePath(humanoidRootPart.Position, targetPosition)
                 end
                 
                 -- Calcular velocidad
@@ -449,7 +502,7 @@ local function autoStealLoop()
                 if targetPos then
                     statusLabel.Text = "🚀 Flying to: " .. closestBrainrot.Name
                     createBrainrotEffects(targetPos)
-                    floatToTarget(targetPos)
+                    floatToTarget(targetPos, false)
                 end
             end
         end
@@ -474,7 +527,7 @@ button.MouseButton1Click:Connect(function()
         
         -- Iniciar loop
         currentConnection = RunService.Heartbeat:Connect(function()
-            wait(3) -- Esperar 3 segundos entre búsquedas
+            wait(2) -- Reducido de 3 a 2 segundos para mayor velocidad
             autoStealLoop()
         end)
     else
@@ -546,5 +599,6 @@ end)
 
 print("🎮 Auto Steal Panel loaded successfully!")
 print("📋 Monitoring " .. #brainrotList .. " different brainrots")
-print("🚀 Float system activated - Player will be carried by magical parts!")
-print("⚡ Speed controls: Use ➖ and ➕ buttons (Range: 10-200)")
+print("🚀 Float system activated with obstacle avoidance!")
+print("⚡ Speed controls: Use ➖ and ➕ buttons (Range: 10-200, steps of 5)")
+print("🧭 New features: Wall detection and faster collection!")
