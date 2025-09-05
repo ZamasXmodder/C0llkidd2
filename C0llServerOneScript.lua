@@ -363,4 +363,4 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 print("🎮 Panel de Administración con Sistema Brainrot cargado!")
-print("🔑 Admins configurados: " .. #ADMINS)
+print("⌨️  Presiona 'F' para abrir/cerrar el panel de administración")
