@@ -807,7 +807,7 @@ local function updateSmoothFloat()
         
         bodyVelocity.Velocity = newVelocity
 
-        -- Posicionar la part de soporte
+                -- Posicionar la part de soporte
         flyPart.Position = humanoidRootPart.Position - Vector3.new(0, config.floatHeight + 1, 0)
         
         -- Simular estado de salto para evitar detección
@@ -1114,12 +1114,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.E and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
         emergencyCleanup()
         
-        -- Notificación de limpieza de emergencia
         local notification = Instance.new("TextLabel")
-        notification.Size = UDim2.new(0, 300, 0, 50)
-        notification.Position = UDim2.new(0.5, -150, 0, 100)
+        notification.Size = UDim2.new(0, 250, 0, 50)
+        notification.Position = UDim2.new(0.5, -125, 0, 100)
         notification.BackgroundColor3 = Color3.fromRGB(255, 170, 85)
-        notification.Text = "🚨 Limpieza de Emergencia Activada"
+        notification.Text = "🚨 Limpieza de emergencia activada"
         notification.TextColor3 = Color3.fromRGB(255, 255, 255)
         notification.TextScaled = true
         notification.Font = Enum.Font.GothamBold
@@ -1133,30 +1132,137 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Mensaje de inicio
+-- Crear botón flotante para abrir/cerrar panel
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 40, 0, 40)
+toggleButton.Position = UDim2.new(1, -50, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+toggleButton.Text = "F"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = screenGui
+
+local toggleButtonCorner = Instance.new("UICorner")
+toggleButtonCorner.CornerRadius = UDim.new(1, 0)
+toggleButtonCorner.Parent = toggleButton
+
+-- Evento del botón flotante
+toggleButton.MouseButton1Click:Connect(togglePanel)
+
+-- Efecto hover para el botón flotante
+toggleButton.MouseEnter:Connect(function()
+    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(toggleButton, tweenInfo, {
+        Size = UDim2.new(0, 45, 0, 45),
+        BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    })
+    tween:Play()
+end)
+
+toggleButton.MouseLeave:Connect(function()
+    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(toggleButton, tweenInfo, {
+        Size = UDim2.new(0, 40, 0, 40),
+        BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    })
+    tween:Play()
+end)
+
+-- Notificación de bienvenida
 spawn(function()
     wait(1)
+    
     local welcomeNotification = Instance.new("TextLabel")
-    welcomeNotification.Size = UDim2.new(0, 400, 0, 60)
-    welcomeNotification.Position = UDim2.new(0.5, -200, 0, 50)
-    welcomeNotification.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
-    welcomeNotification.Text = "🚀 Float & Fly Panel Cargado! Presiona 'F' para abrir"
+    welcomeNotification.Size = UDim2.new(0, 350, 0, 80)
+    welcomeNotification.Position = UDim2.new(0.5, -175, 0, 50)
+    welcomeNotification.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    welcomeNotification.Text = "🚀 Float & Fly Panel Cargado!\nPresiona F para abrir el panel"
     welcomeNotification.TextColor3 = Color3.fromRGB(255, 255, 255)
     welcomeNotification.TextScaled = true
     welcomeNotification.Font = Enum.Font.GothamBold
     welcomeNotification.Parent = screenGui
     
     local welcomeCorner = Instance.new("UICorner")
-    welcomeCorner.CornerRadius = UDim.new(0, 15)
+    welcomeCorner.CornerRadius = UDim.new(0, 10)
     welcomeCorner.Parent = welcomeNotification
     
     -- Animación de entrada
-    welcomeNotification.Position = UDim2.new(0.5, -200, 0, -70)
-    local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    welcomeNotification.Size = UDim2.new(0, 0, 0, 0)
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     local tween = TweenService:Create(welcomeNotification, tweenInfo, {
-        Position = UDim2.new(0.5, -200, 0, 50)
+        Size = UDim2.new(0, 350, 0, 80)
     })
     tween:Play()
     
+    -- Eliminar después de 5 segundos
     game:GetService("Debris"):AddItem(welcomeNotification, 5)
 end)
+
+-- Función para mostrar controles
+local function showControls()
+    local controlsNotification = Instance.new("TextLabel")
+    controlsNotification.Size = UDim2.new(0, 300, 0, 120)
+    controlsNotification.Position = UDim2.new(0.5, -150, 0, 150)
+    controlsNotification.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    controlsNotification.Text = "🎮 CONTROLES:\nF - Abrir/Cerrar Panel\nT - Float Part\nWASD - Float Mode\nCtrl+E - Emergencia"
+    controlsNotification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    controlsNotification.TextScaled = true
+    controlsNotification.Font = Enum.Font.Gotham
+    controlsNotification.Parent = screenGui
+    
+    local controlsCorner = Instance.new("UICorner")
+    controlsCorner.CornerRadius = UDim.new(0, 10)
+    controlsCorner.Parent = controlsNotification
+    
+    game:GetService("Debris"):AddItem(controlsNotification, 4)
+end
+
+-- Botón de ayuda en el panel
+local helpButton = Instance.new("TextButton")
+helpButton.Name = "HelpButton"
+helpButton.Size = UDim2.new(0.9, 0, 0, 25)
+helpButton.Position = UDim2.new(0.05, 0, 0, 440)
+helpButton.BackgroundColor3 = Color3.fromRGB(85, 85, 255)
+helpButton.Text = "❓ Mostrar Controles"
+helpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+helpButton.TextScaled = true
+helpButton.Font = Enum.Font.Gotham
+helpButton.Parent = mainFrame
+
+local helpCorner = Instance.new("UICorner")
+helpCorner.CornerRadius = UDim.new(0, 5)
+helpCorner.Parent = helpButton
+
+helpButton.MouseButton1Click:Connect(showControls)
+
+-- Sistema de auto-guardado de configuración
+local function saveConfig()
+    -- Aquí podrías implementar un sistema de guardado si lo necesitas
+    -- Por ahora solo mantenemos la configuración en memoria
+end
+
+local function loadConfig()
+    -- Aquí podrías cargar configuración guardada
+    -- Por ahora usamos valores por defecto
+end
+
+-- Cargar configuración al inicio
+loadConfig()
+
+print("🚀 Float & Fly Panel v2.0 - Cargado exitosamente!")
+print("📋 Controles:")
+print("   F - Abrir/Cerrar Panel")
+print("   T - Activar/Desactivar Float Part")
+print("   WASD - Controlar Float Mode")
+print("   Ctrl+E - Limpieza de emergencia")
+print("🛡️ Características:")
+print("   ✅ Float Part con seguimiento")
+print("   ✅ Float Mode suave con WASD")
+print("   ✅ Sistema de guardado de estado")
+print("   ✅ Vuelo automático con cápsula protectora")
+print("   ✅ God Mode sutil anti-detección")
+print("   ✅ Configuración ajustable con sliders")
+print("   ✅ Efectos visuales rainbow")
+print("   ✅ Sistema de emergencia")
