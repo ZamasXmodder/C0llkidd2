@@ -1,4 +1,30 @@
-local Players = game:GetService("Players")
+-- Función de flote suave para ir al punto
+local function goToEstablishedPoint()
+    if not targetPoint then
+        statusLabel.Text = "No hay punto establecido"
+        return
+    end
+    
+    if isTransporting then
+        statusLabel.Text = "Ya transportando..."
+        return
+    end
+    
+    isTransporting = true
+    statusLabel.Text = "Iniciando flote hacia el punto..."
+    
+    cleanupTransportParts()
+    
+    -- Crear 6 parts suaves que flotan alrededor del jugador
+    local partCount = 6
+    local radius = 3
+    
+    for i = 1, partCount do
+        local part = Instance.new("Part")
+        part.Name = "FloatPart" .. i
+        part.Size = Vector3.new(1.2, 1.2, 1.2)
+        part.Material = Enum.Material.ForceField
+        part.Color = Color3.fromHSV((i-1) / partCount, 0.7local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local PathfindingService = game:GetService("PathfindingService")
@@ -314,7 +340,7 @@ local function cleanupTransportParts()
     transportParts = {}
 end
 
--- Función ultra rápida para ir directamente al punto
+-- Función de flote suave para ir al punto
 local function goToEstablishedPoint()
     if not targetPoint then
         statusLabel.Text = "No hay punto establecido"
@@ -327,116 +353,21 @@ local function goToEstablishedPoint()
     end
     
     isTransporting = true
-    statusLabel.Text = "Transporte ultra rápido iniciado..."
+    statusLabel.Text = "Iniciando flote hacia el punto..."
     
     cleanupTransportParts()
     
-    -- Crear 8 parts que forman un círculo alrededor del jugador para efecto visual
-    local partCount = 8
-    local radius = 5
+    -- Crear 6 parts suaves que flotan alrededor del jugador
+    local partCount = 6
+    local radius = 4
     
     for i = 1, partCount do
         local part = Instance.new("Part")
-        part.Name = "TransportPart" .. i
-        part.Size = Vector3.new(3, 2, 3)
+        part.Name = "FloatPart" .. i
+        part.Size = Vector3.new(1.5, 1.5, 1.5)
         part.Material = Enum.Material.ForceField
-        part.Color = Color3.fromHSV((i-1) / partCount, 1, 1)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Shape = Enum.PartType.Ball
-        part.Parent = workspace
-        
-        local angle = (i-1) * (360 / partCount)
-        local offset = Vector3.new(
-            math.cos(math.rad(angle)) * radius,
-            math.sin(i * 0.5) * 3, -- Movimiento vertical ondulante
-            math.sin(math.rad(angle)) * radius
-        )
-        part.Position = rootPart.Position + offset
-        
-        table.insert(transportParts, part)
-    end
-    
-    -- Transporte directo ultra rápido
-    local startPos = rootPart.Position
-    local endPos = targetPoint
-    local totalDistance = (endPos - startPos).Magnitude
-    local transportSpeed = 150 -- Velocidad súper alta
-    local totalTime = totalDistance / transportSpeed
-    
-    statusLabel.Text = string.format("Transportando %.0f metros...", totalDistance)
-    
-    -- Tween para movimiento suave pero rápido
-    local tweenInfo = TweenInfo.new(
-        totalTime,
-        Enum.EasingStyle.Quart,
-        Enum.EasingDirection.InOut,
-        0,
-        false,
-        0
-    )
-    
-    -- Efecto de partículas rotatorias durante el transporte
-    local rotationSpeed = 0
-    local effectConnection = RunService.Heartbeat:Connect(function()
-        rotationSpeed = rotationSpeed + 10
-        
-        for i, part in pairs(transportParts) do
-            if part and part.Parent then
-                local angle = (i-1) * (360 / partCount) + rotationSpeed
-                local offset = Vector3.new(
-                    math.cos(math.rad(angle)) * radius,
-                    math.sin((rotationSpeed + i * 30) * 0.1) * 4,
-                    math.sin(math.rad(angle)) * radius
-                )
-                part.Position = rootPart.Position + offset
-                part.CFrame = part.CFrame * CFrame.Angles(math.rad(5), math.rad(10), 0)
-                
-                -- Cambiar color durante el transporte
-                part.Color = Color3.fromHSV(((rotationSpeed + i * 45) % 360) / 360, 1, 1)
-            end
-        end
-    end)
-    
-    -- Mover el jugador directamente al punto
-    local moveTween = TweenService:Create(
-        rootPart,
-        tweenInfo,
-        {CFrame = CFrame.new(endPos)}
-    )
-    
-    moveTween:Play()
-    
-    moveTween.Completed:Connect(function()
-        effectConnection:Disconnect()
-        cleanupTransportParts()
-        isTransporting = false
-        statusLabel.Text = "¡Transporte completado!"
-        
-        -- Efecto de llegada
-        local arrivalPart = Instance.new("Part")
-        arrivalPart.Name = "ArrivalEffect"
-        arrivalPart.Size = Vector3.new(10, 0.5, 10)
-        arrivalPart.Material = Enum.Material.Neon
-        arrivalPart.Color = Color3.fromRGB(0, 255, 0)
-        arrivalPart.Anchored = true
-        arrivalPart.CanCollide = false
-        arrivalPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
-        arrivalPart.Parent = workspace
-        
-        -- Tween para desvanecer el efecto de llegada
-        local fadeTween = TweenService:Create(
-            arrivalPart,
-            TweenInfo.new(2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-            {Transparency = 1, Size = Vector3.new(20, 0.1, 20)}
-        )
-        
-        fadeTween:Play()
-        fadeTween.Completed:Connect(function()
-            arrivalPart:Destroy()
-        end)
-    end)
-end
+        part.Color = Color3.fromHSV((i-1) / partCount, 0.8, 1)
+        part.Anchore
 
 -- Eventos de botones
 local walkActive = false
@@ -495,6 +426,9 @@ end)
 flyButton.MouseButton1Click:Connect(function()
     toggleFlyMode()
 end)
+
+-- Configurar el slider de velocidad
+setupSpeedSlider()
 
 -- Limpiar al morir o cambiar de personaje
 character.Humanoid.Died:Connect(function()
