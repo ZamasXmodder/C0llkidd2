@@ -1,558 +1,352 @@
+
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Variables globales
-local rainbowPart = nil
-local targetPoint = nil
-local transportParts = {}
-local isTransporting = false
-local flyMode = false
-local flyConnection = nil
-local ladderPart = nil
-local climbAnimationTrack = nil
-local floatSpeed = 50
+-- Lista de todos los brainrots
+local brainrotList = {
+    "Noobini Pizzanini", "Lirili Larila", "TIM Cheese", "Flurifura", "Talpa Di Fero",
+    "Svinia Bombardino", "Pipi Kiwi", "Racooni Jandelini", "Pipi Corni", "Trippi Troppi",
+    "Tung Tung Tung Sahur", "Gangster Footera", "Bandito Bobritto", "Boneca Ambalabu",
+    "Cacto Hipopotamo", "Ta Ta Ta Ta Sahur", "Tric Trac Baraboom", "Steal a Brainrot Pipi Avocado",
+    "Cappuccino Assassino", "Brr Brr Patapin", "Trulimero Trulicina", "Bambini Crostini",
+    "Bananita Dolphinita", "Perochello Lemonchello", "Brri Brri Bicus Dicus Bombicus",
+    "Avocadini Guffo", "Salamino Penguino", "Ti Ti Ti Sahur", "Penguino Cocosino",
+    "Burbalini Loliloli", "Chimpanzini Bananini", "Ballerina Cappuccina", "Chef Crabracadabra",
+    "Lionel Cactuseli", "Glorbo Fruttodrillo", "Blueberrini Octapusini", "Strawberelli Flamingelli",
+    "Pandaccini Bananini", "Cocosini Mama", "Sigma Boy", "Pi Pi Watermelon", "Frigo Camelo",
+    "Orangutini Ananasini", "Rhino Toasterino", "Bombardiro Crocodilo", "Bombombini Gusini",
+    "Cavallo Virtuso", "Gorillo Watermelondrillo", "Avocadorilla", "Tob Tobi Tobi",
+    "Gangazelli Trulala", "Te Te Te Sahur", "Tracoducotulu Delapeladustuz", "Lerulerulerule",
+    "Carloo", "Spioniro Golubiro", "Zibra Zubra Zibralini", "Tigrilini Watermelini",
+    "Cocofanta Elefanto", "Girafa Celestre", "Gyattatino Nyanino", "Matteo",
+    "Tralalero Tralala", "Espresso Signora", "Odin Din Din Dun", "Statutino Libertino",
+    "Trenostruzzo Turbo 3000", "Ballerino Lololo", "Los Orcalitos", "Tralalita Tralala",
+    "Urubini Flamenguini", "Trigoligre Frutonni", "Orcalero Orcala", "Bulbito Bandito Traktorito",
+    "Los Crocodilitos", "Piccione Macchina", "Trippi Troppi Troppa Trippa", "Los Tungtuntuncitos",
+    "Tukanno Bananno", "Alessio", "Tipi Topi Taco", "Pakrahmatmamat", "Bombardini Tortinii",
+    "La Vacca Saturno Saturnita", "Chimpanzini Spiderini", "Los Tralaleritos", "Las Tralaleritas",
+    "Graipuss Medussi", "La Grande Combinasion", "Nuclearo Dinossauro", "Garama and Madundung",
+    "Tortuginni Dragonfruitini", "Pot Hotspot", "Las Vaquitas Saturnitas", "Chicleteira Bicicleteira",
+    "Agarrini la Palini", "Dragon Cannelloni", "Los Combinasionas", "Karkerkar Kurkur",
+    "Los Hotspotsitos", "Esok Sekolah", "Los Matteos", "Dul Dul Dul", "Blackhole Goat",
+    "Nooo My Hotspot", "Sammyini Spyderini", "La Supreme Combinasion", "Ketupat Kepat"
+}
+
+-- Variables de estado
+local autoStealActive = false
+local currentConnection = nil
+local homePosition = nil
+local isMoving = false
 
 -- Crear GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "RainbowPanel"
-screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.Name = "AutoStealPanel"
+screenGui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 320)
+frame.Size = UDim2.new(0, 250, 0, 120)
 frame.Position = UDim2.new(0, 10, 0, 10)
-frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-frame.BorderSizePixel = 2
-frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
 frame.Parent = screenGui
 
--- Título
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-title.Text = "Panel Rainbow"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.Font = Enum.Font.SourceSansBold
-title.Parent = frame
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
 
--- Botón caminar rainbow
-local walkButton = Instance.new("TextButton")
-walkButton.Size = UDim2.new(0.9, 0, 0, 30)
-walkButton.Position = UDim2.new(0.05, 0, 0, 40)
-walkButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-walkButton.Text = "Activar Caminar Rainbow"
-walkButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-walkButton.TextScaled = true
-walkButton.Font = Enum.Font.SourceSans
-walkButton.Parent = frame
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1, -20, 0, 45)
+button.Position = UDim2.new(0, 10, 0, 10)
+button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+button.Text = "🔄 Auto Steal: OFF"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+button.Font = Enum.Font.GothamBold
+button.Parent = frame
 
--- Botón establecer punto
-local setPointButton = Instance.new("TextButton")
-setPointButton.Size = UDim2.new(0.9, 0, 0, 30)
-setPointButton.Position = UDim2.new(0.05, 0, 0, 80)
-setPointButton.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
-setPointButton.Text = "Establecer Punto"
-setPointButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-setPointButton.TextScaled = true
-setPointButton.Font = Enum.Font.SourceSans
-setPointButton.Parent = frame
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 8)
+buttonCorner.Parent = button
 
--- Botón ir al punto
-local goToPointButton = Instance.new("TextButton")
-goToPointButton.Size = UDim2.new(0.9, 0, 0, 30)
-goToPointButton.Position = UDim2.new(0.05, 0, 0, 120)
-goToPointButton.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
-goToPointButton.Text = "Ir al Punto"
-goToPointButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-goToPointButton.TextScaled = true
-goToPointButton.Font = Enum.Font.SourceSans
-goToPointButton.Parent = frame
-
--- Botón escalera
-local flyButton = Instance.new("TextButton")
-flyButton.Size = UDim2.new(0.9, 0, 0, 30)
-flyButton.Position = UDim2.new(0.05, 0, 0, 160)
-flyButton.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
-flyButton.Text = "Activar Modo Escalera"
-flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-flyButton.TextScaled = true
-flyButton.Font = Enum.Font.SourceSans
-flyButton.Parent = frame
-
--- Label velocidad
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(0.9, 0, 0, 20)
-speedLabel.Position = UDim2.new(0.05, 0, 0, 200)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Velocidad: " .. floatSpeed
-speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedLabel.TextScaled = true
-speedLabel.Font = Enum.Font.SourceSans
-speedLabel.Parent = frame
-
--- Frame del slider
-local speedSliderFrame = Instance.new("Frame")
-speedSliderFrame.Size = UDim2.new(0.9, 0, 0, 20)
-speedSliderFrame.Position = UDim2.new(0.05, 0, 0, 225)
-speedSliderFrame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-speedSliderFrame.BorderSizePixel = 1
-speedSliderFrame.BorderColor3 = Color3.fromRGB(200, 200, 200)
-speedSliderFrame.Parent = frame
-
--- Botón del slider
-local speedSlider = Instance.new("TextButton")
-speedSlider.Size = UDim2.new(0, 20, 1, 0)
-speedSlider.Position = UDim2.new(0.375, -10, 0, 0) -- Posición inicial en el medio
-speedSlider.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-speedSlider.Text = ""
-speedSlider.Parent = speedSliderFrame
-
--- Label de estado
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 250)
+statusLabel.Size = UDim2.new(1, -20, 0, 25)
+statusLabel.Position = UDim2.new(0, 10, 0, 65)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Listo"
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Text = "💤 Status: Inactive"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextScaled = true
-statusLabel.Font = Enum.Font.SourceSans
+statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = frame
 
--- Instrucciones de vuelo
-local flyInstructions = Instance.new("TextLabel")
-flyInstructions.Size = UDim2.new(0.9, 0, 0, 20)
-flyInstructions.Position = UDim2.new(0.05, 0, 0, 275)
-flyInstructions.BackgroundTransparency = 1
-flyInstructions.Text = "WASD + Space/Shift para volar"
-flyInstructions.TextColor3 = Color3.fromRGB(200, 200, 200)
-flyInstructions.TextScaled = true
-flyInstructions.Font = Enum.Font.SourceSans
-flyInstructions.Visible = false
-flyInstructions.Parent = frame
+local countLabel = Instance.new("TextLabel")
+countLabel.Size = UDim2.new(1, -20, 0, 20)
+countLabel.Position = UDim2.new(0, 10, 0, 95)
+countLabel.BackgroundTransparency = 1
+countLabel.Text = "🎯 Found: 0 brainrots"
+countLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+countLabel.TextScaled = true
+countLabel.Font = Enum.Font.Gotham
+countLabel.Parent = frame
 
--- Funciones
-local function createRainbowPart()
-    if rainbowPart then
-        rainbowPart:Destroy()
-    end
+-- Función para encontrar brainrots en workspace
+local function findBrainrots()
+    local brainrots = {}
     
-    rainbowPart = Instance.new("Part")
-    rainbowPart.Name = "RainbowWalkPart"
-    rainbowPart.Size = Vector3.new(6, 0.5, 6)
-    rainbowPart.Material = Enum.Material.Neon
-    rainbowPart.Anchored = true
-    rainbowPart.CanCollide = true
-    rainbowPart.Parent = workspace
-    
-    local hue = 0
-    local rainbowConnection = RunService.Heartbeat:Connect(function()
-        if rainbowPart and rainbowPart.Parent then
-            hue = (hue + 2) % 360
-            rainbowPart.Color = Color3.fromHSV(hue / 360, 1, 1)
-            rainbowPart.Position = rootPart.Position - Vector3.new(0, 3, 0)
-        else
-            rainbowConnection:Disconnect()
-        end
-    end)
-end
-
-local function createLadder()
-    if ladderPart then
-        ladderPart:Destroy()
-    end
-    
-    ladderPart = Instance.new("TrussPart")
-    ladderPart.Name = "InvisibleLadder"
-    ladderPart.Size = Vector3.new(4, 20, 1)
-    ladderPart.Material = Enum.Material.ForceField
-    ladderPart.Transparency = 0.3
-    ladderPart.Color = Color3.fromRGB(0, 255, 255)
-    ladderPart.Anchored = true
-    ladderPart.CanCollide = true
-    ladderPart.Parent = workspace
-    
-    local ladderConnection = RunService.Heartbeat:Connect(function()
-        if ladderPart and ladderPart.Parent and flyMode then
-            ladderPart.Position = rootPart.Position
-        elseif not flyMode then
-            ladderConnection:Disconnect()
-        end
-    end)
-end
-
-local function enableRagdoll()
-    pcall(function()
-        for _, joint in pairs(character:GetDescendants()) do
-            if joint:IsA("Motor6D") then
-                local attachment0 = Instance.new("Attachment")
-                local attachment1 = Instance.new("Attachment")
-                
-                attachment0.Parent = joint.Part0
-                attachment1.Parent = joint.Part1
-                attachment0.CFrame = joint.C0
-                attachment1.CFrame = joint.C1
-                
-                local ballSocket = Instance.new("BallSocketConstraint")
-                ballSocket.Attachment0 = attachment0
-                ballSocket.Attachment1 = attachment1
-                ballSocket.Parent = joint.Part0
-                
-                joint.Enabled = false
+    -- Buscar en workspace directamente
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") then
+            for _, brainrotName in pairs(brainrotList) do
+                if obj.Name == brainrotName then
+                    -- Verificar que tenga PrimaryPart o alguna parte principal
+                    if obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildOfClass("Part") then
+                        table.insert(brainrots, obj)
+                    end
+                    break
+                end
             end
         end
-        humanoid.PlatformStand = true
-    end)
-end
-
-local function disableRagdoll()
-    pcall(function()
-        -- Primero desactivar PlatformStand
-        humanoid.PlatformStand = false
-        
-        -- Eliminar todas las constraints de ragdoll
-        for _, constraint in pairs(character:GetDescendants()) do
-            if constraint:IsA("BallSocketConstraint") then
-                constraint:Destroy()
-            end
-        end
-        
-        -- Eliminar attachments creados para ragdoll
-        for _, attachment in pairs(character:GetDescendants()) do
-            if attachment:IsA("Attachment") and attachment.Parent ~= rootPart then
-                attachment:Destroy()
-            end
-        end
-        
-        -- Reactivar todas las articulaciones
-        for _, joint in pairs(character:GetDescendants()) do
-            if joint:IsA("Motor6D") then
-                joint.Enabled = true
-            end
-        end
-        
-        -- Forzar al humanoid a estar de pie
-        humanoid:ChangeState(Enum.HumanoidStateType.Running)
-    end)
-end
-
-local function cleanupTransportParts()
-    for _, part in pairs(transportParts) do
-        if part and part.Parent then
-            part:Destroy()
-        end
-    end
-    transportParts = {}
-end
-
-local function stopTransport()
-    -- Detener el transporte inmediatamente
-    isTransporting = false
-    
-    -- Limpiar BodyVelocity
-    local bodyVelocity = rootPart:FindFirstChild("BodyVelocity")
-    if bodyVelocity then
-        bodyVelocity:Destroy()
     end
     
-    -- Limpiar partículas
-    cleanupTransportParts()
+    -- También buscar en ReplicatedStorage si es necesario
+    if ReplicatedStorage:FindFirstChild("Models") then
+        for _, obj in pairs(ReplicatedStorage.Models:GetChildren()) do
+            if obj:IsA("Model") then
+                for _, brainrotName in pairs(brainrotList) do
+                    if obj.Name == brainrotName then
+                        table.insert(brainrots, obj)
+                        break
+                    end
+                end
+            end
+        end
+    end
     
-    -- Desactivar ragdoll
-    disableRagdoll()
-    
-    -- Asegurar estado normal
-    task.wait(0.1)
-    humanoid.PlatformStand = false
-    humanoid:ChangeState(Enum.HumanoidStateType.Running)
-    
-    statusLabel.Text = "¡Flote completado!"
+    return brainrots
 end
 
-local function goToEstablishedPoint()
-    if not targetPoint then
-        statusLabel.Text = "No hay punto establecido"
+-- Función para obtener la posición del brainrot
+local function getBrainrotPosition(brainrot)
+    if brainrot.PrimaryPart then
+        return brainrot.PrimaryPart.Position
+    elseif brainrot:FindFirstChild("HumanoidRootPart") then
+        return brainrot.HumanoidRootPart.Position
+    elseif brainrot:FindFirstChildOfClass("Part") then
+        return brainrot:FindFirstChildOfClass("Part").Position
+    end
+    return nil
+end
+
+-- Función para mover suavemente hacia un objetivo
+local function moveToTarget(targetPosition)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
     
-    if isTransporting then
-        statusLabel.Text = "Ya transportando..."
-        return
-    end
+    isMoving = true
+    local humanoidRootPart = player.Character.HumanoidRootPart
+    local humanoid = player.Character:FindFirstChild("Humanoid")
     
-    isTransporting = true
-    statusLabel.Text = "Iniciando flote con ragdoll..."
-    
-    cleanupTransportParts()
-    enableRagdoll()
-    
-    -- Crear partículas flotantes
-    local partCount = 6
-    local radius = 3
-    
-    for i = 1, partCount do
-        local part = Instance.new("Part")
-        part.Name = "FloatPart" .. i
-        part.Size = Vector3.new(1.2, 1.2, 1.2)
-        part.Material = Enum.Material.ForceField
-        part.Color = Color3.fromHSV((i-1) / partCount, 0.7, 1)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Shape = Enum.PartType.Ball
-        part.Transparency = 0.3
-        part.Parent = workspace
+    -- Usar Humanoid.MoveTo para movimiento más natural
+    if humanoid then
+        humanoid:MoveTo(targetPosition)
         
-        local angle = (i-1) * (360 / partCount)
-        local offset = Vector3.new(
-            math.cos(math.rad(angle)) * radius,
-            math.sin(i * 0.8) * 1.5,
-            math.sin(math.rad(angle)) * radius
-                    )
-        part.Position = rootPart.Position + offset
-        
-        table.insert(transportParts, part)
-    end
-    
-    -- Sistema de transporte mejorado
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.Parent = rootPart
-    
-    local startPos = rootPart.Position
-    local endPos = targetPoint
-    local totalDistance = (endPos - startPos).Magnitude
-    
-    statusLabel.Text = string.format("Flotando %.0f metros...", totalDistance)
-    
-    -- Función para detectar obstáculos
-    local function checkForObstacles(currentPos, targetPos)
-        local direction = (targetPos - currentPos).Unit
-        local distance = (targetPos - currentPos).Magnitude
-        
-        -- Raycast para detectar obstáculos
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.FilterDescendantsInstances = {character}
-        
-        local raycastResult = workspace:Raycast(currentPos, direction * math.min(distance, 10), raycastParams)
-        
-        if raycastResult then
-            -- Si hay obstáculo, intentar ir por los lados
-            local rightDirection = direction:Cross(Vector3.new(0, 1, 0)).Unit
-            local leftDirection = -rightDirection
-            
-            -- Probar ir por la derecha
-            local rightPos = currentPos + rightDirection * 5
-            local rightRaycast = workspace:Raycast(currentPos, (rightPos - currentPos), raycastParams)
-            
-            if not rightRaycast then
-                return rightDirection * floatSpeed
+        -- Esperar a que llegue o timeout
+        local startTime = tick()
+        local connection
+        connection = RunService.Heartbeat:Connect(function()
+            if not autoStealActive or tick() - startTime > 10 then
+                connection:Disconnect()
+                isMoving = false
+                return
             end
             
-            -- Probar ir por la izquierda
-            local leftPos = currentPos + leftDirection * 5
-            local leftRaycast = workspace:Raycast(currentPos, (leftPos - currentPos), raycastParams)
-            
-            if not leftRaycast then
-                return leftDirection * floatSpeed
-            end
-            
-            -- Si ambos lados están bloqueados, ir hacia arriba
-            return Vector3.new(0, floatSpeed, 0)
-        end
-        
-        return direction * floatSpeed
-    end
-    
-    local effectConnection = RunService.Heartbeat:Connect(function(deltaTime)
-        -- Verificar si el transporte fue cancelado
-        if not isTransporting then
-            effectConnection:Disconnect()
-            return
-        end
-        
-        local currentPos = rootPart.Position
-        local distanceToTarget = (endPos - currentPos).Magnitude
-        
-        -- Verificar si hemos llegado al destino
-        if distanceToTarget < 2 then
-            effectConnection:Disconnect()
-            stopTransport()
-            return
-        end
-        
-        -- Si estamos cerca del objetivo, ir directamente
-        if distanceToTarget < 3 then
-            local direction = (endPos - currentPos).Unit
-            bodyVelocity.Velocity = direction * floatSpeed
-        else
-            -- Usar detección de obstáculos
-            local moveDirection = checkForObstacles(currentPos, endPos)
-            bodyVelocity.Velocity = moveDirection
-        end
-        
-        -- Actualizar partículas
-        for i, part in pairs(transportParts) do
-            if part and part.Parent then
-                local angle = (i-1) * (360 / partCount) + (tick() * 30)
-                local bobbing = math.sin(tick() * 2 + i) * 1
-                local offset = Vector3.new(
-                    math.cos(math.rad(angle)) * radius,
-                    bobbing,
-                    math.sin(math.rad(angle)) * radius
-                )
-                part.Position = currentPos + offset
-                part.Color = Color3.fromHSV(((tick() * 60 + i * 60) % 360) / 360, 0.7, 1)
-            end
-        end
-    end)
-end
-
-local function toggleFlyMode()
-    flyMode = not flyMode
-    
-    if flyMode then
-        createLadder()
-        humanoid.PlatformStand = true
-        
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
-        
-        flyButton.Text = "Desactivar Modo Escalera"
-        flyButton.BackgroundColor3 = Color3.fromRGB(150, 150, 0)
-        flyInstructions.Visible = true
-        statusLabel.Text = "Modo escalera activado"
-        
-        flyConnection = RunService.Heartbeat:Connect(function()
-            if not flyMode then return end
-            
-            local camera = workspace.CurrentCamera
-            local moveVector = Vector3.new(0, 0, 0)
-            local speed = 60
-            
-            local cameraCFrame = camera.CFrame
-            local forward = cameraCFrame.LookVector
-            local right = cameraCFrame.RightVector
-            
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                moveVector = moveVector + forward
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                moveVector = moveVector - forward
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                moveVector = moveVector - right
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                moveVector = moveVector + right
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                moveVector = moveVector + Vector3.new(0, 1, 0)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                moveVector = moveVector - Vector3.new(0, 1, 0)
-            end
-            
-            if bodyVelocity then
-                bodyVelocity.Velocity = moveVector * speed
+            local distance = (targetPosition - humanoidRootPart.Position).Magnitude
+            if distance < 5 then
+                connection:Disconnect()
+                isMoving = false
+                
+                -- Simular recolección
+                wait(1)
+                if homePosition and autoStealActive then
+                    statusLabel.Text = "🏠 Returning home..."
+                    humanoid:MoveTo(homePosition)
+                end
             end
         end)
-        
-    else
-        humanoid.PlatformStand = false
-        
-        if ladderPart then
-            ladderPart:Destroy()
-            ladderPart = nil
-        end
-        
-        local bodyVelocity = rootPart:FindFirstChild("BodyVelocity")
-        if bodyVelocity then
-            bodyVelocity:Destroy()
-        end
-        
-        if flyConnection then
-            flyConnection:Disconnect()
-            flyConnection = nil
-        end
-        
-        flyButton.Text = "Activar Modo Escalera"
-        flyButton.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
-        flyInstructions.Visible = false
-        statusLabel.Text = "Modo escalera desactivado"
     end
 end
 
--- Configurar slider
-local function setupSpeedSlider()
-    local dragging = false
+-- Función para crear efectos visuales
+local function createVisualEffects(position)
+    for i = 1, 6 do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(1, 1, 1)
+        part.Material = Enum.Material.ForceField
+        part.BrickColor = BrickColor.new("Bright blue")
+        part.CanCollide = false
+        part.Anchored = true
+        part.Shape = Enum.PartType.Ball
+        
+        local angle = (i - 1) * (math.pi * 2 / 6)
+        local radius = 8
+        part.Position = position + Vector3.new(
+            math.cos(angle) * radius,
+            math.random(2, 6),
+            math.sin(angle) * radius
+        )
+        
+        part.Parent = workspace
+        
+        -- Efecto de brillo
+        local pointLight = Instance.new("PointLight")
+        pointLight.Color = Color3.fromRGB(0, 162, 255)
+        pointLight.Brightness = 2
+        pointLight.Range = 10
+        pointLight.Parent = part
+        
+        -- Animación de flotación
+        spawn(function()
+            local startY = part.Position.Y
+            for t = 0, 5, 0.1 do
+                if part.Parent then
+                    part.Position = part.Position + Vector3.new(0, math.sin(t * 3) * 0.1, 0)
+                    part.Rotation = Vector3.new(0, t * 50, 0)
+                end
+                wait(0.1)
+            end
+            if part.Parent then
+                part:Destroy()
+            end
+        end)
+    end
+end
+
+-- Función principal de auto steal
+local function autoStealLoop()
+    if not autoStealActive or isMoving then return end
     
-    speedSlider.MouseButton1Down:Connect(function()
-        dragging = true
-    end)
+    local brainrots = findBrainrots()
+    countLabel.Text = "🎯 Found: " .. #brainrots .. " brainrots"
     
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local frameSize = speedSliderFrame.AbsoluteSize.X
-            local mousePos = input.Position.X - speedSliderFrame.AbsolutePosition.X
-            local percentage = math.clamp(mousePos / frameSize, 0, 1)
+    if #brainrots > 0 then
+        local closestBrainrot = nil
+        local closestDistance = math.huge
+        
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local playerPos = player.Character.HumanoidRootPart.Position
             
-            speedSlider.Position = UDim2.new(percentage, -10, 0, 0)
-            floatSpeed = math.floor(20 + (percentage * 80))
-            speedLabel.Text = "Velocidad: " .. floatSpeed
+            for _, brainrot in pairs(brainrots) do
+                local brainrotPos = getBrainrotPosition(brainrot)
+                if brainrotPos then
+                    local distance = (brainrotPos - playerPos).Magnitude
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        closestBrainrot = brainrot
+                    end
+                end
+            end
+            
+            if closestBrainrot then
+                local targetPos = getBrainrotPosition(closestBrainrot)
+                if targetPos then
+                    statusLabel.Text = "🎯 Moving to: " .. closestBrainrot.Name
+                    createVisualEffects(targetPos)
+                    moveToTarget(targetPos)
+                end
+            end
         end
-    end)
+    else
+        statusLabel.Text = "🔍 Searching for brainrots..."
+    end
 end
 
--- Eventos de botones
-local walkActive = false
-walkButton.MouseButton1Click:Connect(function()
-    walkActive = not walkActive
-    if walkActive then
-        createRainbowPart()
-        walkButton.Text = "Desactivar Caminar Rainbow"
-        walkButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        statusLabel.Text = "Caminar Rainbow activado"
-    else
-        if rainbowPart then
-            rainbowPart:Destroy()
-            rainbowPart = nil
+-- Evento del botón
+button.MouseButton1Click:Connect(function()
+    autoStealActive = not autoStealActive
+    
+    if autoStealActive then
+        button.Text = "🟢 Auto Steal: ON"
+        button.BackgroundColor3 = Color3.fromRGB(46, 125, 50)
+        statusLabel.Text = "⚡ Active - Scanning..."
+        
+        -- Guardar posición inicial
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            homePosition = player.Character.HumanoidRootPart.Position
         end
-        walkButton.Text = "Activar Caminar Rainbow"
-        walkButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        statusLabel.Text = "Caminar Rainbow desactivado"
+        
+        -- Iniciar loop
+        currentConnection = RunService.Heartbeat:Connect(function()
+            wait(2) -- Esperar 2 segundos entre búsquedas
+            autoStealLoop()
+        end)
+    else
+        button.Text = "🔴 Auto Steal: OFF"
+        button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        statusLabel.Text = "💤 Status: Inactive"
+        countLabel.Text = "🎯 Found: 0 brainrots"
+        isMoving = false
+        
+        -- Detener loop
+        if currentConnection then
+            currentConnection:Disconnect()
+            currentConnection = nil
+        end
     end
 end)
 
-setPointButton.MouseButton1Click:Connect(function()
-    targetPoint = rootPart.Position
-    statusLabel.Text = "Punto establecido!"
+-- Hacer el panel arrastrable
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+                    startPos = frame.Position
+    end
 end)
 
-goToPointButton.MouseButton1Click:Connect(function()
-    goToEstablishedPoint()
+frame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
 end)
 
-flyButton.MouseButton1Click:Connect(function()
-    toggleFlyMode()
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
 end)
 
-setupSpeedSlider()
+-- Función para limpiar al salir
+game.Players.PlayerRemoving:Connect(function(plr)
+    if plr == player then
+        if currentConnection then
+            currentConnection:Disconnect()
+        end
+        if screenGui then
+            screenGui:Destroy()
+        end
+    end
+end)
 
-print("Panel Rainbow cargado correctamente!")
+-- Notificación de inicio
+spawn(function()
+    wait(1)
+    statusLabel.Text = "✅ Auto Steal Panel Ready!"
+    wait(2)
+    if not autoStealActive then
+        statusLabel.Text = "💤 Status: Inactive"
+    end
+end)
+
+print("🎮 Auto Steal Panel loaded successfully!")
+print("📋 Monitoring " .. #brainrotList .. " different brainrots")
+print("🎯 Click the button to activate auto stealing")
