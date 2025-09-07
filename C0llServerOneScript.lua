@@ -93,22 +93,24 @@ local function toggleUnderground()
         isUnderground = true
         originalPosition = humanoidRootPart.CFrame
         
-        -- Crear conexión para mantener la posición underground
+        -- Crear conexión para mantener la posición elevada
         undergroundConnection = RunService.Heartbeat:Connect(function()
             if humanoidRootPart and humanoidRootPart.Parent then
-                -- Para otros jugadores: apareces 50 studs abajo
-                -- Para ti: mantienes tu posición normal visualmente
+                -- Para otros jugadores: apareces muy arriba (invisible por altura)
+                -- Tu cámara y controles permanecen en la posición original
                 local currentPos = humanoidRootPart.CFrame
+                
+                -- Elevar el cuerpo 200 studs arriba para que otros no te vean
                 humanoidRootPart.CFrame = CFrame.new(
                     currentPos.Position.X,
-                    currentPos.Position.Y - 50, -- 50 studs abajo
+                    currentPos.Position.Y + 200, -- 200 studs arriba
                     currentPos.Position.Z
                 ) * (currentPos - currentPos.Position)
                 
-                -- Hacer invisible el personaje para otros (opcional)
+                -- Hacer completamente invisible el personaje para otros
                 for _, part in pairs(character:GetChildren()) do
                     if part:IsA("BasePart") and part ~= humanoidRootPart then
-                        part.Transparency = 0.95
+                        part.Transparency = 1 -- Completamente invisible
                     end
                 end
             end
@@ -117,7 +119,7 @@ local function toggleUnderground()
         -- Actualizar UI
         undergroundButton.Text = "Underground: ON"
         undergroundButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        statusLabel.Text = "Estado: Activado - Invisible bajo el mapa"
+        statusLabel.Text = "Estado: Activado - Invisible arriba del mapa"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         
         -- Efecto de activación
@@ -208,4 +210,5 @@ end)
 -- Mensaje de inicio
 print("Panel Underground cargado correctamente!")
 print("Presiona F o usa el botón para activar/desactivar Underground")
-print("Cuando esté activado, estarás 50 studs bajo el mapa para otros jugadores")
+print("Cuando esté activado, tu cuerpo estará 200 studs arriba (invisible para otros)")
+print("Tú podrás moverte normalmente desde tu posición original")
