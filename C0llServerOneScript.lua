@@ -352,7 +352,7 @@ closeCorner.Parent = closeButton
 
 -- === FUNCIONES ===
 
--- Sistema continuo para velocidad (se ejecuta cada frame)
+-- Sistema AGRESIVO para velocidad (fuerza valores sin importar qué)
 local function startSpeedLoop()
     if speedConnection then
         speedConnection:Disconnect()
@@ -361,8 +361,24 @@ local function startSpeedLoop()
     speedConnection = RunService.Heartbeat:Connect(function()
         if speedEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
             local humanoid = player.Character.Humanoid
+            
+            -- FORZAR velocidad SIEMPRE, incluso con brainrots
+            humanoid.WalkSpeed = currentSpeed
+            
+            -- Override AGRESIVO - sobreescribe cualquier cambio del juego
+            spawn(function()
+                humanoid.WalkSpeed = currentSpeed
+            end)
+            
+            -- Protección múltiple contra resets/brainrots
+            pcall(function()
+                humanoid.WalkSpeed = currentSpeed
+            end)
+            
+            -- Sistema anti-brainrot override
             if humanoid.WalkSpeed ~= currentSpeed then
                 humanoid.WalkSpeed = currentSpeed
+                print("⚡ Override detectado - Velocidad forzada:", currentSpeed)
             end
         end
     end)
@@ -386,9 +402,9 @@ local function startGravitySystem()
                 jumpStartTime = tick()
                 lastVelocityY = bodyVelocity.Y
                 
-                -- Aplicar impulso inicial de salto más potente
-                local jumpForce = currentJumpPower * 2 -- Multiplicador para más altura
-                workspace.Gravity = originalGravity * 0.3 -- Gravedad reducida al saltar
+                -- Aplicar impulso inicial SIGILOSO pero efectivo
+                local jumpForce = currentJumpPower * 1.5 -- Multiplicador más sutil
+                workspace.Gravity = originalGravity * 0.6 -- Gravedad menos sospechosa
                 
                 -- Crear BodyVelocity temporal para el impulso inicial
                 local bodyVel = Instance.new("BodyVelocity")
@@ -403,13 +419,13 @@ local function startGravitySystem()
                 local currentVelocityY = bodyVelocity.Y
                 local timeSinceJump = tick() - jumpStartTime
                 
-                -- Detectar cuando alcanzamos el punto máximo (velocidad Y cambia de positiva a negativa)
+                -- Detectar cuando alcanzamos el punto máximo (más sutil)
                 if lastVelocityY > 0 and currentVelocityY <= 0 and timeSinceJump > 0.2 then
-                    -- En el punto máximo, reducir gravedad temporalmente para "flotar"
-                    workspace.Gravity = originalGravity * 0.1
+                    -- En el punto máximo, gravedad reducida SUTIL
+                    workspace.Gravity = originalGravity * 0.3
                 elseif currentVelocityY <= 0 and timeSinceJump > 0.4 then
-                    -- Después de flotar, caer rápido
-                    workspace.Gravity = originalGravity * 2
+                    -- Después de flotar, caer un poco más rápido (sutil)
+                    workspace.Gravity = originalGravity * 1.4
                 elseif currentVelocityY < -10 then
                     -- Cayendo rápido, restaurar gravedad normal
                     workspace.Gravity = originalGravity
@@ -425,13 +441,15 @@ local function startGravitySystem()
                 end
             end
             
-            -- Asegurar que el salto básico funcione
-            if humanoid:FindFirstChild("JumpHeight") then
-                humanoid.JumpHeight = 50 -- Valor base, la gravedad hace el trabajo
-            end
-            if humanoid:FindFirstChild("JumpPower") then
-                humanoid.JumpPower = 50 -- Valor base
-            end
+            -- FORZAR valores de salto base SIEMPRE
+            pcall(function()
+                if humanoid:FindFirstChild("JumpHeight") then
+                    humanoid.JumpHeight = 50 -- Valor base fijo
+                end
+                if humanoid:FindFirstChild("JumpPower") then
+                    humanoid.JumpPower = 50 -- Valor base fijo
+                end
+            end)
         end
     end)
 end
@@ -754,7 +772,7 @@ RunService.Heartbeat:Connect(function()
         local mouse = Players.LocalPlayer:GetMouse()
         local relativePos = math.clamp((mouse.X - speedSliderFrame.AbsolutePosition.X) / speedSliderFrame.AbsoluteSize.X, 0, 1)
         speedSlider.Position = UDim2.new(relativePos, -10, 0, 0)
-        currentSpeed = math.floor(16 + (relativePos * 184)) -- Rango de 16 a 200
+        currentSpeed = math.floor(16 + (relativePos * 17)) -- Rango de 16 a 33 (sigiloso)
         speedValueLabel.Text = tostring(currentSpeed)
         -- El sistema continuo se encarga automáticamente de aplicar el nuevo valor
     end
@@ -777,7 +795,7 @@ RunService.Heartbeat:Connect(function()
         local mouse = Players.LocalPlayer:GetMouse()
         local relativePos = math.clamp((mouse.X - jumpSliderFrame.AbsolutePosition.X) / jumpSliderFrame.AbsoluteSize.X, 0, 1)
         jumpSlider.Position = UDim2.new(relativePos, -10, 0, 0)
-        currentJumpPower = math.floor(50 + (relativePos * 450)) -- Rango de 50 a 500
+        currentJumpPower = math.floor(50 + (relativePos * 50)) -- Rango de 50 a 100 (sigiloso)
         jumpValueLabel.Text = tostring(currentJumpPower)
         -- El sistema continuo se encarga automáticamente de aplicar el nuevo valor
     end
@@ -849,14 +867,16 @@ if player.Character then
     updateJump()
 end
 
-print("🎮 Steal a Brainrot Panel cargado exitosamente!")
-print("📋 Funciones disponibles:")
-print("   🏃 Velocidad ajustable: 16-200")
-print("   🦘 Altura de salto ajustable: 50-500")
+print("🎮 Steal a Brainrot Panel SIGILOSO cargado!")
+print("📋 Funciones ANTI-DETECCIÓN:")
+print("   🏃 Velocidad sigilosa: 16-33 (evita anti-cheat)")
+print("   🦘 Salto con gravedad: 50-100 (sutil pero efectivo)")
 print("   👁️ ESP para brainrots especiales")
 print("🔧 Controles:")
 print("   ⌨️ Presiona F para mostrar/ocultar el panel")
 print("   🖱️ Panel arrastrable con animaciones")
 print("🌈 ESP Secrets: Highlight rainbow animado")
 print("⭐ ESP Gods: Highlight dorado")
-print("✅ ¡Listo para usar!")
+print("⚡ Sistema AGRESIVO: Fuerza valores incluso con brainrots")
+print("🛡️ Anti-detección: Límites seguros para evitar bans")
+print("✅ ¡Modo sigiloso activado!")
