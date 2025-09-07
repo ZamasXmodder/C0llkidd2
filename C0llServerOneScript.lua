@@ -75,6 +75,7 @@ scrollFrame.Size = UDim2.new(1, -20, 1, -60)
 scrollFrame.Position = UDim2.new(0, 10, 0, 50)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.ScrollBarThickness = 8
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 scrollFrame.Parent = mainFrame
 
 local layout = Instance.new("UIListLayout")
@@ -170,130 +171,112 @@ local function createSlider(text, minVal, maxVal, defaultVal, callback)
     return currentValue
 end
 
--- Funciones principales
-local function flingPlayer()
-    mouse.Button1Down:Connect(function()
-        if flingPlayerEnabled then
-            local target = mouse.Target
-            if target and target.Parent:FindFirstChild("Humanoid") then
-                local character = target.Parent
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    local bodyVelocity = Instance.new("BodyVelocity")
-                    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-                    bodyVelocity.Velocity = Vector3.new(math.random(-100, 100), 100, math.random(-100, 100))
-                    bodyVelocity.Parent = humanoidRootPart
-                    
-                    game:GetService("Debris"):AddItem(bodyVelocity, 1)
-                end
-            end
-        end
-    end)
-end
+-- Crear todos los botones y sliders AQUÍ
+print("Creando botones...")
 
-local function speedBoost()
-    RunService.Heartbeat:Connect(function()
-        if speedBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.WalkSpeed = speedMultiplier
-        end
-    end)
-end
-
-local function jumpBoost()
-    RunService.Heartbeat:Connect(function()
-        if jumpBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.JumpPower = jumpPower
-        end
-    end)
-end
-
-local function antiFpsKiller()
-    RunService.Heartbeat:Connect(function()
-        if antiFpsKillerEnabled then
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
-                    obj.Enabled = false
-                end
-            end
-        end
-    end)
-end
-
-local function createESP(targetList, color)
-    for _, targetPlayer in pairs(Players:GetPlayers()) do
-        if targetPlayer ~= player then
-            local character = targetPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                for _, brainrot in pairs(targetList) do
-                    if string.find(targetPlayer.Name:lower(), brainrot:lower()) or 
-                       string.find(targetPlayer.DisplayName:lower(), brainrot:lower()) then
-                        
-                        local highlight = Instance.new("Highlight")
-                        highlight.FillColor = color
-                        highlight.OutlineColor = color
-                        highlight.FillTransparency = 0.5
-                        highlight.OutlineTransparency = 0
-                        highlight.Parent = character
-                        break
-                    end
-                end
-            end
-        end
-    end
-end
-
--- Crear botones del panel
+-- Botón Fling Player
 local flingButton = createButton("Fling Player: OFF", function()
     flingPlayerEnabled = not flingPlayerEnabled
     flingButton.Text = "Fling Player: " .. (flingPlayerEnabled and "ON" or "OFF")
     flingButton.BackgroundColor3 = flingPlayerEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+    print("Fling Player:", flingPlayerEnabled)
 end)
 
+-- Botón Anti FPS Killer
 local antiFpsButton = createButton("Anti FPS Killer: OFF", function()
     antiFpsKillerEnabled = not antiFpsKillerEnabled
     antiFpsButton.Text = "Anti FPS Killer: " .. (antiFpsKillerEnabled and "ON" or "OFF")
     antiFpsButton.BackgroundColor3 = antiFpsKillerEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+    print("Anti FPS Killer:", antiFpsKillerEnabled)
 end)
 
+-- Botón Speed Boost
 local speedButton = createButton("Speed Boost: OFF", function()
     speedBoostEnabled = not speedBoostEnabled
     speedButton.Text = "Speed Boost: " .. (speedBoostEnabled and "ON" or "OFF")
     speedButton.BackgroundColor3 = speedBoostEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+    print("Speed Boost:", speedBoostEnabled)
 end)
 
+-- Botón Jump Boost
 local jumpButton = createButton("Jump Boost: OFF", function()
     jumpBoostEnabled = not jumpBoostEnabled
     jumpButton.Text = "Jump Boost: " .. (jumpBoostEnabled and "ON" or "OFF")
     jumpButton.BackgroundColor3 = jumpBoostEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+    print("Jump Boost:", jumpBoostEnabled)
 end)
 
+-- Botón ESP Combinasionas
 local espCombButton = createButton("ESP Los Combinasionas: OFF", function()
     espCombinacionasEnabled = not espCombinacionasEnabled
     espCombButton.Text = "ESP Los Combinasionas: " .. (espCombinacionasEnabled and "ON" or "OFF")
     espCombButton.BackgroundColor3 = espCombinacionasEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
-    
-    if espCombinacionasEnabled then
-        createESP(combinacionasList, Color3.fromRGB(255, 255, 0))
-    end
+    print("ESP Combinasionas:", espCombinacionasEnabled)
 end)
 
+-- Botón ESP God
 local espGodButton = createButton("ESP God: OFF", function()
     espGodEnabled = not espGodEnabled
     espGodButton.Text = "ESP God: " .. (espGodEnabled and "ON" or "OFF")
     espGodButton.BackgroundColor3 = espGodEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
-    
-    if espGodEnabled then
-        createESP(godList, Color3.fromRGB(255, 0, 0))
+    print("ESP God:", espGodEnabled)
+end)
+
+-- Slider de Velocidad
+createSlider("Velocidad", 16, 100, 16, function(value)
+    speedMultiplier = value
+    print("Velocidad cambiada a:", value)
+end)
+
+-- Slider de Salto
+createSlider("Salto", 50, 200, 50, function(value)
+    jumpPower = value
+    print("Salto cambiado a:", value)
+end)
+
+-- Funciones principales
+mouse.Button1Down:Connect(function()
+    if flingPlayerEnabled then
+        local target = mouse.Target
+        if target and target.Parent:FindFirstChild("Humanoid") then
+            local character = target.Parent
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local bodyVelocity = Instance.new("BodyVelocity")
+                bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+                bodyVelocity.Velocity = Vector3.new(math.random(-100, 100), 100, math.random(-100, 100))
+                bodyVelocity.Parent = humanoidRootPart
+                
+                game:GetService("Debris"):AddItem(bodyVelocity, 1)
+                print("Jugador enviado volando!")
+            end
+        end
     end
 end)
 
--- Sliders
-createSlider("Velocidad", 16, 100, 16, function(value)
-    speedMultiplier = value
+-- Speed Boost
+RunService.Heartbeat:Connect(function()
+    if speedBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = speedMultiplier
+    end
 end)
 
-createSlider("Salto", 50, 200, 50, function(value)
-    jumpPower = value
+-- Jump Boost
+RunService.Heartbeat:Connect(function()
+    if jumpBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.JumpPower = jumpPower
+    end
+end)
+
+-- Anti FPS Killer
+RunService.Heartbeat:Connect(function()
+    if antiFpsKillerEnabled then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                obj.Enabled = false
+            end
+        end
+    end
 end)
 
 -- Hacer el frame arrastrable
@@ -312,7 +295,7 @@ end)
 title.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
-                    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
@@ -339,6 +322,7 @@ closeCorner.Parent = closeButton
 
 closeButton.MouseButton1Click:Connect(function()
     screenGui:Destroy()
+    print("Panel cerrado")
 end)
 
 -- Botón de minimizar
@@ -370,7 +354,243 @@ minimizeButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Actualizar tamaño del scroll frame
+-- Sistema ESP mejorado
+local espHighlights = {}
+
+local function clearAllESP()
+    for _, highlight in pairs(espHighlights) do
+        if highlight and highlight.Parent then
+            highlight:Destroy()
+        end
+    end
+    espHighlights = {}
+end
+
+local function createESPHighlight(character, color, espType)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    -- Remover highlight existente
+    local existingHighlight = character:FindFirstChild("ESPHighlight")
+    if existingHighlight then
+        existingHighlight:Destroy()
+    end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
+    
+    table.insert(espHighlights, highlight)
+    
+    -- Efecto especial para ESP God
+    if espType == "god" then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            local pointLight = Instance.new("PointLight")
+            pointLight.Name = "ESPLight"
+            pointLight.Color = color
+            pointLight.Brightness = 2
+            pointLight.Range = 15
+            pointLight.Parent = humanoidRootPart
+            
+            table.insert(espHighlights, pointLight)
+        end
+    end
+end
+
+local function checkPlayerName(playerName, targetList)
+    playerName = playerName:lower()
+    for _, brainrot in pairs(targetList) do
+        if playerName:find(brainrot:lower()) then
+            return true
+        end
+    end
+    return false
+end
+
+local function updateESP()
+    if espCombinacionasEnabled then
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            if targetPlayer ~= player and targetPlayer.Character then
+                if checkPlayerName(targetPlayer.Name, combinacionasList) or 
+                   checkPlayerName(targetPlayer.DisplayName, combinacionasList) then
+                    createESPHighlight(targetPlayer.Character, Color3.fromRGB(255, 255, 0), "combinasionas")
+                end
+            end
+        end
+    end
+    
+    if espGodEnabled then
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            if targetPlayer ~= player and targetPlayer.Character then
+                if checkPlayerName(targetPlayer.Name, godList) or 
+                   checkPlayerName(targetPlayer.DisplayName, godList) then
+                    createESPHighlight(targetPlayer.Character, Color3.fromRGB(255, 0, 0), "god")
+                end
+            end
+        end
+    end
+end
+
+-- Actualizar ESP cuando cambian los estados
+local function updateESPCombinasionas()
+    if espCombinacionasEnabled then
+        updateESP()
+    else
+        clearAllESP()
+    end
+end
+
+local function updateESPGod()
+    if espGodEnabled then
+        updateESP()
+    else
+        clearAllESP()
+    end
+end
+
+-- Reconectar los botones ESP con las nuevas funciones
+espCombButton.MouseButton1Click:Connect(updateESPCombinasionas)
+espGodButton.MouseButton1Click:Connect(updateESPGod)
+
+-- Actualizar ESP cuando los jugadores spawnean
+Players.PlayerAdded:Connect(function(newPlayer)
+    newPlayer.CharacterAdded:Connect(function(character)
+        wait(1) -- Esperar a que el personaje se cargue
+        if espCombinacionasEnabled or espGodEnabled then
+            updateESP()
+        end
+    end)
+end)
+
+-- Actualizar ESP para jugadores existentes cuando respawnean
+for _, existingPlayer in pairs(Players:GetPlayers()) do
+    if existingPlayer ~= player then
+        existingPlayer.CharacterAdded:Connect(function(character)
+            wait(1)
+            if espCombinacionasEnabled or espGodEnabled then
+                updateESP()
+            end
+        end)
+    end
+end
+
+-- Mejorar el sistema de salto
+local jumpConnection
+local function enhancedJumpBoost()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+    end
+    
+    jumpConnection = RunService.Heartbeat:Connect(function()
+        if jumpBoostEnabled and player.Character then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and humanoidRootPart then
+                -- Detectar cuando el jugador está saltando
+                if humanoid.Jump and humanoidRootPart.Velocity.Y > 0 then
+                    -- Aplicar impulso hacia arriba más fuerte
+                    local bodyVelocity = humanoidRootPart:FindFirstChild("JumpBoostVelocity")
+                    if not bodyVelocity then
+                        bodyVelocity = Instance.new("BodyVelocity")
+                        bodyVelocity.Name = "JumpBoostVelocity"
+                        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+                        bodyVelocity.Parent = humanoidRootPart
+                        
+                        -- Remover después de un tiempo corto
+                        game:GetService("Debris"):AddItem(bodyVelocity, 0.3)
+                    end
+                    
+                    bodyVelocity.Velocity = Vector3.new(0, jumpPower * 1.5, 0)
+                end
+                
+                -- Aplicar caída más rápida cuando está bajando
+                if humanoidRootPart.Velocity.Y < -10 then
+                    local bodyVelocity = humanoidRootPart:FindFirstChild("FallBoostVelocity")
+                    if not bodyVelocity then
+                        bodyVelocity = Instance.new("BodyVelocity")
+                        bodyVelocity.Name = "FallBoostVelocity"
+                        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+                        bodyVelocity.Parent = humanoidRootPart
+                        
+                        game:GetService("Debris"):AddItem(bodyVelocity, 0.1)
+                    end
+                    
+                    bodyVelocity.Velocity = Vector3.new(0, humanoidRootPart.Velocity.Y * 1.3, 0)
+                end
+            end
+        end
+    end)
+end
+
+-- Inicializar el sistema de salto mejorado
+enhancedJumpBoost()
+
+-- Tecla de acceso rápido para mostrar/ocultar el panel
+UserInputService.InputBegan:Connect(function(key, gameProcessed)
+    if not gameProcessed and key.KeyCode == Enum.KeyCode.Insert then
+        mainFrame.Visible = not mainFrame.Visible
+        print("Panel", mainFrame.Visible and "mostrado" or "ocultado")
+    end
+end)
+
+-- Sistema de notificaciones
+local function createNotification(text, color)
+    spawn(function()
+        local notificationGui = Instance.new("ScreenGui")
+        notificationGui.Name = "Notification"
+        notificationGui.Parent = player:WaitForChild("PlayerGui")
+        
+        local notificationFrame = Instance.new("Frame")
+        notificationFrame.Size = UDim2.new(0, 300, 0, 60)
+        notificationFrame.Position = UDim2.new(1, 0, 0, 20)
+        notificationFrame.BackgroundColor3 = color or Color3.fromRGB(50, 50, 50)
+        notificationFrame.BorderSizePixel = 0
+        notificationFrame.Parent = notificationGui
+        
+        local notificationCorner = Instance.new("UICorner")
+        notificationCorner.CornerRadius = UDim.new(0, 10)
+        notificationCorner.Parent = notificationFrame
+        
+        local notificationText = Instance.new("TextLabel")
+        notificationText.Size = UDim2.new(1, -20, 1, -20)
+        notificationText.Position = UDim2.new(0, 10, 0, 10)
+        notificationText.BackgroundTransparency = 1
+        notificationText.Text = text
+        notificationText.TextColor3 = Color3.white
+        notificationText.TextScaled = true
+        notificationText.Font = Enum.Font.SourceSans
+        notificationText.Parent = notificationFrame
+        
+        -- Animación de entrada
+        notificationFrame:TweenPosition(UDim2.new(1, -320, 0, 20), "Out", "Quad", 0.5, true)
+        
+        -- Remover después de 3 segundos
+        wait(3)
+        notificationFrame:TweenPosition(UDim2.new(1, 0, 0, 20), "In", "Quad", 0.5, true)
+        wait(0.5)
+        notificationGui:Destroy()
+    end)
+end
+
+-- Información del panel
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(1, 0, 0, 20)
+infoLabel.Position = UDim2.new(0, 0, 1, -25)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "Presiona INSERT para mostrar/ocultar"
+infoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+infoLabel.TextScaled = true
+infoLabel.Font = Enum.Font.SourceSans
+infoLabel.Parent = mainFrame
+
+-- Actualizar el tamaño del canvas del scroll frame
 local function updateScrollSize()
     local totalHeight = 0
     for _, child in pairs(scrollFrame:GetChildren()) do
@@ -378,232 +598,24 @@ local function updateScrollSize()
             totalHeight = totalHeight + child.Size.Y.Offset + 5
         end
     end
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 50)
 end
 
+-- Conectar la actualización del tamaño
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+updateScrollSize()
 
--- Inicializar funciones
-flingPlayer()
-speedBoost()
-jumpBoost()
-antiFpsKiller()
+-- Mensaje de confirmación
+print("✅ Panel de Funciones cargado exitosamente!")
+print("📋 Funciones disponibles:")
+print("   • Fling Player")
+print("   • Anti FPS Killer") 
+print("   • Speed Boost (ajustable)")
+print("   • Jump Boost (ajustable)")
+print("   • ESP Los Combinasionas")
+print("   • ESP God")
+print("🎮 Presiona INSERT para mostrar/ocultar el panel")
+print("🖱️ Arrastra desde el título para mover el panel")
 
--- Sistema de ESP mejorado con actualización continua
-local espConnections = {}
-
-local function clearESP()
-    for _, connection in pairs(espConnections) do
-        connection:Disconnect()
-    end
-    espConnections = {}
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player.Character then
-            for _, highlight in pairs(player.Character:GetChildren()) do
-                if highlight:IsA("Highlight") then
-                    highlight:Destroy()
-                end
-            end
-        end
-    end
-end
-
-local function startESP(targetList, color, espType)
-    local function checkPlayer(targetPlayer)
-        if targetPlayer == player then return false end
-        
-        for _, brainrot in pairs(targetList) do
-            if string.find(targetPlayer.Name:lower(), brainrot:lower()) or 
-               string.find(targetPlayer.DisplayName:lower(), brainrot:lower()) then
-                return true
-            end
-        end
-        return false
-    end
-    
-    local function createHighlight(character, color)
-        local existingHighlight = character:FindFirstChild("Highlight")
-        if existingHighlight then
-            existingHighlight:Destroy()
-        end
-        
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "Highlight"
-        highlight.FillColor = color
-        highlight.OutlineColor = color
-        highlight.FillTransparency = 0.3
-        highlight.OutlineTransparency = 0
-        highlight.Parent = character
-        
-        -- Efecto de brillo para ESP God
-        if espType == "god" then
-            local pointLight = Instance.new("PointLight")
-            pointLight.Color = color
-            pointLight.Brightness = 2
-            pointLight.Range = 10
-            pointLight.Parent = character:FindFirstChild("HumanoidRootPart")
-        end
-    end
-    
-    -- Conexión para jugadores existentes
-    for _, targetPlayer in pairs(Players:GetPlayers()) do
-        if checkPlayer(targetPlayer) and targetPlayer.Character then
-            createHighlight(targetPlayer.Character, color)
-        end
-    end
-    
-    -- Conexión para nuevos jugadores
-    local playerAddedConnection = Players.PlayerAdded:Connect(function(targetPlayer)
-        if checkPlayer(targetPlayer) then
-            targetPlayer.CharacterAdded:Connect(function(character)
-                wait(1) -- Esperar a que el personaje se cargue completamente
-                createHighlight(character, color)
-            end)
-        end
-    end)
-    
-    -- Conexión para personajes que respawnean
-    local characterAddedConnection = Players.PlayerAdded:Connect(function(targetPlayer)
-        targetPlayer.CharacterAdded:Connect(function(character)
-            if checkPlayer(targetPlayer) then
-                wait(1)
-                createHighlight(character, color)
-            end
-        end)
-    end)
-    
-    table.insert(espConnections, playerAddedConnection)
-    table.insert(espConnections, characterAddedConnection)
-end
-
--- Actualizar botones ESP
-espCombButton.MouseButton1Click:Connect(function()
-    espCombinacionasEnabled = not espCombinacionasEnabled
-    espCombButton.Text = "ESP Los Combinasionas: " .. (espCombinacionasEnabled and "ON" or "OFF")
-    espCombButton.BackgroundColor3 = espCombinacionasEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
-    
-    if espCombinacionasEnabled then
-        startESP(combinacionasList, Color3.fromRGB(255, 255, 0), "combinasionas")
-    else
-        clearESP()
-    end
-end)
-
-espGodButton.MouseButton1Click:Connect(function()
-    espGodEnabled = not espGodEnabled
-    espGodButton.Text = "ESP God: " .. (espGodEnabled and "ON" or "OFF")
-    espGodButton.BackgroundColor3 = espGodEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
-    
-    if espGodEnabled then
-        startESP(godList, Color3.fromRGB(255, 0, 0), "god")
-    else
-        clearESP()
-    end
-end)
-
--- Mejorar el sistema de salto
-local originalJumpPower = 50
-local jumpConnection
-
-local function enhancedJumpBoost()
-    if jumpConnection then
-        jumpConnection:Disconnect()
-    end
-    
-    jumpConnection = RunService.Heartbeat:Connect(function()
-        if jumpBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
-            local humanoid = player.Character.Humanoid
-            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            
-            if humanoidRootPart then
-                -- Detectar cuando el jugador salta
-                if humanoid.Jump and humanoidRootPart.Velocity.Y > 0 then
-                    -- Aplicar impulso hacia arriba
-                    local bodyVelocity = humanoidRootPart:FindFirstChild("JumpBoost")
-                    if not bodyVelocity then
-                        bodyVelocity = Instance.new("BodyVelocity")
-                        bodyVelocity.Name = "JumpBoost"
-                        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-                        bodyVelocity.Parent = humanoidRootPart
-                    end
-                    
-                    bodyVelocity.Velocity = Vector3.new(0, jumpPower, 0)
-                    
-                    -- Remover el impulso después de un tiempo
-                    game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
-                end
-            end
-        end
-    end)
-end
-
--- Reemplazar la función de salto anterior
-enhancedJumpBoost()
-
--- Sistema de notificaciones
-local function createNotification(text, color)
-    local notificationGui = Instance.new("ScreenGui")
-    notificationGui.Name = "Notification"
-    notificationGui.Parent = player:WaitForChild("PlayerGui")
-    
-    local notificationFrame = Instance.new("Frame")
-    notificationFrame.Size = UDim2.new(0, 300, 0, 60)
-    notificationFrame.Position = UDim2.new(1, -320, 0, 20)
-    notificationFrame.BackgroundColor3 = color or Color3.fromRGB(50, 50, 50)
-    notificationFrame.BorderSizePixel = 0
-    notificationFrame.Parent = notificationGui
-    
-    local notificationCorner = Instance.new("UICorner")
-    notificationCorner.CornerRadius = UDim.new(0, 10)
-    notificationCorner.Parent = notificationFrame
-    
-    local notificationText = Instance.new("TextLabel")
-    notificationText.Size = UDim2.new(1, -20, 1, -20)
-    notificationText.Position = UDim2.new(0, 10, 0, 10)
-    notificationText.BackgroundTransparency = 1
-    notificationText.Text = text
-    notificationText.TextColor3 = Color3.white
-    notificationText.TextScaled = true
-    notificationText.Font = Enum.Font.SourceSans
-    notificationText.Parent = notificationFrame
-    
-    -- Animación de entrada
-    notificationFrame:TweenPosition(UDim2.new(1, -320, 0, 20), "Out", "Quad", 0.5, true)
-    
-    -- Remover después de 3 segundos
-    wait(3)
-    notificationFrame:TweenPosition(UDim2.new(1, 0, 0, 20), "In", "Quad", 0.5, true)
-    wait(0.5)
-    notificationGui:Destroy()
-end
-
--- Agregar notificaciones a las funciones
-local originalFlingClick = flingButton.MouseButton1Click
-flingButton.MouseButton1Click:Connect(function()
-    spawn(function()
-        createNotification("Fling Player " .. (flingPlayerEnabled and "Activado" or "Desactivado"), 
-                         flingPlayerEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0))
-    end)
-end)
-
--- Tecla de acceso rápido para mostrar/ocultar el panel
-UserInputService.InputBegan:Connect(function(key, gameProcessed)
-    if not gameProcessed and key.KeyCode == Enum.KeyCode.Insert then
-        mainFrame.Visible = not mainFrame.Visible
-    end
-end)
-
--- Información del panel
-local infoLabel = Instance.new("TextLabel")
-infoLabel.Size = UDim2.new(1, 0, 0, 20)
-infoLabel.Position = UDim2.new(0, 0, 1, -20)
-infoLabel.BackgroundTransparency = 1
-infoLabel.Text = "Presiona INSERT para mostrar/ocultar | Arrastra desde el título"
-infoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-infoLabel.TextScaled = true
-infoLabel.Font = Enum.Font.SourceSans
-infoLabel.Parent = mainFrame
-
-print("Panel de Funciones cargado exitosamente!")
-print("Presiona INSERT para mostrar/ocultar el panel")
+-- Crear notificación de bienvenida
+createNotification("Panel cargado exitosamente!", Color3.fromRGB(0, 150, 0))
