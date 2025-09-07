@@ -77,6 +77,10 @@ local godBrainrots = {
 local activeHighlights = {}
 local rainbowConnections = {}
 
+-- Conexiones para el sistema continuo
+local speedConnection = nil
+local jumpConnection = nil
+
 -- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MovementPanel"
@@ -341,40 +345,88 @@ closeCorner.Parent = closeButton
 
 -- === FUNCIONES ===
 
--- Función para actualizar la velocidad del jugador
-local function updateSpeed()
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
+-- Sistema continuo para velocidad (se ejecuta cada frame)
+local function startSpeedLoop()
+    if speedConnection then
+        speedConnection:Disconnect()
+    end
     
+    speedConnection = RunService.Heartbeat:Connect(function()
+        if speedEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            if humanoid.WalkSpeed ~= currentSpeed then
+                humanoid.WalkSpeed = currentSpeed
+            end
+        end
+    end)
+end
+
+-- Sistema continuo para salto (se ejecuta cada frame)
+local function startJumpLoop()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+    end
+    
+    jumpConnection = RunService.Heartbeat:Connect(function()
+        if jumpEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            
+            -- Intentar ambos sistemas de salto para máxima compatibilidad
+            if humanoid:FindFirstChild("JumpHeight") then
+                local targetHeight = currentJumpPower * 0.35
+                if humanoid.JumpHeight ~= targetHeight then
+                    humanoid.JumpHeight = targetHeight
+                end
+            end
+            
+            if humanoid:FindFirstChild("JumpPower") then
+                if humanoid.JumpPower ~= currentJumpPower then
+                    humanoid.JumpPower = currentJumpPower
+                end
+            end
+        end
+    end)
+end
+
+-- Función para actualizar velocidad
+local function updateSpeed()
     if speedEnabled then
-        humanoid.WalkSpeed = currentSpeed
-        print("🏃 Velocidad activada:", currentSpeed)
+        startSpeedLoop()
+        print("🏃 Sistema de velocidad continuo activado:", currentSpeed)
     else
-        humanoid.WalkSpeed = 16 -- Velocidad normal
-        print("🚶 Velocidad normal: 16")
+        if speedConnection then
+            speedConnection:Disconnect()
+            speedConnection = nil
+        end
+        -- Restaurar velocidad normal
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = 16
+        end
+        print("🚶 Velocidad normal restaurada")
     end
 end
 
--- Función para actualizar la altura de salto del jugador
+-- Función para actualizar salto
 local function updateJump()
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    
     if jumpEnabled then
-        -- Usar JumpHeight en lugar de JumpPower para compatibilidad
-        if humanoid:FindFirstChild("JumpHeight") then
-            humanoid.JumpHeight = currentJumpPower * 0.35 -- Conversión aproximada
-        else
-            humanoid.JumpPower = currentJumpPower
-        end
-        print("🦘 Salto activado:", currentJumpPower)
+        startJumpLoop()
+        print("🦘 Sistema de salto continuo activado:", currentJumpPower)
     else
-        if humanoid:FindFirstChild("JumpHeight") then
-            humanoid.JumpHeight = 7.2 -- Altura normal
-        else
-            humanoid.JumpPower = 50 -- Altura normal
+        if jumpConnection then
+            jumpConnection:Disconnect()
+            jumpConnection = nil
         end
-        print("🦘 Salto normal")
+        -- Restaurar salto normal
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            if humanoid:FindFirstChild("JumpHeight") then
+                humanoid.JumpHeight = 7.2
+            end
+            if humanoid:FindFirstChild("JumpPower") then
+                humanoid.JumpPower = 50
+            end
+        end
+        print("🦘 Salto normal restaurado")
     end
 end
 
@@ -649,9 +701,7 @@ RunService.Heartbeat:Connect(function()
         speedSlider.Position = UDim2.new(relativePos, -10, 0, 0)
         currentSpeed = math.floor(16 + (relativePos * 184)) -- Rango de 16 a 200
         speedValueLabel.Text = tostring(currentSpeed)
-        if speedEnabled then
-            updateSpeed()
-        end
+        -- El sistema continuo se encarga automáticamente de aplicar el nuevo valor
     end
 end)
 
@@ -674,9 +724,7 @@ RunService.Heartbeat:Connect(function()
         jumpSlider.Position = UDim2.new(relativePos, -10, 0, 0)
         currentJumpPower = math.floor(50 + (relativePos * 450)) -- Rango de 50 a 500
         jumpValueLabel.Text = tostring(currentJumpPower)
-        if jumpEnabled then
-            updateJump()
-        end
+        -- El sistema continuo se encarga automáticamente de aplicar el nuevo valor
     end
 end)
 
@@ -684,6 +732,21 @@ end)
 closeButton.MouseButton1Click:Connect(function()
     animateButton(closeButton, 0.8)
     wait(0.2)
+    
+    -- Limpiar todas las conexiones antes de cerrar
+    if speedConnection then
+        speedConnection:Disconnect()
+    end
+    if jumpConnection then
+        jumpConnection:Disconnect()
+    end
+    
+    -- Limpiar ESP
+    for obj, highlight in pairs(activeHighlights) do
+        removeESP(obj)
+    end
+    
+    print("🔄 Panel cerrado - Todos los sistemas desactivados")
     screenGui:Destroy()
 end)
 
@@ -704,8 +767,17 @@ end)
 -- Actualizar cuando el jugador respawnea
 player.CharacterAdded:Connect(function()
     wait(1) -- Esperar a que el personaje se cargue completamente
-    updateSpeed()
-    updateJump()
+    
+    -- Reiniciar los sistemas si estaban activos
+    if speedEnabled then
+        startSpeedLoop()
+        print("🔄 Sistema de velocidad reiniciado después del respawn")
+    end
+    
+    if jumpEnabled then
+        startJumpLoop()
+        print("🔄 Sistema de salto reiniciado después del respawn")
+    end
 end)
 
 -- Inicializar
