@@ -1,13 +1,14 @@
--- Panel de Servidores Brainrots Secretos CORREGIDO - LocalScript para StarterGui
--- Presiona G para mostrar/ocultar panel, H para activar/desactivar ESP
--- Versión corregida para ReplicatedStorage.Models
+-- Sistema Avanzado de Escaneo de Servidores
+-- Busca servidores con brainrots secretos, jugadores con dinero alto, y análisis de calidad del servidor
+-- Utiliza métodos viables para encontrar servidores prometedores
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -15,524 +16,206 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- Variables globales
 local gui = nil
 local panelVisible = false
-local espActive = false
-local espObjects = {}
-local updateConnection = nil
-local modelsFolder = nil
+local scanActive = false
+local serverHistory = {}
+local currentServerData = {}
+local scanResults = {}
 
--- Lista exacta de Brainrots Secretos
+-- Lista completa de Brainrots Secretos
 local SECRET_BRAINROTS = {
-    "Karkerkar Kurkur",
-    "Los Matteos", 
-    "Bisonte Giuppitere",
-    "La vacca Saturno",
-    "Trenostruzzo Turbo 4000",
-    "Sammyni Sypderini",
-    "Chimpanzini Sipderini",
-    "Torrtuginni Dragonfrutini",
-    "Dul Dul Dul",
-    "Blackhole Goat",
-    "Los Spyderinis",
-    "Agarrini la Palini",
-    "Fragola La La La",
-    "Los Tralaleritos",
-    "Guerriro Digitale",
-    "Las Tralaleritas",
-    "Job Sahur",
-    "Las Vaquitas Saturnitas",
-    "Graipuss Medussi",
-    "No mi Hotspot",
-    "La sahur Combinasion",
-    "Pot Hotspot",
-    "Chicleteira Bicicleteira",
-    "Los No mis Hotspotsitos",
-    "La Grande Combinasion",
-    "Los Combinasionas",
-    "Nuclearo Dinossauro",
-    "Los Hotspotsitos",
-    "Tralaledon",
-    "Esok Sekolah",
-    "Ketupat Kepat",
-    "Los bros",
-    "La Supreme Combinasion",
-    "Ketchuru and Musturu",
-    "Garama And Madundung",
-    "Spaghetti Tualetti",
-    "Dragon Cannelloni"
+    "Karkerkar Kurkur", "Los Matteos", "Bisonte Giuppitere", "La vacca Saturno",
+    "Trenostruzzo Turbo 4000", "Sammyni Sypderini", "Chimpanzini Sipderini",
+    "Torrtuginni Dragonfrutini", "Dul Dul Dul", "Blackhole Goat", "Los Spyderinis",
+    "Agarrini la Palini", "Fragola La La La", "Los Tralaleritos", "Guerriro Digitale",
+    "Las Tralaleritas", "Job Sahur", "Las Vaquitas Saturnitas", "Graipuss Medussi",
+    "No mi Hotspot", "La sahur Combinasion", "Pot Hotspot", "Chicleteira Bicicleteira",
+    "Los No mis Hotspotsitos", "La Grande Combinasion", "Los Combinasionas",
+    "Nuclearo Dinossauro", "Los Hotspotsitos", "Tralaledon", "Esok Sekolah",
+    "Ketupat Kepat", "Los bros", "La Supreme Combinasion", "Ketchuru and Musturu",
+    "Garama And Madundung", "Spaghetti Tualetti", "Dragon Cannelloni"
 }
 
--- Función para esperar y obtener la carpeta Models
-local function getModelsFolder()
-    if modelsFolder and modelsFolder.Parent then
-        return modelsFolder
-    end
-    
-    modelsFolder = ReplicatedStorage:WaitForChild("Models", 10)
-    if modelsFolder then
-        print("✅ Carpeta Models encontrada en ReplicatedStorage")
-        return modelsFolder
-    else
-        warn("❌ No se pudo encontrar la carpeta Models en ReplicatedStorage")
-        return nil
-    end
-end
-
--- Función para limpiar ESP
-local function clearESP()
-    for _, espObj in pairs(espObjects) do
-        if espObj.highlight and espObj.highlight.Parent then
-            espObj.highlight:Destroy()
-        end
-        if espObj.billboardGui and espObj.billboardGui.Parent then
-            espObj.billboardGui:Destroy()
-        end
-        if espObj.beam and espObj.beam.Parent then
-            espObj.beam:Destroy()
-        end
-        if espObj.attachment0 and espObj.attachment0.Parent then
-            espObj.attachment0:Destroy()
-        end
-        if espObj.attachment1 and espObj.attachment1.Parent then
-            espObj.attachment1:Destroy()
-        end
-    end
-    espObjects = {}
-    print("🧹 ESP limpiado")
-end
-
--- Función para crear ESP en un brainrot
-local function createESPForModel(model)
-    if not model or not model.Parent or espObjects[model] then
-        return
-    end
-    
-    local primaryPart = model.PrimaryPart or model:FindFirstChildOfClass("Part")
-    if not primaryPart then
-        return
-    end
-    
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return
-    end
-    
-    local humanoidRootPart = character.HumanoidRootPart
-    
-    -- Crear Highlight
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "BrainrotESP"
-    highlight.Adornee = model
-    highlight.FillColor = Color3.fromRGB(255, 0, 255) -- Magenta brillante
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 0) -- Amarillo
-    highlight.FillTransparency = 0.3
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = model
-    
-    -- Crear BillboardGui con nombre y distancia
-    local billboardGui = Instance.new("BillboardGui")
-    billboardGui.Name = "BrainrotLabel"
-    billboardGui.Size = UDim2.new(0, 250, 0, 60)
-    billboardGui.StudsOffset = Vector3.new(0, 8, 0)
-    billboardGui.Adornee = primaryPart
-    billboardGui.AlwaysOnTop = true
-    billboardGui.Parent = workspace
-    
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    frame.BackgroundTransparency = 0.3
-    frame.BorderSizePixel = 0
-    frame.Parent = billboardGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = frame
-    
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 0.7, 0)
-    textLabel.Position = UDim2.new(0, 0, 0, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = "🧠 " .. model.Name
-    textLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.GothamBold
-    textLabel.TextStrokeTransparency = 0
-    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    textLabel.Parent = frame
-    
-    local distanceLabel = Instance.new("TextLabel")
-    distanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
-    distanceLabel.Position = UDim2.new(0, 0, 0.7, 0)
-    distanceLabel.BackgroundTransparency = 1
-    distanceLabel.Text = "📏 Calculando..."
-    distanceLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distanceLabel.TextScaled = true
-    distanceLabel.Font = Enum.Font.Gotham
-    distanceLabel.TextStrokeTransparency = 0
-    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    distanceLabel.Parent = frame
-    
-    -- Crear línea (Beam)
-    local attachment0 = Instance.new("Attachment")
-    attachment0.Name = "ESPAttachment0"
-    attachment0.Parent = humanoidRootPart
-    
-    local attachment1 = Instance.new("Attachment")
-    attachment1.Name = "ESPAttachment1"
-    attachment1.Parent = primaryPart
-    
-    local beam = Instance.new("Beam")
-    beam.Name = "ESPBeam"
-    beam.Attachment0 = attachment0
-    beam.Attachment1 = attachment1
-    beam.Color = ColorSequence.new(Color3.fromRGB(255, 255, 0))
-    beam.Width0 = 0.8
-    beam.Width1 = 0.8
-    beam.Transparency = NumberSequence.new(0.2)
-    beam.FaceCamera = true
-    beam.Parent = workspace
-    
-    -- Guardar referencias
-    espObjects[model] = {
-        highlight = highlight,
-        billboardGui = billboardGui,
-        beam = beam,
-        attachment0 = attachment0,
-        attachment1 = attachment1,
-        distanceLabel = distanceLabel
+-- Función para obtener información completa de jugadores
+local function getPlayerWealth(targetPlayer)
+    local wealth = {
+        robux = 0,
+        premium = false,
+        accountAge = 0,
+        hasExpensiveItems = false,
+        estimatedValue = 0
     }
     
-    print("✨ ESP creado para: " .. model.Name)
-end
-
--- Función para actualizar ESP y distancias
-local function updateESP()
-    if not espActive then return end
+    if not targetPlayer then return wealth end
     
-    local models = getModelsFolder()
-    if not models then
-        warn("⚠️ No se encontró la carpeta Models en ReplicatedStorage")
-        return
-    end
+    -- Obtener edad de cuenta
+    wealth.accountAge = targetPlayer.AccountAge
     
-    local character = player.Character
-    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    -- Verificar premium
+    local success, isPremium = pcall(function()
+        return targetPlayer.MembershipType == Enum.MembershipType.Premium
+    end)
+    if success then wealth.premium = isPremium end
     
-    -- Buscar nuevos brainrots
-    for _, brainrotName in pairs(SECRET_BRAINROTS) do
-        local brainrotModel = models:FindFirstChild(brainrotName)
-        if brainrotModel and brainrotModel:IsA("Model") and not espObjects[brainrotModel] then
-            createESPForModel(brainrotModel)
+    -- Estimar riqueza basada en accesorios y gamepass
+    local accessories = targetPlayer.Character and targetPlayer.Character:GetChildren() or {}
+    local expensiveCount = 0
+    
+    for _, accessory in pairs(accessories) do
+        if accessory:IsA("Accessory") then
+            expensiveCount = expensiveCount + 1
         end
     end
     
-    -- Actualizar distancias
-    if humanoidRootPart then
-        for model, espObj in pairs(espObjects) do
-            if model.Parent and espObj.distanceLabel then
-                local primaryPart = model.PrimaryPart or model:FindFirstChildOfClass("Part")
-                if primaryPart then
-                    local distance = (humanoidRootPart.Position - primaryPart.Position).Magnitude
-                    espObj.distanceLabel.Text = string.format("📏 %.1f studs", distance)
+    -- Calcular valor estimado
+    wealth.estimatedValue = (wealth.accountAge * 0.1) + (expensiveCount * 50)
+    if wealth.premium then wealth.estimatedValue = wealth.estimatedValue + 200 end
+    wealth.hasExpensiveItems = expensiveCount >= 3
+    
+    return wealth
+end
+
+-- Función para escanear brainrots secretos en todas las ubicaciones
+local function scanForSecretBrainrots()
+    local foundSecrets = {}
+    local searchLocations = {
+        workspace,
+        ReplicatedStorage,
+        ReplicatedStorage:FindFirstChild("Models"),
+        workspace:FindFirstChild("Models"),
+        workspace:FindFirstChild("Items"),
+        workspace:FindFirstChild("Brainrots"),
+        workspace:FindFirstChild("Spawns"),
+        workspace:FindFirstChild("Map")
+    }
+    
+    -- Buscar en todas las ubicaciones posibles
+    for _, location in pairs(searchLocations) do
+        if location then
+            for _, descendant in pairs(location:GetDescendants()) do
+                if descendant:IsA("Model") and table.find(SECRET_BRAINROTS, descendant.Name) then
+                    if not foundSecrets[descendant.Name] then
+                        foundSecrets[descendant.Name] = {
+                            model = descendant,
+                            location = location.Name,
+                            path = descendant:GetFullName()
+                        }
+                    end
                 end
             end
         end
     end
+    
+    return foundSecrets
 end
 
--- Función para buscar brainrots en ReplicatedStorage.Models
-local function findLocalBrainrots()
-    local foundBrainrots = {}
-    local models = getModelsFolder()
+-- Función para analizar calidad del servidor actual
+local function analyzeCurrentServer()
+    local serverData = {
+        timestamp = tick(),
+        jobId = game.JobId,
+        placeId = game.PlaceId,
+        playerCount = #Players:GetPlayers(),
+        secretBrainrots = {},
+        wealthyPlayers = {},
+        totalWealth = 0,
+        averageAge = 0,
+        premiumCount = 0,
+        serverScore = 0
+    }
     
-    if models then
-        for _, brainrotName in pairs(SECRET_BRAINROTS) do
-            local brainrotModel = models:FindFirstChild(brainrotName)
-            if brainrotModel and brainrotModel:IsA("Model") then
-                table.insert(foundBrainrots, brainrotName)
-            end
-        end
-        print("🔍 Búsqueda en ReplicatedStorage.Models completada: " .. #foundBrainrots .. " brainrots encontrados")
-    else
-        warn("❌ No se pudo acceder a ReplicatedStorage.Models")
+    -- Escanear brainrots secretos
+    serverData.secretBrainrots = scanForSecretBrainrots()
+    local secretCount = 0
+    for _ in pairs(serverData.secretBrainrots) do
+        secretCount = secretCount + 1
     end
     
-    return foundBrainrots
-end
-
--- Función mejorada para obtener lista de servidores (simulada pero más realista)
-local function getServerList()
-    local servers = {}
-    local currentPlayers = #Players:GetPlayers()
+    -- Analizar jugadores
+    local totalAge = 0
+    local totalWealth = 0
     
-    -- Añadir servidor actual primero
-    local localBrainrots = findLocalBrainrots()
-    table.insert(servers, {
-        id = "CURRENT_SERVER",
-        region = "Servidor Actual",
-        players = currentPlayers,
-        maxPlayers = 50,
-        ping = 0,
-        brainrots = localBrainrots,
-        hasSecrets = #localBrainrots > 0,
-        isCurrent = true
-    })
-    
-    -- Simular otros servidores con patrones más realistas
-    local regions = {"US-East", "US-West", "Europe", "Asia", "Brazil", "Australia"}
-    local serverCount = math.random(8, 15)
-    
-    for i = 1, serverCount do
-        local region = regions[math.random(1, #regions)]
-        local playerCount = math.random(5, 48)
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        local wealth = getPlayerWealth(targetPlayer)
+        totalAge = totalAge + wealth.accountAge
+        totalWealth = totalWealth + wealth.estimatedValue
         
-        -- Probabilidad realista de tener brainrots secretos
-        local hasSecrets = math.random(1, 4) == 1 -- 25% de probabilidad
-        local serverBrainrots = {}
-        
-        if hasSecrets then
-            local brainrotCount = math.random(1, 4) -- 1-4 brainrots por servidor
-            local availableBrainrots = {unpack(SECRET_BRAINROTS)}
-            
-            for j = 1, brainrotCount do
-                if #availableBrainrots > 0 then
-                    local randomIndex = math.random(1, #availableBrainrots)
-                    local selectedBrainrot = availableBrainrots[randomIndex]
-                    table.insert(serverBrainrots, selectedBrainrot)
-                    table.remove(availableBrainrots, randomIndex)
-                end
-            end
+        if wealth.premium then
+            serverData.premiumCount = serverData.premiumCount + 1
         end
         
-        -- Solo añadir servidores que tienen brainrots secretos (excepto algunos aleatorios para variedad)
-        if hasSecrets or math.random(1, 6) == 1 then
-            table.insert(servers, {
-                id = string.format("SRV_%s_%04d", string.upper(string.sub(region, 1, 2)), math.random(1000, 9999)),
-                region = region,
-                players = playerCount,
-                maxPlayers = 50,
-                ping = math.random(15, 250),
-                brainrots = serverBrainrots,
-                hasSecrets = hasSecrets,
-                isCurrent = false
+        if wealth.estimatedValue >= 100 or wealth.hasExpensiveItems then
+            table.insert(serverData.wealthyPlayers, {
+                name = targetPlayer.Name,
+                wealth = wealth
             })
         end
     end
     
-    -- Ordenar: servidor actual primero, luego por cantidad de brainrots
-    table.sort(servers, function(a, b)
-        if a.isCurrent then return true end
-        if b.isCurrent then return false end
-        if a.hasSecrets and not b.hasSecrets then return true end
-        if b.hasSecrets and not a.hasSecrets then return false end
-        return #a.brainrots > #b.brainrots
-    end)
+    serverData.averageAge = serverData.playerCount > 0 and (totalAge / serverData.playerCount) or 0
+    serverData.totalWealth = totalWealth
     
-    return servers
+    -- Calcular puntuación del servidor
+    local brainrotScore = secretCount * 25
+    local wealthScore = math.min(totalWealth / 50, 50)
+    local premiumScore = (serverData.premiumCount / math.max(serverData.playerCount, 1)) * 30
+    local ageScore = math.min(serverData.averageAge / 100, 20)
+    
+    serverData.serverScore = brainrotScore + wealthScore + premiumScore + ageScore
+    
+    return serverData
 end
 
--- Función para actualizar lista de servidores
-local function updateServerList()
-    if not gui or not panelVisible then return end
+-- Función para realizar servidor hopping inteligente
+local function intelligentServerHop()
+    local currentData = analyzeCurrentServer()
     
-    local scrollFrame = gui.MainFrame.ServerScrollFrame
-    local statusLabel = gui.MainFrame.ControlFrame.UpdateStatus
-    
-    statusLabel.Text = "🔄 Escaneando servidores..."
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-    
-    -- Obtener lista de servidores
-    local servers = getServerList()
-    
-    -- Limpiar lista anterior
-    for _, child in pairs(scrollFrame:GetChildren()) do
-        if child:IsA("Frame") and child.Name:find("Server_") then
-            child:Destroy()
-        end
+    -- Guardar datos del servidor actual
+    if not serverHistory[game.JobId] then
+        serverHistory[game.JobId] = currentData
+        print("📊 Servidor guardado - Puntuación: " .. math.floor(currentData.serverScore))
     end
     
-    local yOffset = 0
-    local serversWithSecrets = 0
-    
-    for i, server in pairs(servers) do
-        if server.hasSecrets or server.isCurrent then
-            serversWithSecrets = serversWithSecrets + 1
-            
-            -- Frame del servidor
-            local serverFrame = Instance.new("Frame")
-            serverFrame.Name = "Server_" .. i
-            serverFrame.Size = UDim2.new(1, -10, 0, 110)
-            serverFrame.Position = UDim2.new(0, 5, 0, yOffset)
-            
-            -- Colores según el tipo de servidor
-            if server.isCurrent then
-                serverFrame.BackgroundColor3 = Color3.fromRGB(70, 50, 90) -- Morado para actual
-            elseif #server.brainrots >= 3 then
-                serverFrame.BackgroundColor3 = Color3.fromRGB(90, 70, 50) -- Dorado para muchos brainrots
-            elseif server.hasSecrets then
-                serverFrame.BackgroundColor3 = Color3.fromRGB(50, 70, 50) -- Verde para con secretos
-            else
-                serverFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- Gris normal
-            end
-            
-            serverFrame.BorderSizePixel = 0
-            serverFrame.Parent = scrollFrame
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 10)
-            corner.Parent = serverFrame
-            
-            -- Borde especial para servidor actual
-            if server.isCurrent then
-                local stroke = Instance.new("UIStroke")
-                stroke.Color = Color3.fromRGB(255, 100, 255)
-                stroke.Thickness = 3
-                stroke.Parent = serverFrame
-            end
-            
-            -- Información del servidor
-            local serverInfo = Instance.new("TextLabel")
-            serverInfo.Size = UDim2.new(0.65, 0, 0.25, 0)
-            serverInfo.Position = UDim2.new(0, 10, 0, 5)
-            serverInfo.BackgroundTransparency = 1
-            
-            local statusIcon = server.isCurrent and "📍" or (server.hasSecrets and "✨" or "🌐")
-            local serverText = server.isCurrent and "SERVIDOR ACTUAL" or server.id
-            
-            serverInfo.Text = string.format("%s %s | 👥 %d/%d | 📡 %dms", 
-                statusIcon, serverText, server.players, server.maxPlayers, server.ping)
-            serverInfo.TextColor3 = Color3.fromRGB(255, 255, 255)
-            serverInfo.TextScaled = true
-            serverInfo.Font = Enum.Font.Gotham
-            serverInfo.TextXAlignment = Enum.TextXAlignment.Left
-            serverInfo.Parent = serverFrame
-            
-            -- Región
-            local regionLabel = Instance.new("TextLabel")
-            regionLabel.Size = UDim2.new(0.65, 0, 0.2, 0)
-            regionLabel.Position = UDim2.new(0, 10, 0.25, 0)
-            regionLabel.BackgroundTransparency = 1
-            regionLabel.Text = "🌍 " .. server.region
-            regionLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-            regionLabel.TextScaled = true
-            regionLabel.Font = Enum.Font.Gotham
-            regionLabel.TextXAlignment = Enum.TextXAlignment.Left
-            regionLabel.Parent = serverFrame
-            
-            -- Estado de brainrots
-            local brainrotStatus = Instance.new("TextLabel")
-            brainrotStatus.Size = UDim2.new(0.65, 0, 0.25, 0)
-            brainrotStatus.Position = UDim2.new(0, 10, 0.45, 0)
-            brainrotStatus.BackgroundTransparency = 1
-            
-            if #server.brainrots > 0 then
-                brainrotStatus.Text = string.format("🧠 %d Brainrots Secretos Detectados", #server.brainrots)
-                brainrotStatus.TextColor3 = Color3.fromRGB(255, 150, 255)
-            else
-                brainrotStatus.Text = "❌ Sin Brainrots Secretos"
-                brainrotStatus.TextColor3 = Color3.fromRGB(150, 150, 150)
-            end
-            
-            brainrotStatus.TextScaled = true
-            brainrotStatus.Font = Enum.Font.GothamBold
-            brainrotStatus.TextXAlignment = Enum.TextXAlignment.Left
-            brainrotStatus.Parent = serverFrame
-            
-            -- Lista específica de brainrots
-            if #server.brainrots > 0 then
-                local brainrotList = Instance.new("TextLabel")
-                brainrotList.Size = UDim2.new(0.65, 0, 0.25, 0)
-                brainrotList.Position = UDim2.new(0, 10, 0.7, 0)
-                brainrotList.BackgroundTransparency = 1
-                
-                local listText = "📋 " .. table.concat(server.brainrots, " • ")
-                if #listText > 90 then
-                    listText = string.sub(listText, 1, 87) .. "..."
-                end
-                
-                brainrotList.Text = listText
-                brainrotList.TextColor3 = Color3.fromRGB(150, 255, 150)
-                brainrotList.TextScaled = true
-                brainrotList.Font = Enum.Font.Gotham
-                brainrotList.TextXAlignment = Enum.TextXAlignment.Left
-                brainrotList.Parent = serverFrame
-            end
-            
-            -- Botón de acción
-            local actionButton = Instance.new("TextButton")
-            actionButton.Size = UDim2.new(0.3, -10, 0.75, 0)
-            actionButton.Position = UDim2.new(0.7, 0, 0.125, 0)
-            
-            if server.isCurrent then
-                actionButton.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
-                actionButton.Text = "📍\nACTUAL"
-            elseif server.hasSecrets then
-                actionButton.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-                actionButton.Text = "🚀\nUNIRSE"
-            else
-                actionButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-                actionButton.Text = "⚪\nUNIRSE"
-            end
-            
-            actionButton.BorderSizePixel = 0
-            actionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            actionButton.TextScaled = true
-            actionButton.Font = Enum.Font.GothamBold
-            actionButton.Parent = serverFrame
-            
-            local buttonCorner = Instance.new("UICorner")
-            buttonCorner.CornerRadius = UDim.new(0, 8)
-            buttonCorner.Parent = actionButton
-            
-            -- Evento del botón
-            if not server.isCurrent then
-                actionButton.MouseButton1Click:Connect(function()
-                    if #server.brainrots > 0 then
-                        print("🚀 Intentando unirse al servidor: " .. server.id)
-                        print("✨ Brainrots disponibles: " .. table.concat(server.brainrots, ", "))
-                        print("📍 Región: " .. server.region .. " | Jugadores: " .. server.players)
-                        
-                        -- Aquí irían las funciones de teleport reales
-                        -- En un entorno real necesitarías el JobId específico del servidor
-                        warn("⚠️ Teleport simulado - En el juego real necesitarías JobId específico")
-                    else
-                        print("❌ Este servidor no tiene brainrots secretos")
-                    end
-                end)
-            end
-            
-            yOffset = yOffset + 115
-        end
+    -- Si el servidor actual es muy bueno, preguntar antes de salir
+    if currentData.serverScore >= 75 then
+        warn("⭐ ¡SERVIDOR DE ALTA CALIDAD DETECTADO!")
+        warn("📊 Puntuación: " .. math.floor(currentData.serverScore))
+        warn("🧠 Brainrots secretos: " .. table.concat(table.pack(pairs(currentData.secretBrainrots)), ", "))
+        warn("💰 Jugadores ricos: " .. #currentData.wealthyPlayers)
+        warn("💎 Premium: " .. currentData.premiumCount)
+        return false
     end
     
-    -- Actualizar canvas size
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset + 10)
+    print("🚀 Buscando servidor mejor...")
+    print("📊 Servidor actual - Puntuación: " .. math.floor(currentData.serverScore))
     
-    -- Actualizar estado
-    local totalWithSecrets = serversWithSecrets - (servers[1].isCurrent and 1 or 0)
-    statusLabel.Text = string.format("✅ %d servidores encontrados | %d con brainrots", 
-        #servers, totalWithSecrets)
-    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    -- Realizar teleport
+    local success, result = pcall(function()
+        TeleportService:Teleport(game.PlaceId, player)
+    end)
     
-    print("📊 Actualización completada: " .. #servers .. " servidores, " .. totalWithSecrets .. " con brainrots secretos")
+    if not success then
+        warn("❌ Error al cambiar servidor: " .. tostring(result))
+        return false
+    end
+    
+    return true
 end
 
 -- Función para crear GUI principal
-local function createMainGUI()
-    local existing = playerGui:FindFirstChild("BrainrotServerGUI")
+local function createAdvancedGUI()
+    local existing = playerGui:FindFirstChild("AdvancedServerScanner")
     if existing then existing:Destroy() end
     
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "BrainrotServerGUI"
+    screenGui.Name = "AdvancedServerScanner"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = playerGui
     
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 750, 0, 650)
-    mainFrame.Position = UDim2.new(0.5, -375, -1, -325)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+    mainFrame.Size = UDim2.new(0, 600, 0, 500)
+    mainFrame.Position = UDim2.new(0.5, -300, -1, -250)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
     
@@ -540,47 +223,50 @@ local function createMainGUI()
     mainCorner.CornerRadius = UDim.new(0, 15)
     mainCorner.Parent = mainFrame
     
-    -- Gradiente de fondo
-    local gradient = Instance.new("UIGradient")
-    gradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 10, 30)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 20))
-    }
-    gradient.Rotation = 45
-    gradient.Parent = mainFrame
-    
     -- Título
     local title = Instance.new("TextLabel")
-    title.Name = "Title"
     title.Size = UDim2.new(1, -20, 0, 50)
     title.Position = UDim2.new(0, 10, 0, 10)
     title.BackgroundTransparency = 1
-    title.Text = "🧠 STEAL A BRAINROT - BUSCADOR AVANZADO DE SECRETOS"
-    title.TextColor3 = Color3.fromRGB(255, 100, 255)
+    title.Text = "🎯 SISTEMA AVANZADO DE SERVIDORES"
+    title.TextColor3 = Color3.fromRGB(255, 150, 50)
     title.TextScaled = true
     title.Font = Enum.Font.GothamBold
     title.Parent = mainFrame
     
-    -- Información local
-    local localBrainrots = findLocalBrainrots()
-    local subtitle = Instance.new("TextLabel")
-    subtitle.Name = "Subtitle"
-    subtitle.Size = UDim2.new(1, -20, 0, 25)
-    subtitle.Position = UDim2.new(0, 10, 0, 60)
-    subtitle.BackgroundTransparency = 1
-    subtitle.Text = string.format("📍 ReplicatedStorage.Models: %d/%d brainrots secretos • %d jugadores online", 
-        #localBrainrots, #SECRET_BRAINROTS, #Players:GetPlayers())
-    subtitle.TextColor3 = Color3.fromRGB(150, 255, 150)
-    subtitle.TextScaled = true
-    subtitle.Font = Enum.Font.Gotham
-    subtitle.Parent = mainFrame
+    -- Panel de información del servidor
+    local infoFrame = Instance.new("ScrollingFrame")
+    infoFrame.Name = "InfoFrame"
+    infoFrame.Size = UDim2.new(1, -20, 0, 280)
+    infoFrame.Position = UDim2.new(0, 10, 0, 70)
+    infoFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+    infoFrame.BorderSizePixel = 0
+    infoFrame.ScrollBarThickness = 8
+    infoFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    infoFrame.Parent = mainFrame
     
-    -- Frame de controles
+    local infoCorner = Instance.new("UICorner")
+    infoCorner.CornerRadius = UDim.new(0, 10)
+    infoCorner.Parent = infoFrame
+    
+    local infoLabel = Instance.new("TextLabel")
+    infoLabel.Name = "InfoLabel"
+    infoLabel.Size = UDim2.new(1, -20, 1, 0)
+    infoLabel.Position = UDim2.new(0, 10, 0, 0)
+    infoLabel.BackgroundTransparency = 1
+    infoLabel.Text = "🔄 Analizando servidor..."
+    infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    infoLabel.TextSize = 14
+    infoLabel.Font = Enum.Font.Gotham
+    infoLabel.TextYAlignment = Enum.TextYAlignment.Top
+    infoLabel.TextWrapped = true
+    infoLabel.Parent = infoFrame
+    
+    -- Panel de controles
     local controlFrame = Instance.new("Frame")
-    controlFrame.Name = "ControlFrame"
-    controlFrame.Size = UDim2.new(1, -20, 0, 50)
-    controlFrame.Position = UDim2.new(0, 10, 0, 90)
-    controlFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    controlFrame.Size = UDim2.new(1, -20, 0, 120)
+    controlFrame.Position = UDim2.new(0, 10, 0, 360)
+    controlFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
     controlFrame.BorderSizePixel = 0
     controlFrame.Parent = mainFrame
     
@@ -588,91 +274,194 @@ local function createMainGUI()
     controlCorner.CornerRadius = UDim.new(0, 10)
     controlCorner.Parent = controlFrame
     
-    -- Botón ESP
-    local espButton = Instance.new("TextButton")
-    espButton.Name = "ESPButton"
-    espButton.Size = UDim2.new(0.22, -5, 1, -10)
-    espButton.Position = UDim2.new(0, 5, 0, 5)
-    espButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    espButton.BorderSizePixel = 0
-    espButton.Text = "🔍 ESP: OFF"
-    espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    espButton.TextScaled = true
-    espButton.Font = Enum.Font.GothamBold
-    espButton.Parent = controlFrame
+    -- Botón de análisis
+    local analyzeButton = Instance.new("TextButton")
+    analyzeButton.Size = UDim2.new(0.48, -5, 0.35, 0)
+    analyzeButton.Position = UDim2.new(0, 10, 0, 10)
+    analyzeButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+    analyzeButton.BorderSizePixel = 0
+    analyzeButton.Text = "🔍 ANALIZAR SERVIDOR"
+    analyzeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    analyzeButton.TextScaled = true
+    analyzeButton.Font = Enum.Font.GothamBold
+    analyzeButton.Parent = controlFrame
     
-    local espCorner = Instance.new("UICorner")
-    espCorner.CornerRadius = UDim.new(0, 8)
-    espCorner.Parent = espButton
+    local analyzeCorner = Instance.new("UICorner")
+    analyzeCorner.CornerRadius = UDim.new(0, 8)
+    analyzeCorner.Parent = analyzeButton
     
-    -- Status de actualización
-    local updateStatus = Instance.new("TextLabel")
-    updateStatus.Name = "UpdateStatus"
-    updateStatus.Size = UDim2.new(0.5, -5, 1, -10)
-    updateStatus.Position = UDim2.new(0.22, 5, 0, 5)
-    updateStatus.BackgroundTransparency = 1
-    updateStatus.Text = "🔄 Auto-actualización cada 5 segundos"
-    updateStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
-    updateStatus.TextScaled = true
-    updateStatus.Font = Enum.Font.Gotham
-    updateStatus.Parent = controlFrame
+    -- Botón de servidor hopping
+    local hopButton = Instance.new("TextButton")
+    hopButton.Size = UDim2.new(0.48, -5, 0.35, 0)
+    hopButton.Position = UDim2.new(0.52, 0, 0, 10)
+    hopButton.BackgroundColor3 = Color3.fromRGB(250, 150, 50)
+    hopButton.BorderSizePixel = 0
+    hopButton.Text = "🚀 BUSCAR MEJOR SERVIDOR"
+    hopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    hopButton.TextScaled = true
+    hopButton.Font = Enum.Font.GothamBold
+    hopButton.Parent = controlFrame
     
-    -- Botón refrescar
-    local refreshButton = Instance.new("TextButton")
-    refreshButton.Name = "RefreshButton"
-    refreshButton.Size = UDim2.new(0.28, -5, 1, -10)
-    refreshButton.Position = UDim2.new(0.72, 5, 0, 5)
-    refreshButton.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
-    refreshButton.BorderSizePixel = 0
-    refreshButton.Text = "🔄 REFRESCAR AHORA"
-    refreshButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    refreshButton.TextScaled = true
-    refreshButton.Font = Enum.Font.GothamBold
-    refreshButton.Parent = controlFrame
+    local hopCorner = Instance.new("UICorner")
+    hopCorner.CornerRadius = UDim.new(0, 8)
+    hopCorner.Parent = hopButton
     
-    local refreshCorner = Instance.new("UICorner")
-    refreshCorner.CornerRadius = UDim.new(0, 8)
-    refreshCorner.Parent = refreshButton
+    -- Botón de servidor hopping automático
+    local autoHopButton = Instance.new("TextButton")
+    autoHopButton.Size = UDim2.new(1, -20, 0.35, 0)
+    autoHopButton.Position = UDim2.new(0, 10, 0.4, 0)
+    autoHopButton.BackgroundColor3 = Color3.fromRGB(150, 50, 250)
+    autoHopButton.BorderSizePixel = 0
+    autoHopButton.Text = "⚡ AUTO-HOP (Buscar Automáticamente)"
+    autoHopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    autoHopButton.TextScaled = true
+    autoHopButton.Font = Enum.Font.GothamBold
+    autoHopButton.Parent = controlFrame
     
-    -- ScrollFrame para servidores
-    local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Name = "ServerScrollFrame"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -155)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 145)
-    scrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 12
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 255)
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scrollFrame.Parent = mainFrame
+    local autoHopCorner = Instance.new("UICorner")
+    autoHopCorner.CornerRadius = UDim.new(0, 8)
+    autoHopCorner.Parent = autoHopButton
     
-    local scrollCorner = Instance.new("UICorner")
-    scrollCorner.CornerRadius = UDim.new(0, 10)
-    scrollCorner.Parent = scrollFrame
+    -- Estado del auto-hop
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, -20, 0.25, 0)
+    statusLabel.Position = UDim2.new(0, 10, 0.75, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "🎮 G = Panel | A = Analizar | S = Saltar servidor"
+    statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    statusLabel.TextScaled = true
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Parent = controlFrame
     
-    -- Eventos
-    espButton.MouseButton1Click:Connect(function()
-        espActive = not espActive
-        if espActive then
-            espButton.Text = "🔍 ESP: ON"
-            espButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-            print("✅ ESP de Brainrots Secretos ACTIVADO")
-            print("🔍 Buscando en ReplicatedStorage.Models...")
-            updateESP()
-        else
-            espButton.Text = "🔍 ESP: OFF"
-            espButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            print("❌ ESP de Brainrots Secretos DESACTIVADO")
-            clearESP()
+    -- Función para actualizar información
+    local function updateServerInfo()
+        local data = analyzeCurrentServer()
+        local secretsList = {}
+        for name, info in pairs(data.secretBrainrots) do
+            table.insert(secretsList, string.format("%s (%s)", name, info.location))
+        end
+        
+        local wealthyList = {}
+        for _, playerData in pairs(data.wealthyPlayers) do
+            table.insert(wealthyList, string.format("%s (%.0f)", playerData.name, playerData.wealth.estimatedValue))
+        end
+        
+        local infoText = string.format([[
+📊 ANÁLISIS DEL SERVIDOR ACTUAL
+═══════════════════════════════════
+
+🏆 PUNTUACIÓN GENERAL: %.1f/100
+%s
+
+🧠 BRAINROTS SECRETOS ENCONTRADOS: %d
+%s
+
+💰 JUGADORES CON ALTO VALOR: %d
+%s
+
+👥 ESTADÍSTICAS DE JUGADORES:
+• Total: %d jugadores
+• Premium: %d (%.1f%%)
+• Edad promedio: %.0f días
+• Riqueza total estimada: %.0f
+
+🔍 RECOMENDACIÓN:
+%s
+
+🕒 Última actualización: %s
+]], 
+            data.serverScore,
+            data.serverScore >= 75 and "⭐ SERVIDOR EXCELENTE" or 
+            data.serverScore >= 50 and "✅ SERVIDOR BUENO" or 
+            data.serverScore >= 25 and "⚠️  SERVIDOR REGULAR" or "❌ SERVIDOR POBRE",
+            
+            table.getn(secretsList),
+            table.getn(secretsList) > 0 and ("📋 " .. table.concat(secretsList, "\n📋 ")) or "❌ Ninguno encontrado",
+            
+            #wealthyList,
+            #wealthyList > 0 and ("💎 " .. table.concat(wealthyList, "\n💎 ")) or "❌ Ninguno detectado",
+            
+            data.playerCount,
+            data.premiumCount,
+            (data.premiumCount / math.max(data.playerCount, 1)) * 100,
+            data.averageAge,
+            data.totalWealth,
+            
+            data.serverScore >= 75 and "🏆 ¡Quedarse en este servidor!" or
+            data.serverScore >= 50 and "✅ Buen servidor para quedarse" or
+            data.serverScore >= 25 and "⚖️  Considerar buscar otro servidor" or "🚀 Cambiar de servidor recomendado",
+            
+            os.date("%H:%M:%S")
+        )
+        
+        infoLabel.Text = infoText
+        
+        -- Ajustar tamaño del canvas
+        local textBounds = infoLabel.TextBounds
+        infoLabel.Size = UDim2.new(1, -20, 0, textBounds.Y + 20)
+        infoFrame.CanvasSize = UDim2.new(0, 0, 0, textBounds.Y + 40)
+        
+        currentServerData = data
+    end
+    
+    -- Eventos de botones
+    analyzeButton.MouseButton1Click:Connect(updateServerInfo)
+    
+    hopButton.MouseButton1Click:Connect(function()
+        updateServerInfo()
+        if not intelligentServerHop() then
+            hopButton.Text = "⭐ SERVIDOR EXCELENTE"
+            hopButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            task.wait(3)
+            hopButton.Text = "🚀 BUSCAR MEJOR SERVIDOR"
+            hopButton.BackgroundColor3 = Color3.fromRGB(250, 150, 50)
         end
     end)
     
-    refreshButton.MouseButton1Click:Connect(function()
-        print("🔄 Refrescando servidores manualmente...")
-        updateServerList()
+    autoHopButton.MouseButton1Click:Connect(function()
+        scanActive = not scanActive
+        if scanActive then
+            autoHopButton.Text = "⏹️ DETENER AUTO-HOP"
+            autoHopButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            statusLabel.Text = "🔄 Auto-hop activado - Buscando servidores..."
+            
+            -- Iniciar búsqueda automática
+            task.spawn(function()
+                while scanActive do
+                    updateServerInfo()
+                    task.wait(2)
+                    
+                    if scanActive and currentServerData.serverScore < 60 then
+                        statusLabel.Text = "🚀 Cambiando servidor automáticamente..."
+                        task.wait(1)
+                        if not intelligentServerHop() then
+                            scanActive = false
+                            break
+                        end
+                    else
+                        statusLabel.Text = "✅ Servidor satisfactorio encontrado!"
+                        scanActive = false
+                        break
+                    end
+                end
+                
+                autoHopButton.Text = "⚡ AUTO-HOP (Buscar Automáticamente)"
+                autoHopButton.BackgroundColor3 = Color3.fromRGB(150, 50, 250)
+                statusLabel.Text = "🎮 G = Panel | A = Analizar | S = Saltar servidor"
+            end)
+        else
+            autoHopButton.Text = "⚡ AUTO-HOP (Buscar Automáticamente)"
+            autoHopButton.BackgroundColor3 = Color3.fromRGB(150, 50, 250)
+            statusLabel.Text = "🎮 G = Panel | A = Analizar | S = Saltar servidor"
+        end
     end)
     
     gui = screenGui
+    
+    -- Análisis inicial
+    task.wait(1)
+    updateServerInfo()
+    
     return screenGui
 end
 
@@ -683,7 +472,7 @@ local function togglePanel()
     panelVisible = not panelVisible
     local frame = gui.MainFrame
     
-    local targetPos = panelVisible and UDim2.new(0.5, -375, 0.5, -325) or UDim2.new(0.5, -375, -1, -325)
+    local targetPos = panelVisible and UDim2.new(0.5, -300, 0.5, -250) or UDim2.new(0.5, -300, -1, -250)
     
     local tween = TweenService:Create(
         frame,
@@ -693,39 +482,15 @@ local function togglePanel()
     tween:Play()
     
     if panelVisible then
-        print("📱 Panel mostrado (Presiona G para ocultar)")
-        updateServerList()
-        
-        -- Auto-actualización cada 5 segundos
-        updateConnection = task.spawn(function()
-            while panelVisible and gui do
-                task.wait(5)
-                if panelVisible then
-                    updateServerList()
-                end
-            end
-        end)
+        print("📱 Panel mostrado - Analizando servidor actual...")
     else
-        print("📱 Panel ocultado (Presiona G para mostrar)")
-        if updateConnection then
-            task.cancel(updateConnection)
-            updateConnection = nil
-        end
+        print("📱 Panel ocultado")
+        scanActive = false
     end
 end
 
 -- Crear GUI
-createMainGUI()
-
--- Loop continuo para ESP (cada 0.5 segundos para mejor rendimiento)
-task.spawn(function()
-    while true do
-        if espActive then
-            updateESP()
-        end
-        task.wait(0.5)
-    end
-end)
+createAdvancedGUI()
 
 -- Controles de teclado
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -733,43 +498,60 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     
     if input.KeyCode == Enum.KeyCode.G then
         togglePanel()
-    elseif input.KeyCode == Enum.KeyCode.H then
+    elseif input.KeyCode == Enum.KeyCode.A then
         if gui then
-            gui.MainFrame.ControlFrame.ESPButton.MouseButton1Click:Fire()
+            gui.MainFrame.ControlFrame:FindFirstChild("TextButton").MouseButton1Click:Fire()
         end
+    elseif input.KeyCode == Enum.KeyCode.S then
+        intelligentServerHop()
     end
 end)
 
--- Limpiar al salir
-Players.PlayerRemoving:Connect(function(playerLeaving)
-    if playerLeaving == player then
-        clearESP()
-        if updateConnection then
-            task.cancel(updateConnection)
-        end
-    end
-end)
-
--- Mensaje inicial mejorado
-print("🚀 Panel de Brainrots Secretos CORREGIDO cargado!")
-print("📂 Ubicación: ReplicatedStorage.Models")
-print("🎮 Controles:")
-print("   G - Mostrar/ocultar panel de servidores")
-print("   H - Activar/desactivar ESP de brainrots")
-print("🧠 " .. #SECRET_BRAINROTS .. " brainrots en la base de datos")
-
--- Verificar carpeta Models
+-- Análisis automático cada 30 segundos
 task.spawn(function()
-    local models = getModelsFolder()
-    if models then
-        local localBrainrots = findLocalBrainrots()
-        if #localBrainrots > 0 then
-            print("✨ ¡Servidor actual tiene " .. #localBrainrots .. " brainrots secretos!")
-            print("📋 Encontrados: " .. table.concat(localBrainrots, ", "))
-        else
-            print("📍 Servidor actual sin brainrots secretos en ReplicatedStorage.Models")
+    while true do
+        if panelVisible and gui then
+            local analyzeButton = gui.MainFrame.ControlFrame:FindFirstChild("TextButton")
+            if analyzeButton then
+                analyzeButton.MouseButton1Click:Fire()
+            end
         end
-    else
-        warn("❌ No se pudo encontrar ReplicatedStorage.Models")
+        task.wait(30)
+    end
+end)
+
+-- Mensaje inicial
+print("🎯 Sistema Avanzado de Servidores cargado!")
+print("🎮 Controles:")
+print("   G - Mostrar/ocultar panel")
+print("   A - Analizar servidor actual")
+print("   S - Saltar a otro servidor")
+print("🔍 Busca: Brainrots secretos, jugadores ricos, servidores de calidad")
+print("⚡ Incluye modo automático para encontrar los mejores servidores")
+
+-- Análisis inicial del servidor
+task.spawn(function()
+    task.wait(5)
+    local initialData = analyzeCurrentServer()
+    print(string.format("📊 Servidor actual - Puntuación: %.1f/100", initialData.serverScore))
+    
+    local secretCount = 0
+    for _ in pairs(initialData.secretBrainrots) do secretCount = secretCount + 1 end
+    
+    if secretCount > 0 then
+        print("🧠 Brainrots secretos encontrados: " .. secretCount)
+        for name, info in pairs(initialData.secretBrainrots) do
+            print("  ✨ " .. name .. " (" .. info.location .. ")")
+        end
+    end
+    
+    if #initialData.wealthyPlayers > 0 then
+        print("💰 Jugadores ricos detectados: " .. #initialData.wealthyPlayers)
+    end
+    
+    if initialData.serverScore >= 75 then
+        print("⭐ ¡EXCELENTE! Este servidor tiene alta calidad")
+    elseif initialData.serverScore < 25 then
+        print("💡 Sugerencia: Usar 'S' o auto-hop para encontrar mejor servidor")
     end
 end)
