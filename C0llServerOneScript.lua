@@ -1,317 +1,609 @@
--- Server Script - Coloca en ServerScriptService
+-- Panel de Funciones para Roblox
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
--- Lista completa de brainrots
-local BRAINROTS = {
-    "Noobini Pizzanini", "Lirili Larila", "TIM Cheese", "Flurifura", "Talpa Di Fero",
-    "Svinia Bombardino", "Pipi Kiwi", "Racooni Jandelini", "Pipi Corni", "Trippi Troppi",
-    "Tung Tung Tung Sahur", "Gangster Footera", "Bandito Bobritto", "Boneca Ambalabu",
-    "Cacto Hipopotamo", "Ta Ta Ta Ta Sahur", "Tric Trac Baraboom", "Steal a Brainrot Pipi Avocado",
-    "Cappuccino Assassino", "Brr Brr Patapin", "Trulimero Trulicina", "Bambini Crostini",
-    "Bananita Dolphinita", "Perochello Lemonchello", "Brri Brri Bicus Dicus Bombicus",
-    "Avocadini Guffo", "Salamino Penguino", "Ti Ti Ti Sahur", "Penguino Cocosino",
-    "Burbalini Loliloli", "Chimpanzini Bananini", "Ballerina Cappuccina", "Chef Crabracadabra",
-    "Lionel Cactuseli", "Glorbo Fruttodrillo", "Blueberrini Octapusini", "Strawberelli Flamingelli",
-    "Pandaccini Bananini", "Cocosini Mama", "Sigma Boy", "Pi Pi Watermelon", "Frigo Camelo",
-    "Orangutini Ananasini", "Rhino Toasterino", "Bombardiro Crocodilo", "Bombombini Gusini",
-    "Cavallo Virtuso", "Gorillo Watermelondrillo", "Avocadorilla", "Tob Tobi Tobi",
-    "Gangazelli Trulala", "Te Te Te Sahur", "Tracoducotulu Delapeladustuz", "Lerulerulerule",
-    "Carloo", "Spioniro Golubiro", "Zibra Zubra Zibralini", "Tigrilini Watermelini",
-    "Cocofanta Elefanto", "Girafa Celestre", "Gyattatino Nyanino", "Matteo", "Tralalero Tralala",
-    "Espresso Signora", "Odin Din Din Dun", "Statutino Libertino", "Trenostruzzo Turbo 3000",
-    "Ballerino Lololo", "Los Orcalitos", "Tralalita Tralala", "Urubini Flamenguini",
-    "Trigoligre Frutonni", "Orcalero Orcala", "Bulbito Bandito Traktorito", "Los Crocodilitos",
-    "Piccione Macchina", "Trippi Troppi Troppa Trippa", "Los Tungtuntuncitos", "Tukanno Bananno",
-    "Alessio", "Tipi Topi Taco", "Pakrahmatmamat", "Bombardini Tortinii", "La Vacca Saturno Saturnita",
-    "Chimpanzini Spiderini", "Los Tralaleritos", "Las Tralaleritas", "Graipuss Medussi",
-    "La Grande Combinasion", "Nuclearo Dinossauro", "Garama and Madundung", "Tortuginni Dragonfruitini",
-    "Pot Hotspot", "Las Vaquitas Saturnitas", "Chicleteira Bicicleteira", "Agarrini la Palini",
-    "Dragon Cannelloni", "Los Combinasionas", "Karkerkar Kurkur", "Los Hotspotsitos",
-    "Esok Sekolah", "Los Matteos", "Dul Dul Dul", "Blackhole Goat", "Nooo My Hotspot",
-    "Sammyini Spyderini", "La Supreme Combinasion", "Ketupat Kepat"
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-- Variables de configuración
+local speedBoostEnabled = false
+local jumpBoostEnabled = false
+local antiFpsKillerEnabled = false
+local flingPlayerEnabled = false
+local espCombinacionasEnabled = false
+local espGodEnabled = false
+
+local speedMultiplier = 16
+local jumpPower = 50
+
+-- Listas de brainrots
+local combinacionasList = {
+    "La Vacca Saturno Saturnita", "Chimpanzini Spiderini", "Los Tralaleritos", "Las Tralaleritas",
+    "Graipuss Medussi", "La Grande Combinasion", "Nuclearo Dinossauro", "Garama and Madundung",
+    "Tortuginni Dragonfruitini", "Pot Hotspot", "Las Vaquitas Saturnitas", "Chicleteira Bicicleteira",
+    "Agarrini la Palini", "Dragon Cannelloni", "Los Combinasionas", "Karkerkar Kurkur",
+    "Los Hotspotsitos", "Esok Sekolah", "Los Matteos", "Dul Dul Dul", "Blackhole Goat",
+    "Nooo My Hotspot", "Sammyini Spyderini", "La Supreme Combinasion", "Ketupat Kepat"
 }
 
--- Variables del sistema
-local brainrotSystemEnabled = true -- Activado por defecto
-local playersWithBrainrots = {}
-local chatConnections = {}
+local godList = {
+    "Zibra Zubra Zibralini", "Tigrilini Watermelini", "Cocofanta Elefanto", "Girafa Celestre",
+    "Gyattatino Nyanino", "Matteo", "Tralalero Tralala", "Espresso Signora", "Odin Din Din Dun",
+    "Statutino Libertino", "Trenostruzzo Turbo 3000", "Ballerino Lololo", "Los Orcalitos",
+    "Tralalita Tralala", "Urubini Flamenguini", "Trigoligre Frutonni", "Orcalero Orcala",
+    "Bulbito Bandito Traktorito", "Los Crocodilitos", "Piccione Macchina", "Trippi Troppi Troppa Trippa",
+    "Los Tungtuntuncitos", "Tukanno Bananno", "Alessio", "Tipi Topi Taco", "Pakrahmatmamat",
+    "Bombardini Tortinii"
+}
 
--- Función para crear GUI en el cliente
-local function createPlayerGUI(player)
-    player.CharacterAdded:Connect(function(character)
-        wait(1) -- Esperar a que cargue
-        
-        local playerGui = player:WaitForChild("PlayerGui")
-        
-        -- Crear ScreenGui
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "BrainrotGUI"
-        screenGui.ResetOnSpawn = false
-        screenGui.Parent = playerGui
-        
-        -- Crear botón de toggle
-        local toggleButton = Instance.new("TextButton")
-        toggleButton.Size = UDim2.new(0, 150, 0, 40)
-        toggleButton.Position = UDim2.new(0, 10, 0, 10)
-        toggleButton.BackgroundColor3 = brainrotSystemEnabled and Color3.new(0.2, 0.8, 0.2) or Color3.new(0.8, 0.2, 0.2)
-        toggleButton.Text = brainrotSystemEnabled and "BRAINROT: ON" or "BRAINROT: OFF"
-        toggleButton.TextColor3 = Color3.new(1, 1, 1)
-        toggleButton.TextScaled = true
-        toggleButton.Font = Enum.Font.SourceSansBold
-        toggleButton.Parent = screenGui
-        
-        -- Esquinas redondeadas
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = toggleButton
-        
-        -- Info label
-        local infoLabel = Instance.new("TextLabel")
-        infoLabel.Size = UDim2.new(0, 300, 0, 60)
-        infoLabel.Position = UDim2.new(0, 10, 0, 60)
-        infoLabel.BackgroundTransparency = 1
-        infoLabel.Text = "Escribe cualquier brainrot en el chat\npara que tu cuerpo caiga al vacío"
-        infoLabel.TextColor3 = Color3.new(1, 1, 1)
-        infoLabel.TextScaled = true
-        infoLabel.Font = Enum.Font.SourceSans
-        infoLabel.Parent = screenGui
-        
-        -- Evento del botón
-        toggleButton.MouseButton1Click:Connect(function()
-            brainrotSystemEnabled = not brainrotSystemEnabled
+-- Crear GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RobloxPanel"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 400, 0, 600)
+mainFrame.Position = UDim2.new(0, 50, 0, 50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = mainFrame
+
+-- Título
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.Text = "Panel de Funciones"
+title.TextColor3 = Color3.white
+title.TextScaled = true
+title.Font = Enum.Font.SourceSansBold
+title.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = title
+
+-- Scroll Frame
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -20, 1, -60)
+scrollFrame.Position = UDim2.new(0, 10, 0, 50)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 8
+scrollFrame.Parent = mainFrame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.Parent = scrollFrame
+
+-- Función para crear botones
+local function createButton(text, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -10, 0, 40)
+    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    button.Text = text
+    button.TextColor3 = Color3.white
+    button.TextScaled = true
+    button.Font = Enum.Font.SourceSans
+    button.Parent = scrollFrame
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 5)
+    buttonCorner.Parent = button
+    
+    button.MouseButton1Click:Connect(callback)
+    return button
+end
+
+-- Función para crear sliders
+local function createSlider(text, minVal, maxVal, defaultVal, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -10, 0, 60)
+    frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    frame.Parent = scrollFrame
+    
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(0, 5)
+    frameCorner.Parent = frame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 30)
+    label.BackgroundTransparency = 1
+    label.Text = text .. ": " .. defaultVal
+    label.TextColor3 = Color3.white
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSans
+    label.Parent = frame
+    
+    local slider = Instance.new("TextButton")
+    slider.Size = UDim2.new(1, -20, 0, 20)
+    slider.Position = UDim2.new(0, 10, 0, 35)
+    slider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    slider.Text = ""
+    slider.Parent = frame
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 10)
+    sliderCorner.Parent = slider
+    
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 20, 1, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.Parent = slider
+    
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(0, 10)
+    knobCorner.Parent = knob
+    
+    local dragging = false
+    local currentValue = defaultVal
+    
+    slider.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = UserInputService:GetMouseLocation()
+            local sliderPos = slider.AbsolutePosition
+            local relativePos = math.clamp((mousePos.X - sliderPos.X) / slider.AbsoluteSize.X, 0, 1)
             
-            if brainrotSystemEnabled then
-                toggleButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
-                toggleButton.Text = "BRAINROT: ON"
-                print("🎮 Sistema Brainrot ACTIVADO")
-            else
-                toggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
-                toggleButton.Text = "BRAINROT: OFF"
-                print("🎮 Sistema Brainrot DESACTIVADO")
+            currentValue = math.floor(minVal + (maxVal - minVal) * relativePos)
+            knob.Position = UDim2.new(relativePos, -10, 0, 0)
+            label.Text = text .. ": " .. currentValue
+            
+            callback(currentValue)
+        end
+    end)
+    
+    return currentValue
+end
+
+-- Funciones principales
+local function flingPlayer()
+    mouse.Button1Down:Connect(function()
+        if flingPlayerEnabled then
+            local target = mouse.Target
+            if target and target.Parent:FindFirstChild("Humanoid") then
+                local character = target.Parent
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    local bodyVelocity = Instance.new("BodyVelocity")
+                    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+                    bodyVelocity.Velocity = Vector3.new(math.random(-100, 100), 100, math.random(-100, 100))
+                    bodyVelocity.Parent = humanoidRootPart
+                    
+                    game:GetService("Debris"):AddItem(bodyVelocity, 1)
+                end
             end
-        end)
+        end
     end)
 end
 
--- Función para crear brainrot en workspace
-local function createBrainrotInWorkspace(brainrotName, player)
-    local brainrotFolder = workspace:FindFirstChild("ActiveBrainrots")
-    if not brainrotFolder then
-        brainrotFolder = Instance.new("Folder")
-        brainrotFolder.Name = "ActiveBrainrots"
-        brainrotFolder.Parent = workspace
-    end
-    
-    -- Crear el brainrot visual flotante
-    local brainrotPart = Instance.new("Part")
-    brainrotPart.Name = brainrotName .. "_" .. player.Name
-    brainrotPart.Size = Vector3.new(3, 0.2, 6)
-    brainrotPart.Material = Enum.Material.ForceField
-    brainrotPart.BrickColor = BrickColor.new("Bright green")
-    brainrotPart.Anchored = true
-    brainrotPart.CanCollide = false
-    brainrotPart.Shape = Enum.PartType.Block
-    brainrotPart.Transparency = 0.3
-    
-    -- Efecto de brillo
-    local pointLight = Instance.new("PointLight")
-    pointLight.Color = Color3.new(0, 1, 0)
-    pointLight.Brightness = 2
-    pointLight.Range = 10
-    pointLight.Parent = brainrotPart
-    
-    -- Texto del brainrot
-    local gui = Instance.new("BillboardGui")
-    gui.Size = UDim2.new(0, 400, 0, 100)
-    gui.StudsOffset = Vector3.new(0, 3, 0)
-    gui.Parent = brainrotPart
-    
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = "🧠 " .. brainrotName .. " 🧠"
-    textLabel.TextColor3 = Color3.new(0, 1, 0)
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.TextStrokeTransparency = 0
-    textLabel.Parent = gui
-    
-    -- Posicionar cerca del jugador
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        brainrotPart.Position = player.Character.HumanoidRootPart.Position + Vector3.new(0, 8, 0)
-    end
-    
-    brainrotPart.Parent = brainrotFolder
-    
-    -- Animación flotante
-    local floatTween = TweenService:Create(brainrotPart, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-        Position = brainrotPart.Position + Vector3.new(0, 2, 0)
-    })
-    floatTween:Play()
-    
-    return brainrotPart
+local function speedBoost()
+    RunService.Heartbeat:Connect(function()
+        if speedBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = speedMultiplier
+        end
+    end)
 end
 
--- Función PRINCIPAL para dropear el cuerpo
-local function dropPlayerBody(player, brainrotName)
-    if not player.Character then return end
-    
-    local character = player.Character
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    local humanoid = character:FindFirstChild("Humanoid")
-    
-    if not humanoidRootPart or not humanoid then return end
-    
-    -- 1. CREAR CUERPO QUE CAERÁ
-    local bodyClone = character:Clone()
-    bodyClone.Name = character.Name .. "_FallingBody"
-    bodyClone.Parent = workspace
-    
-    -- Limpiar scripts del clon
-    for _, obj in pairs(bodyClone:GetDescendants()) do
-        if obj:IsA("LocalScript") or obj:IsA("Script") then
-            obj:Destroy()
+local function jumpBoost()
+    RunService.Heartbeat:Connect(function()
+        if jumpBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = jumpPower
         end
-    end
-    
-    -- Hacer que el cuerpo caiga DRAMÁTICAMENTE
-    local cloneHRP = bodyClone:FindFirstChild("HumanoidRootPart")
-    if cloneHRP then
-        cloneHRP.Anchored = false
-        cloneHRP.CanCollide = false -- Para que atraviese el suelo
-        
-        -- IMPULSO FUERTE hacia abajo
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-        bodyVelocity.Velocity = Vector3.new(0, -100, 0) -- Caída súper rápida
-        bodyVelocity.Parent = cloneHRP
-        
-        -- Efecto visual en el cuerpo que cae
-        local fire = Instance.new("Fire")
-        fire.Size = 10
-        fire.Heat = 10
-        fire.Color = Color3.new(1, 0, 0)
-        fire.Parent = cloneHRP
-        
-        -- Sonido de caída (opcional)
-        local sound = Instance.new("Sound")
-        sound.SoundId = "rbxasset://sounds/impact_water.mp3"
-        sound.Volume = 0.5
-        sound.Parent = cloneHRP
-        sound:Play()
-    end
-    
-    -- 2. CONVERTIR AL JUGADOR EN SOLO ROOTPART
-    for _, part in pairs(character:GetChildren()) do
-        if part:IsA("BasePart") and part ~= humanoidRootPart then
-            part:Destroy() -- Eliminar todas las partes excepto HumanoidRootPart
-        elseif part:IsA("Accessory") then
-            part:Destroy() -- Eliminar accesorios
-        elseif part:IsA("Clothing") then
-            part:Destroy() -- Eliminar ropa
-        end
-    end
-    
-    -- Hacer el HumanoidRootPart más visible
-    humanoidRootPart.Material = Enum.Material.Neon
-    humanoidRootPart.BrickColor = BrickColor.new("Bright blue")
-    humanoidRootPart.Transparency = 0
-    humanoidRootPart.Shape = Enum.PartType.Block
-    humanoidRootPart.Size = Vector3.new(2, 2, 1) -- Hacer más grande para que se vea
-    
-    -- Agregar efecto visual al jugador
-    local playerLight = Instance.new("PointLight")
-    playerLight.Color = Color3.new(0, 0, 1)
-    playerLight.Brightness = 2
-    playerLight.Range = 8
-    playerLight.Parent = humanoidRootPart
-    
-    -- Mensaje de confirmación visible
-    local gui = Instance.new("BillboardGui")
-    gui.Size = UDim2.new(0, 200, 0, 50)
-    gui.StudsOffset = Vector3.new(0, 3, 0)
-    gui.Parent = humanoidRootPart
-    
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(1, 0, 1, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = player.Name .. " (CUBO)"
-    nameLabel.TextColor3 = Color3.new(0, 0, 1)
-    nameLabel.TextScaled = true
-    nameLabel.Font = Enum.Font.SourceSansBold
-    nameLabel.TextStrokeTransparency = 0
-    nameLabel.Parent = gui
-    
-    -- Limpiar el cuerpo caído después de 20 segundos
-    game:GetService("Debris"):AddItem(bodyClone, 20)
-    
-    print("💀 " .. player.Name .. " se convirtió en cubo y su cuerpo cayó al vacío con: " .. brainrotName)
+    end)
 end
 
--- Función para verificar si es brainrot válido
-local function isValidBrainrot(name)
-    for _, brainrot in pairs(BRAINROTS) do
-        if string.lower(brainrot) == string.lower(name) then
-            return brainrot -- Devolver el nombre exacto
+local function antiFpsKiller()
+    RunService.Heartbeat:Connect(function()
+        if antiFpsKillerEnabled then
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                    obj.Enabled = false
+                end
+            end
         end
-    end
-    return nil
+    end)
 end
 
--- EVENTOS PRINCIPALES
-Players.PlayerAdded:Connect(function(player)
-    playersWithBrainrots[player.UserId] = {}
-    
-    -- Crear GUI para el jugador
-    createPlayerGUI(player)
-    
-    -- Conectar chat
-    player.CharacterAdded:Connect(function(character)
-        -- Desconectar conexión anterior
-        if chatConnections[player.UserId] then
-            chatConnections[player.UserId]:Disconnect()
-        end
-        
-        chatConnections[player.UserId] = player.Chatted:Connect(function(message)
-            if brainrotSystemEnabled then
-                local validBrainrot = isValidBrainrot(message)
-                if validBrainrot then
-                    -- Solo permitir un brainrot por jugador
-                    if not playersWithBrainrots[player.UserId][validBrainrot] then
-                        playersWithBrainrots[player.UserId][validBrainrot] = true
+local function createESP(targetList, color)
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= player then
+            local character = targetPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                for _, brainrot in pairs(targetList) do
+                    if string.find(targetPlayer.Name:lower(), brainrot:lower()) or 
+                       string.find(targetPlayer.DisplayName:lower(), brainrot:lower()) then
                         
-                        -- Crear brainrot en workspace
-                        createBrainrotInWorkspace(validBrainrot, player)
-                        
-                        -- DROPEAR EL CUERPO
-                        dropPlayerBody(player, validBrainrot)
-                        
-                        -- Mensaje global
-                        for _, p in pairs(Players:GetPlayers()) do
-                            if p ~= player then
-                                -- Puedes agregar aquí notificaciones a otros jugadores
-                            end
-                        end
+                        local highlight = Instance.new("Highlight")
+                        highlight.FillColor = color
+                        highlight.OutlineColor = color
+                        highlight.FillTransparency = 0.5
+                        highlight.OutlineTransparency = 0
+                        highlight.Parent = character
+                        break
                     end
                 end
             end
-        end)
-    end)
+        end
+    end
+end
+
+-- Crear botones del panel
+local flingButton = createButton("Fling Player: OFF", function()
+    flingPlayerEnabled = not flingPlayerEnabled
+    flingButton.Text = "Fling Player: " .. (flingPlayerEnabled and "ON" or "OFF")
+    flingButton.BackgroundColor3 = flingPlayerEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
 end)
 
--- Limpiar al salir
-Players.PlayerRemoving:Connect(function(player)
-    playersWithBrainrots[player.UserId] = nil
+local antiFpsButton = createButton("Anti FPS Killer: OFF", function()
+    antiFpsKillerEnabled = not antiFpsKillerEnabled
+    antiFpsButton.Text = "Anti FPS Killer: " .. (antiFpsKillerEnabled and "ON" or "OFF")
+    antiFpsButton.BackgroundColor3 = antiFpsKillerEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+end)
+
+local speedButton = createButton("Speed Boost: OFF", function()
+    speedBoostEnabled = not speedBoostEnabled
+    speedButton.Text = "Speed Boost: " .. (speedBoostEnabled and "ON" or "OFF")
+    speedButton.BackgroundColor3 = speedBoostEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+end)
+
+local jumpButton = createButton("Jump Boost: OFF", function()
+    jumpBoostEnabled = not jumpBoostEnabled
+    jumpButton.Text = "Jump Boost: " .. (jumpBoostEnabled and "ON" or "OFF")
+    jumpButton.BackgroundColor3 = jumpBoostEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+end)
+
+local espCombButton = createButton("ESP Los Combinasionas: OFF", function()
+    espCombinacionasEnabled = not espCombinacionasEnabled
+    espCombButton.Text = "ESP Los Combinasionas: " .. (espCombinacionasEnabled and "ON" or "OFF")
+    espCombButton.BackgroundColor3 = espCombinacionasEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
     
-    if chatConnections[player.UserId] then
-        chatConnections[player.UserId]:Disconnect()
-        chatConnections[player.UserId] = nil
+    if espCombinacionasEnabled then
+        createESP(combinacionasList, Color3.fromRGB(255, 255, 0))
     end
 end)
 
-print("🧠 Sistema Brainrot Body Drop cargado!")
-print("📝 Escribe cualquier brainrot en el chat para activar el efecto")
-print("🎮 Total de brainrots disponibles: " .. #BRAINROTS)
+local espGodButton = createButton("ESP God: OFF", function()
+    espGodEnabled = not espGodEnabled
+    espGodButton.Text = "ESP God: " .. (espGodEnabled and "ON" or "OFF")
+    espGodButton.BackgroundColor3 = espGodEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+    
+    if espGodEnabled then
+        createESP(godList, Color3.fromRGB(255, 0, 0))
+    end
+end)
+
+-- Sliders
+createSlider("Velocidad", 16, 100, 16, function(value)
+    speedMultiplier = value
+end)
+
+createSlider("Salto", 50, 200, 50, function(value)
+    jumpPower = value
+end)
+
+-- Hacer el frame arrastrable
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+title.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+                    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+title.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Botón de cerrar
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.white
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Parent = title
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 5)
+closeCorner.Parent = closeButton
+
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+-- Botón de minimizar
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -70, 0, 5)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.white
+minimizeButton.TextScaled = true
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.Parent = title
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 5)
+minimizeCorner.Parent = minimizeButton
+
+local isMinimized = false
+minimizeButton.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        mainFrame:TweenSize(UDim2.new(0, 400, 0, 40), "Out", "Quad", 0.3, true)
+        scrollFrame.Visible = false
+        minimizeButton.Text = "+"
+    else
+        mainFrame:TweenSize(UDim2.new(0, 400, 0, 600), "Out", "Quad", 0.3, true)
+        scrollFrame.Visible = true
+        minimizeButton.Text = "-"
+    end
+end)
+
+-- Actualizar tamaño del scroll frame
+local function updateScrollSize()
+    local totalHeight = 0
+    for _, child in pairs(scrollFrame:GetChildren()) do
+        if child:IsA("GuiObject") and child.Visible then
+            totalHeight = totalHeight + child.Size.Y.Offset + 5
+        end
+    end
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+end
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+
+-- Inicializar funciones
+flingPlayer()
+speedBoost()
+jumpBoost()
+antiFpsKiller()
+
+-- Sistema de ESP mejorado con actualización continua
+local espConnections = {}
+
+local function clearESP()
+    for _, connection in pairs(espConnections) do
+        connection:Disconnect()
+    end
+    espConnections = {}
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            for _, highlight in pairs(player.Character:GetChildren()) do
+                if highlight:IsA("Highlight") then
+                    highlight:Destroy()
+                end
+            end
+        end
+    end
+end
+
+local function startESP(targetList, color, espType)
+    local function checkPlayer(targetPlayer)
+        if targetPlayer == player then return false end
+        
+        for _, brainrot in pairs(targetList) do
+            if string.find(targetPlayer.Name:lower(), brainrot:lower()) or 
+               string.find(targetPlayer.DisplayName:lower(), brainrot:lower()) then
+                return true
+            end
+        end
+        return false
+    end
+    
+    local function createHighlight(character, color)
+        local existingHighlight = character:FindFirstChild("Highlight")
+        if existingHighlight then
+            existingHighlight:Destroy()
+        end
+        
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "Highlight"
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.3
+        highlight.OutlineTransparency = 0
+        highlight.Parent = character
+        
+        -- Efecto de brillo para ESP God
+        if espType == "god" then
+            local pointLight = Instance.new("PointLight")
+            pointLight.Color = color
+            pointLight.Brightness = 2
+            pointLight.Range = 10
+            pointLight.Parent = character:FindFirstChild("HumanoidRootPart")
+        end
+    end
+    
+    -- Conexión para jugadores existentes
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if checkPlayer(targetPlayer) and targetPlayer.Character then
+            createHighlight(targetPlayer.Character, color)
+        end
+    end
+    
+    -- Conexión para nuevos jugadores
+    local playerAddedConnection = Players.PlayerAdded:Connect(function(targetPlayer)
+        if checkPlayer(targetPlayer) then
+            targetPlayer.CharacterAdded:Connect(function(character)
+                wait(1) -- Esperar a que el personaje se cargue completamente
+                createHighlight(character, color)
+            end)
+        end
+    end)
+    
+    -- Conexión para personajes que respawnean
+    local characterAddedConnection = Players.PlayerAdded:Connect(function(targetPlayer)
+        targetPlayer.CharacterAdded:Connect(function(character)
+            if checkPlayer(targetPlayer) then
+                wait(1)
+                createHighlight(character, color)
+            end
+        end)
+    end)
+    
+    table.insert(espConnections, playerAddedConnection)
+    table.insert(espConnections, characterAddedConnection)
+end
+
+-- Actualizar botones ESP
+espCombButton.MouseButton1Click:Connect(function()
+    espCombinacionasEnabled = not espCombinacionasEnabled
+    espCombButton.Text = "ESP Los Combinasionas: " .. (espCombinacionasEnabled and "ON" or "OFF")
+    espCombButton.BackgroundColor3 = espCombinacionasEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+    
+    if espCombinacionasEnabled then
+        startESP(combinacionasList, Color3.fromRGB(255, 255, 0), "combinasionas")
+    else
+        clearESP()
+    end
+end)
+
+espGodButton.MouseButton1Click:Connect(function()
+    espGodEnabled = not espGodEnabled
+    espGodButton.Text = "ESP God: " .. (espGodEnabled and "ON" or "OFF")
+    espGodButton.BackgroundColor3 = espGodEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(70, 70, 70)
+    
+    if espGodEnabled then
+        startESP(godList, Color3.fromRGB(255, 0, 0), "god")
+    else
+        clearESP()
+    end
+end)
+
+-- Mejorar el sistema de salto
+local originalJumpPower = 50
+local jumpConnection
+
+local function enhancedJumpBoost()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+    end
+    
+    jumpConnection = RunService.Heartbeat:Connect(function()
+        if jumpBoostEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoidRootPart then
+                -- Detectar cuando el jugador salta
+                if humanoid.Jump and humanoidRootPart.Velocity.Y > 0 then
+                    -- Aplicar impulso hacia arriba
+                    local bodyVelocity = humanoidRootPart:FindFirstChild("JumpBoost")
+                    if not bodyVelocity then
+                        bodyVelocity = Instance.new("BodyVelocity")
+                        bodyVelocity.Name = "JumpBoost"
+                        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+                        bodyVelocity.Parent = humanoidRootPart
+                    end
+                    
+                    bodyVelocity.Velocity = Vector3.new(0, jumpPower, 0)
+                    
+                    -- Remover el impulso después de un tiempo
+                    game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+                end
+            end
+        end
+    end)
+end
+
+-- Reemplazar la función de salto anterior
+enhancedJumpBoost()
+
+-- Sistema de notificaciones
+local function createNotification(text, color)
+    local notificationGui = Instance.new("ScreenGui")
+    notificationGui.Name = "Notification"
+    notificationGui.Parent = player:WaitForChild("PlayerGui")
+    
+    local notificationFrame = Instance.new("Frame")
+    notificationFrame.Size = UDim2.new(0, 300, 0, 60)
+    notificationFrame.Position = UDim2.new(1, -320, 0, 20)
+    notificationFrame.BackgroundColor3 = color or Color3.fromRGB(50, 50, 50)
+    notificationFrame.BorderSizePixel = 0
+    notificationFrame.Parent = notificationGui
+    
+    local notificationCorner = Instance.new("UICorner")
+    notificationCorner.CornerRadius = UDim.new(0, 10)
+    notificationCorner.Parent = notificationFrame
+    
+    local notificationText = Instance.new("TextLabel")
+    notificationText.Size = UDim2.new(1, -20, 1, -20)
+    notificationText.Position = UDim2.new(0, 10, 0, 10)
+    notificationText.BackgroundTransparency = 1
+    notificationText.Text = text
+    notificationText.TextColor3 = Color3.white
+    notificationText.TextScaled = true
+    notificationText.Font = Enum.Font.SourceSans
+    notificationText.Parent = notificationFrame
+    
+    -- Animación de entrada
+    notificationFrame:TweenPosition(UDim2.new(1, -320, 0, 20), "Out", "Quad", 0.5, true)
+    
+    -- Remover después de 3 segundos
+    wait(3)
+    notificationFrame:TweenPosition(UDim2.new(1, 0, 0, 20), "In", "Quad", 0.5, true)
+    wait(0.5)
+    notificationGui:Destroy()
+end
+
+-- Agregar notificaciones a las funciones
+local originalFlingClick = flingButton.MouseButton1Click
+flingButton.MouseButton1Click:Connect(function()
+    spawn(function()
+        createNotification("Fling Player " .. (flingPlayerEnabled and "Activado" or "Desactivado"), 
+                         flingPlayerEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0))
+    end)
+end)
+
+-- Tecla de acceso rápido para mostrar/ocultar el panel
+UserInputService.InputBegan:Connect(function(key, gameProcessed)
+    if not gameProcessed and key.KeyCode == Enum.KeyCode.Insert then
+        mainFrame.Visible = not mainFrame.Visible
+    end
+end)
+
+-- Información del panel
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(1, 0, 0, 20)
+infoLabel.Position = UDim2.new(0, 0, 1, -20)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "Presiona INSERT para mostrar/ocultar | Arrastra desde el título"
+infoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+infoLabel.TextScaled = true
+infoLabel.Font = Enum.Font.SourceSans
+infoLabel.Parent = mainFrame
+
+print("Panel de Funciones cargado exitosamente!")
+print("Presiona INSERT para mostrar/ocultar el panel")
