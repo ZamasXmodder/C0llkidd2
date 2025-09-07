@@ -92,77 +92,62 @@ statusLabel.Parent = mainFrame
 -- Función para activar/desactivar underground
 local function toggleUnderground()
     if not isUnderground then
-        -- Activar underground - Método EXTREMO de invisibilidad
+        -- Activar underground - Método SIMPLE y EFECTIVO
         isUnderground = true
         
-        -- Método 1: Mover el personaje LEJOS del mapa
-        local originalCFrame = humanoidRootPart.CFrame
-        humanoidRootPart.CFrame = CFrame.new(999999, 999999, 999999)
+        -- Guardar tamaños originales
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                originalParts[part] = {
+                    Size = part.Size,
+                    Transparency = part.Transparency
+                }
+            end
+        end
         
-        -- Método 2: Crear un personaje falso invisible en la posición original
-        fakeCharacter = Instance.new("Model")
-        fakeCharacter.Name = player.Name .. "_Fake"
-        fakeCharacter.Parent = workspace
-        
-        -- Clonar HumanoidRootPart invisible
-        local fakeRoot = Instance.new("Part")
-        fakeRoot.Name = "HumanoidRootPart"
-        fakeRoot.Size = Vector3.new(2, 2, 1)
-        fakeRoot.CFrame = originalCFrame
-        fakeRoot.Transparency = 1
-        fakeRoot.CanCollide = false
-        fakeRoot.Anchored = true
-        fakeRoot.Parent = fakeCharacter
-        
-        -- Crear Humanoid invisible
-        local fakeHumanoid = Instance.new("Humanoid")
-        fakeHumanoid.Parent = fakeCharacter
-        
-        -- Método 3: Usar RemoteEvent bypass
-        spawn(function()
-            while isUnderground do
-                -- Mantener el personaje real lejos
-                if humanoidRootPart and humanoidRootPart.Parent then
-                    humanoidRootPart.CFrame = CFrame.new(999999, 999999, 999999)
-                    
-                    -- Hacer todas las partes completamente invisibles
-                    for _, part in pairs(character:GetChildren()) do
-                        if part:IsA("BasePart") then
+        -- Método DESYNC: Hacer partes microscópicas sin mover el personaje
+        undergroundConnection = RunService.Heartbeat:Connect(function()
+            if character and character.Parent then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        -- Hacer las partes SÚPER pequeñas (invisible por tamaño)
+                        part.Size = Vector3.new(0.001, 0.001, 0.001)
+                        part.Transparency = 0.99 -- Casi transparente pero no 1 (evita bugs)
+                        part.CanCollide = false
+                        
+                        -- Mantener el HumanoidRootPart funcional pero invisible
+                        if part.Name == "HumanoidRootPart" then
+                            part.Size = Vector3.new(0.001, 0.001, 0.001)
                             part.Transparency = 1
-                            part.CanCollide = false
-                            part.Size = Vector3.new(0, 0, 0) -- Hacer las partes microscópicas
-                        end
-                    end
-                    
-                    -- Hacer accesorios invisibles y microscópicos
-                    for _, accessory in pairs(character:GetChildren()) do
-                        if accessory:IsA("Accessory") then
-                            local handle = accessory:FindFirstChild("Handle")
-                            if handle then
-                                handle.Transparency = 1
-                                handle.CanCollide = false
-                                handle.Size = Vector3.new(0, 0, 0)
-                            end
                         end
                     end
                 end
-                task.wait(0.1)
-            end
-        end)
-        
-        -- Método 4: Manipular la cámara para que veas desde la posición original
-        local camera = workspace.CurrentCamera
-        undergroundConnection = RunService.Heartbeat:Connect(function()
-            if fakeRoot and fakeRoot.Parent then
-                -- Mantener la cámara enfocada en la posición falsa
-                camera.CFrame = CFrame.new(fakeRoot.Position + Vector3.new(0, 5, 10), fakeRoot.Position)
+                
+                -- Hacer accesorios microscópicos
+                for _, accessory in pairs(character:GetChildren()) do
+                    if accessory:IsA("Accessory") then
+                        local handle = accessory:FindFirstChild("Handle")
+                        if handle then
+                            handle.Size = Vector3.new(0.001, 0.001, 0.001)
+                            handle.Transparency = 0.99
+                            handle.CanCollide = false
+                        end
+                    end
+                end
+                
+                -- Hacer la cabeza extra pequeña (importante para el nombre)
+                local head = character:FindFirstChild("Head")
+                if head then
+                    head.Size = Vector3.new(0.001, 0.001, 0.001)
+                    head.Transparency = 0.99
+                end
             end
         end)
         
         -- Actualizar UI
         undergroundButton.Text = "Underground: ON"
         undergroundButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        statusLabel.Text = "Estado: ULTRA INVISIBLE - Nadie te puede ver"
+        statusLabel.Text = "Estado: Microscópico - Invisible total"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         
         -- Efecto de activación
@@ -183,31 +168,31 @@ local function toggleUnderground()
             undergroundConnection = nil
         end
         
-        -- Destruir el personaje falso
-        if fakeCharacter then
-            fakeCharacter:Destroy()
-            fakeCharacter = nil
+        -- Restaurar tamaños y transparencias originales
+        for part, data in pairs(originalParts) do
+            if part and part.Parent then
+                part.Size = data.Size
+                part.Transparency = data.Transparency
+                part.CanCollide = true
+            end
         end
+        originalParts = {}
         
-        -- Restaurar el personaje real a su posición original
-        if humanoidRootPart and humanoidRootPart.Parent then
-            humanoidRootPart.CFrame = CFrame.new(0, 5, 0) -- Posición segura
-        end
-        
-        -- Restaurar todas las partes
+        -- Restaurar todas las partes por si acaso
         for _, part in pairs(character:GetChildren()) do
             if part:IsA("BasePart") then
                 part.Transparency = 0
                 part.CanCollide = true
-                -- Restaurar tamaños originales
+                
+                -- Restaurar tamaños estándar por si acaso
                 if part.Name == "Head" then
                     part.Size = Vector3.new(2, 1, 1)
                 elseif part.Name == "Torso" or part.Name == "UpperTorso" then
                     part.Size = Vector3.new(2, 2, 1)
                 elseif part.Name == "HumanoidRootPart" then
                     part.Size = Vector3.new(2, 2, 1)
-                else
-                    part.Size = Vector3.new(1, 2, 1) -- Para brazos y piernas
+                elseif part.Name:find("Arm") or part.Name:find("Leg") then
+                    part.Size = Vector3.new(1, 2, 1)
                 end
             end
         end
@@ -219,7 +204,7 @@ local function toggleUnderground()
                 if handle then
                     handle.Transparency = 0
                     handle.CanCollide = true
-                    -- El tamaño de los accesorios se restaura automáticamente
+                    -- Los accesorios recuperan su tamaño automáticamente
                 end
             end
         end
@@ -282,5 +267,5 @@ end)
 -- Mensaje de inicio
 print("Panel Underground cargado correctamente!")
 print("Presiona F o usa el botón para activar/desactivar Underground")
-print("MÉTODO ULTRA INVISIBLE - 100% GARANTIZADO!")
-print("Tu personaje se mueve LEJOS del mapa + tamaño microscópico + transparencia total")
+print("MÉTODO MICROSCÓPICO - Sin problemas de cámara!")
+print("Te vuelves súper pequeño (0.001 studs) + casi transparente = INVISIBLE")
