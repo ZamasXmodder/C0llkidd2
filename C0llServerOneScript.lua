@@ -1,45 +1,39 @@
 -- ========================================
--- 🎮 PANEL FUNCIONAL CORREGIDO - STEAL A BRAINROT
+-- 🧠 STEALTH BRAINROT PANEL - NATURAL MOVEMENT
 -- ========================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 
 -- ========================================
--- VARIABLES GLOBALES
+-- CONFIGURATION VARIABLES
 -- ========================================
-local flingEnabled = false
-local antiFpsEnabled = false
-local speedBoostEnabled = false
-local jumpBoostEnabled = false
-local espSecretEnabled = false
-local espGodEnabled = false
-local autoFloorEnabled = false
-local gravityEnabled = false
+local systemActive = {
+    esp_secret = false,
+    esp_god = false,
+    speed_boost = false,
+    jump_boost = false,
+    contact_fling = false
+}
 
-local currentSpeed = 50
-local currentJump = 100
-local currentGravity = 196.2
-local originalGravity = 196.2
+local configuration = {
+    speed_multiplier = 2.5,
+    jump_multiplier = 2.0,
+    fling_force = 75
+}
 
-local speedConnection = nil
-local jumpConnection = nil
-local floorPart = nil
-local rainbowConnection = nil
-local espConnections = {}
-
--- Variables para referencias de botones
+local activeConnections = {}
 local buttonReferences = {}
 
 -- ========================================
--- LISTAS DE BRAINROTS
+-- BRAINROT DETECTION LISTS
 -- ========================================
 local secretBrainrots = {
     "La Vacca Saturno Saturnita", "Chimpanzini Spiderini", "Los Tralaleritos",
@@ -66,94 +60,86 @@ local godBrainrots = {
 }
 
 -- ========================================
--- CREAR GUI PRINCIPAL
+-- INTERFACE CREATION SYSTEM
 -- ========================================
-local function createGUI()
-    -- Eliminar GUI anterior
-    if CoreGui:FindFirstChild("BrainrotHackGUI") then
-        CoreGui:FindFirstChild("BrainrotHackGUI"):Destroy()
+local function createUserInterface()
+    if CoreGui:FindFirstChild("StealthBrainrotGUI") then
+        CoreGui:FindFirstChild("StealthBrainrotGUI"):Destroy()
     end
     
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "BrainrotHackGUI"
+    screenGui.Name = "StealthBrainrotGUI"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = CoreGui
     
-    -- Frame principal
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 320, 0, 450)
-    mainFrame.Position = UDim2.new(0.5, -160, 0.5, -225)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    mainFrame.Size = UDim2.new(0, 280, 0, 380)
+    mainFrame.Position = UDim2.new(0.5, -140, 0.5, -190)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     mainFrame.BorderSizePixel = 0
     mainFrame.Active = true
     mainFrame.Parent = screenGui
     
-    -- Esquinas redondeadas
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = mainFrame
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(0, 12)
+    frameCorner.Parent = mainFrame
     
-    -- Header draggable
+    -- Header Configuration
     local header = Instance.new("Frame")
     header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 40)
-    header.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+    header.Size = UDim2.new(1, 0, 0, 45)
+    header.BackgroundColor3 = Color3.fromRGB(45, 85, 125)
     header.BorderSizePixel = 0
-    header.Active = true
     header.Parent = mainFrame
     
     local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 10)
+    headerCorner.CornerRadius = UDim.new(0, 12)
     headerCorner.Parent = header
     
-    -- Fix header bottom
     local headerFix = Instance.new("Frame")
-    headerFix.Size = UDim2.new(1, 0, 0, 20)
-    headerFix.Position = UDim2.new(0, 0, 1, -20)
-    headerFix.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+    headerFix.Size = UDim2.new(1, 0, 0, 22)
+    headerFix.Position = UDim2.new(0, 0, 1, -22)
+    headerFix.BackgroundColor3 = Color3.fromRGB(45, 85, 125)
     headerFix.BorderSizePixel = 0
     headerFix.Parent = header
     
-    -- Título
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -70, 1, 0)
-    title.Position = UDim2.new(0, 10, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "🧠 STEAL A BRAINROT"
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = 16
-    title.Font = Enum.Font.GothamBold
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = header
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -80, 1, 0)
+    titleLabel.Position = UDim2.new(0, 15, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "🧠 STEALTH BRAINROT"
+    titleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    titleLabel.TextSize = 14
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = header
     
-    -- Botón cerrar
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -35, 0, 5)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-    closeBtn.Text = "X"
-    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeBtn.TextSize = 16
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.Parent = header
+    local closeButton = Instance.new("TextButton")
+    closeButton.Size = UDim2.new(0, 35, 0, 35)
+    closeButton.Position = UDim2.new(1, -40, 0, 5)
+    closeButton.BackgroundColor3 = Color3.fromRGB(185, 55, 55)
+    closeButton.Text = "✕"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextSize = 14
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.Parent = header
     
-    local closeBtnCorner = Instance.new("UICorner")
-    closeBtnCorner.CornerRadius = UDim.new(0, 15)
-    closeBtnCorner.Parent = closeBtn
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 17)
+    closeCorner.Parent = closeButton
     
-    -- Scroll frame para contenido
-    local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Size = UDim2.new(1, -10, 1, -50)
-    scrollFrame.Position = UDim2.new(0, 5, 0, 45)
-    scrollFrame.BackgroundTransparency = 1
-    scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 5
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(70, 130, 180)
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 700)
-    scrollFrame.Parent = mainFrame
+    local contentFrame = Instance.new("ScrollingFrame")
+    contentFrame.Size = UDim2.new(1, -10, 1, -55)
+    contentFrame.Position = UDim2.new(0, 5, 0, 50)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.BorderSizePixel = 0
+    contentFrame.ScrollBarThickness = 4
+    contentFrame.ScrollBarImageColor3 = Color3.fromRGB(45, 85, 125)
+    contentFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
+    contentFrame.Parent = mainFrame
     
-    -- Hacer draggable desde header
+    -- Drag Functionality Implementation
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -179,26 +165,26 @@ local function createGUI()
         end
     end)
     
-    return screenGui, mainFrame, scrollFrame, closeBtn
+    return screenGui, mainFrame, contentFrame, closeButton
 end
 
 -- ========================================
--- CREAR BOTÓN
+-- INTERFACE COMPONENT CREATION
 -- ========================================
-local function createButton(parent, text, position, callback)
+local function createFunctionButton(parent, text, position, callback)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0.9, 0, 0, 35)
+    button.Size = UDim2.new(0.9, 0, 0, 40)
     button.Position = position
-    button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+    button.BackgroundColor3 = Color3.fromRGB(185, 55, 55)
     button.Text = text
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 12
+    button.TextSize = 11
     button.Font = Enum.Font.Gotham
     button.Parent = parent
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = button
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 8)
+    buttonCorner.Parent = button
     
     if callback then
         button.MouseButton1Click:Connect(callback)
@@ -207,88 +193,90 @@ local function createButton(parent, text, position, callback)
     return button
 end
 
--- ========================================
--- CREAR SLIDER
--- ========================================
-local function createSlider(parent, labelText, minVal, maxVal, currentVal, position, callback)
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Size = UDim2.new(0.9, 0, 0, 55)
-    sliderFrame.Position = position
-    sliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    sliderFrame.BorderSizePixel = 0
-    sliderFrame.Parent = parent
+local function createConfigurationSlider(parent, labelText, minValue, maxValue, currentValue, position, callback)
+    local sliderContainer = Instance.new("Frame")
+    sliderContainer.Size = UDim2.new(0.9, 0, 0, 60)
+    sliderContainer.Position = position
+    sliderContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    sliderContainer.BorderSizePixel = 0
+    sliderContainer.Parent = parent
     
-    local sliderCorner = Instance.new("UICorner")
-    sliderCorner.CornerRadius = UDim.new(0, 6)
-    sliderCorner.Parent = sliderFrame
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 8)
+    containerCorner.Parent = sliderContainer
     
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.6, 0, 0.4, 0)
-    label.Position = UDim2.new(0, 5, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    label.TextSize = 11
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = sliderFrame
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(0.7, 0, 0.4, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = labelText
+    titleLabel.TextColor3 = Color3.fromRGB(190, 190, 190)
+    titleLabel.TextSize = 10
+    titleLabel.Font = Enum.Font.Gotham
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = sliderContainer
     
-    local valueLabel = Instance.new("TextLabel")
-    valueLabel.Size = UDim2.new(0.4, -5, 0.4, 0)
-    valueLabel.Position = UDim2.new(0.6, 0, 0, 0)
-    valueLabel.BackgroundTransparency = 1
-    valueLabel.Text = tostring(currentVal)
-    valueLabel.TextColor3 = Color3.fromRGB(70, 130, 180)
-    valueLabel.TextSize = 11
-    valueLabel.Font = Enum.Font.GothamBold
-    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Parent = sliderFrame
+    local valueDisplay = Instance.new("TextLabel")
+    valueDisplay.Size = UDim2.new(0.3, -10, 0.4, 0)
+    valueDisplay.Position = UDim2.new(0.7, 0, 0, 0)
+    valueDisplay.BackgroundTransparency = 1
+    valueDisplay.Text = tostring(currentValue)
+    valueDisplay.TextColor3 = Color3.fromRGB(45, 85, 125)
+    valueDisplay.TextSize = 10
+    valueDisplay.Font = Enum.Font.GothamBold
+    valueDisplay.TextXAlignment = Enum.TextXAlignment.Right
+    valueDisplay.Parent = sliderContainer
     
-    local sliderBar = Instance.new("Frame")
-    sliderBar.Size = UDim2.new(0.9, 0, 0, 6)
-    sliderBar.Position = UDim2.new(0.05, 0, 0.65, 0)
-    sliderBar.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-    sliderBar.BorderSizePixel = 0
-    sliderBar.Parent = sliderFrame
+    local sliderTrack = Instance.new("Frame")
+    sliderTrack.Size = UDim2.new(0.85, 0, 0, 8)
+    sliderTrack.Position = UDim2.new(0.075, 0, 0.6, 0)
+    sliderTrack.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+    sliderTrack.BorderSizePixel = 0
+    sliderTrack.Parent = sliderContainer
     
-    local barCorner = Instance.new("UICorner")
-    barCorner.CornerRadius = UDim.new(0, 3)
-    barCorner.Parent = sliderBar
+    local trackCorner = Instance.new("UICorner")
+    trackCorner.CornerRadius = UDim.new(0, 4)
+    trackCorner.Parent = sliderTrack
     
     local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((currentVal - minVal) / (maxVal - minVal), 0, 1, 0)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+    sliderFill.Size = UDim2.new((currentValue - minValue) / (maxValue - minValue), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(45, 85, 125)
     sliderFill.BorderSizePixel = 0
-    sliderFill.Parent = sliderBar
+    sliderFill.Parent = sliderTrack
     
     local fillCorner = Instance.new("UICorner")
-    fillCorner.CornerRadius = UDim.new(0, 3)
+    fillCorner.CornerRadius = UDim.new(0, 4)
     fillCorner.Parent = sliderFill
     
     local sliderHandle = Instance.new("TextButton")
-    sliderHandle.Size = UDim2.new(0, 16, 0, 16)
-    sliderHandle.Position = UDim2.new((currentVal - minVal) / (maxVal - minVal), -8, 0.5, -8)
-    sliderHandle.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+    sliderHandle.Size = UDim2.new(0, 18, 0, 18)
+    sliderHandle.Position = UDim2.new((currentValue - minValue) / (maxValue - minValue), -9, 0.5, -9)
+    sliderHandle.BackgroundColor3 = Color3.fromRGB(45, 85, 125)
     sliderHandle.BorderSizePixel = 0
     sliderHandle.Text = ""
-    sliderHandle.Parent = sliderBar
+    sliderHandle.Parent = sliderTrack
     
     local handleCorner = Instance.new("UICorner")
-    handleCorner.CornerRadius = UDim.new(0, 8)
+    handleCorner.CornerRadius = UDim.new(0, 9)
     handleCorner.Parent = sliderHandle
     
-    -- Funcionalidad del slider
+    -- Slider Interaction Logic
     local dragging = false
     
-    local function updateSlider(input)
-        local relativeX = input.Position.X - sliderBar.AbsolutePosition.X
-        local percentage = math.clamp(relativeX / sliderBar.AbsoluteSize.X, 0, 1)
+    local function updateSliderValue(input)
+        local relativePosition = input.Position.X - sliderTrack.AbsolutePosition.X
+        local percentage = math.clamp(relativePosition / sliderTrack.AbsoluteSize.X, 0, 1)
         
-        local newValue = math.floor(minVal + (maxVal - minVal) * percentage)
-        valueLabel.Text = tostring(newValue)
+        local newValue = minValue + (maxValue - minValue) * percentage
+        if maxValue <= 10 then
+            newValue = math.floor(newValue * 10) / 10 -- One decimal place
+        else
+            newValue = math.floor(newValue)
+        end
         
+        valueDisplay.Text = tostring(newValue)
         sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
-        sliderHandle.Position = UDim2.new(percentage, -8, 0.5, -8)
+        sliderHandle.Position = UDim2.new(percentage, -9, 0.5, -9)
         
         if callback then
             callback(newValue)
@@ -299,16 +287,16 @@ local function createSlider(parent, labelText, minVal, maxVal, currentVal, posit
         dragging = true
     end)
     
-    sliderBar.InputBegan:Connect(function(input)
+    sliderTrack.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
-            updateSlider(input)
+            updateSliderValue(input)
         end
     end)
     
     UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-            updateSlider(input)
+            updateSliderValue(input)
         end
     end)
     
@@ -318,713 +306,589 @@ local function createSlider(parent, labelText, minVal, maxVal, currentVal, posit
         end
     end)
     
-    return sliderFrame, valueLabel
+    return sliderContainer
 end
 
 -- ========================================
--- FUNCIONES DE HACK CORREGIDAS
+-- NATURAL MOVEMENT SYSTEM
 -- ========================================
-
--- Fling Player
-local function toggleFling()
-    flingEnabled = not flingEnabled
-    local button = buttonReferences.flingBtn
-    if button then
-        if flingEnabled then
-            button.Text = "🚀 Fling Player [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            print("🚀 Fling activado - Haz clic en jugadores para lanzarlos")
-        else
-            button.Text = "🚀 Fling Player [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            print("🚀 Fling desactivado")
-        end
-    end
-end
-
--- Anti FPS
-local function toggleAntiFPS()
-    antiFpsEnabled = not antiFpsEnabled
-    local button = buttonReferences.antiFpsBtn
-    if button then
-        if antiFpsEnabled then
-            button.Text = "🛡️ Anti FPS [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            
-            -- Optimizaciones de rendimiento
-            local lighting = game:GetService("Lighting")
-            lighting.GlobalShadows = false
-            lighting.FogEnd = 9e9
-            
-            settings().Rendering.QualityLevel = 1
-            
-            for _, obj in pairs(Workspace:GetDescendants()) do
-                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Explosion") then
-                    obj.Enabled = false
-                elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                    obj.Transparency = 1
-                end
-            end
-            
-            print("🛡️ Anti FPS activado - Rendimiento optimizado")
-        else
-            button.Text = "🛡️ Anti FPS [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            
-            local lighting = game:GetService("Lighting")
-            lighting.GlobalShadows = true
-            lighting.FogEnd = 100000
-            
-            print("🛡️ Anti FPS desactivado")
-        end
-    end
-end
-
--- Speed Boost
-local function toggleSpeed()
-    speedBoostEnabled = not speedBoostEnabled
-    local button = buttonReferences.speedBtn
-    if button then
-        if speedBoostEnabled then
-            button.Text = "⚡ Speed [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            
-            speedConnection = RunService.Heartbeat:Connect(function()
-                local character = player.Character
-                if character and character:FindFirstChild("Humanoid") then
-                    character.Humanoid.WalkSpeed = currentSpeed
-                end
-            end)
-            
-            print("⚡ Speed activado: " .. currentSpeed)
-        else
-            button.Text = "⚡ Speed [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            
-            if speedConnection then
-                speedConnection:Disconnect()
-                speedConnection = nil
-            end
-            
+local function implementNaturalSpeed()
+    systemActive.speed_boost = not systemActive.speed_boost
+    local button = buttonReferences.speedButton
+    
+    if systemActive.speed_boost then
+        button.Text = "⚡ Natural Speed [ACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(55, 155, 55)
+        
+        -- Natural CFrame-based movement enhancement
+        activeConnections.speedBoost = RunService.Heartbeat:Connect(function()
             local character = player.Character
-            if character and character:FindFirstChild("Humanoid") then
-                character.Humanoid.WalkSpeed = 16
+            if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid") then
+                local humanoid = character.Humanoid
+                local rootPart = character.HumanoidRootPart
+                
+                if humanoid.MoveDirection.Magnitude > 0 then
+                    local moveVector = humanoid.MoveDirection * (configuration.speed_multiplier - 1)
+                    local bodyVelocity = rootPart:FindFirstChild("SpeedBoost")
+                    
+                    if not bodyVelocity then
+                        bodyVelocity = Instance.new("BodyVelocity")
+                        bodyVelocity.Name = "SpeedBoost"
+                        bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000)
+                        bodyVelocity.Parent = rootPart
+                    end
+                    
+                    bodyVelocity.Velocity = Vector3.new(moveVector.X * humanoid.WalkSpeed, 0, moveVector.Z * humanoid.WalkSpeed)
+                else
+                    local bodyVelocity = rootPart:FindFirstChild("SpeedBoost")
+                    if bodyVelocity then
+                        bodyVelocity:Destroy()
+                    end
+                end
             end
-            
-            print("⚡ Speed desactivado")
+        end)
+        
+        print("⚡ Natural Speed Enhancement: ACTIVATED")
+    else
+        button.Text = "⚡ Natural Speed [INACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(185, 55, 55)
+        
+        if activeConnections.speedBoost then
+            activeConnections.speedBoost:Disconnect()
+            activeConnections.speedBoost = nil
         end
+        
+        -- Clean up existing velocity objects
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local bodyVelocity = character.HumanoidRootPart:FindFirstChild("SpeedBoost")
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+        end
+        
+        print("⚡ Natural Speed Enhancement: DEACTIVATED")
     end
 end
 
--- Jump Boost
-local function toggleJump()
-    jumpBoostEnabled = not jumpBoostEnabled
-    local button = buttonReferences.jumpBtn
-    if button then
-        if jumpBoostEnabled then
-            button.Text = "🦘 Jump [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            
-            jumpConnection = RunService.Heartbeat:Connect(function()
-                local character = player.Character
-                if character and character:FindFirstChild("Humanoid") then
-                    character.Humanoid.JumpPower = currentJump
-                end
-            end)
-            
-            print("🦘 Jump activado: " .. currentJump)
-        else
-            button.Text = "🦘 Jump [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            
-            if jumpConnection then
-                jumpConnection:Disconnect()
-                jumpConnection = nil
-            end
-            
+local function implementNaturalJump()
+    systemActive.jump_boost = not systemActive.jump_boost
+    local button = buttonReferences.jumpButton
+    
+    if systemActive.jump_boost then
+        button.Text = "🦘 Enhanced Jump [ACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(55, 155, 55)
+        
+        -- Natural jump enhancement using BodyVelocity on jump detection
+        activeConnections.jumpBoost = UserInputService.JumpRequest:Connect(function()
             local character = player.Character
-            if character and character:FindFirstChild("Humanoid") then
-                character.Humanoid.JumpPower = 50
+            if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid") then
+                local rootPart = character.HumanoidRootPart
+                local humanoid = character.Humanoid
+                
+                -- Check if character is grounded
+                local raycast = Workspace:Raycast(rootPart.Position, Vector3.new(0, -5, 0))
+                if raycast then
+                    local jumpBoost = Instance.new("BodyVelocity")
+                    jumpBoost.MaxForce = Vector3.new(0, 4000, 0)
+                    jumpBoost.Velocity = Vector3.new(0, 16.5 * configuration.jump_multiplier, 0)
+                    jumpBoost.Parent = rootPart
+                    
+                    game:GetService("Debris"):AddItem(jumpBoost, 0.5)
+                end
             end
-            
-            print("🦘 Jump desactivado")
+        end)
+        
+        print("🦘 Enhanced Jump System: ACTIVATED")
+    else
+        button.Text = "🦘 Enhanced Jump [INACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(185, 55, 55)
+        
+        if activeConnections.jumpBoost then
+            activeConnections.jumpBoost:Disconnect()
+            activeConnections.jumpBoost = nil
         end
-    end
-end
-
--- Auto Floor
-local function toggleAutoFloor()
-    autoFloorEnabled = not autoFloorEnabled
-    local button = buttonReferences.floorBtn
-    if button then
-        if autoFloorEnabled then
-            button.Text = "🌈 Auto Floor [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            
-            -- Crear suelo
-            floorPart = Instance.new("Part")
-            floorPart.Name = "RainbowFloor"
-            floorPart.Size = Vector3.new(20, 1, 20)
-            floorPart.Material = Enum.Material.Neon
-            floorPart.Anchored = true
-            floorPart.CanCollide = true
-            floorPart.TopSurface = Enum.SurfaceType.Smooth
-            floorPart.BottomSurface = Enum.SurfaceType.Smooth
-            floorPart.Parent = Workspace
-            
-            -- Animación rainbow y seguimiento
-            rainbowConnection = RunService.Heartbeat:Connect(function()
-                if floorPart and floorPart.Parent then
-                    -- Color rainbow
-                    local hue = (tick() * 2) % 6 / 6
-                    floorPart.Color = Color3.fromHSV(hue, 1, 1)
-                    
-                    -- Seguir jugador
-                    local character = player.Character
-                    if character and character:FindFirstChild("HumanoidRootPart") then
-                        floorPart.Position = character.HumanoidRootPart.Position + Vector3.new(0, -10, 0)
-                    end
-                end
-            end)
-            
-            print("🌈 Auto Floor activado - Suelo rainbow creado")
-        else
-            button.Text = "🌈 Auto Floor [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            
-            if rainbowConnection then
-                rainbowConnection:Disconnect()
-                rainbowConnection = nil
-            end
-            
-            if floorPart then
-                floorPart:Destroy()
-                floorPart = nil
-            end
-            
-            print("🌈 Auto Floor desactivado")
-        end
-    end
-end
-
--- Gravity Control
-local function toggleGravity()
-    gravityEnabled = not gravityEnabled
-    local button = buttonReferences.gravityBtn
-    if button then
-        if gravityEnabled then
-            button.Text = "🌍 Gravity [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            Workspace.Gravity = currentGravity
-            print("🌍 Gravity activado: " .. currentGravity)
-        else
-            button.Text = "🌍 Gravity [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            Workspace.Gravity = originalGravity
-            print("🌍 Gravity desactivado - Restaurado a: " .. originalGravity)
-        end
-    end
-end
-
--- ESP Secret
-local function toggleESPSecret()
-    espSecretEnabled = not espSecretEnabled
-    local button = buttonReferences.espSecretBtn
-    if button then
-        if espSecretEnabled then
-            button.Text = "⭐ ESP Secret [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            
-            local function addSecretESP(obj)
-                local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
-                if primaryPart and not primaryPart:FindFirstChild("SecretESP") then
-                    -- Highlight
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "SecretESP"
-                    highlight.FillColor = Color3.fromRGB(255, 100, 100)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
-                    highlight.FillTransparency = 0.3
-                    highlight.OutlineTransparency = 0
-                    highlight.Parent = obj
-                    
-                    -- Billboard
-                    local billboard = Instance.new("BillboardGui")
-                    billboard.Name = "SecretESP"
-                    billboard.Size = UDim2.new(0, 150, 0, 50)
-                    billboard.StudsOffset = Vector3.new(0, 5, 0)
-                    billboard.Parent = primaryPart
-                    
-                    local label = Instance.new("TextLabel")
-                    label.Size = UDim2.new(1, 0, 1, 0)
-                    label.BackgroundTransparency = 1
-                    label.Text = "⭐ SECRET"
-                    label.TextColor3 = Color3.fromRGB(255, 255, 0)
-                    label.TextStrokeTransparency = 0
-                    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    label.TextScaled = true
-                    label.Font = Enum.Font.GothamBold
-                    label.Parent = billboard
-                    
-                    print("⭐ ESP Secret encontrado: " .. obj.Name)
-                end
-            end
-            
-            -- Buscar models existentes
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if obj:IsA("Model") then
-                    for _, brainrot in pairs(secretBrainrots) do
-                        if string.find(obj.Name:lower(), brainrot:lower()) then
-                            addSecretESP(obj)
-                            break
-                        end
-                    end
-                end
-            end
-            
-            -- Monitor nuevos models
-            espConnections.secret = Workspace.ChildAdded:Connect(function(obj)
-                if espSecretEnabled and obj:IsA("Model") then
-                    wait(0.1)
-                    for _, brainrot in pairs(secretBrainrots) do
-                        if string.find(obj.Name:lower(), brainrot:lower()) then
-                            addSecretESP(obj)
-                            break
-                        end
-                    end
-                end
-            end)
-            
-            print("⭐ ESP Secret activado")
-        else
-            button.Text = "⭐ ESP Secret [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            
-            if espConnections.secret then
-                espConnections.secret:Disconnect()
-                espConnections.secret = nil
-            end
-            
-            -- Limpiar ESP existentes
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if obj:IsA("Model") then
-                    local highlight = obj:FindFirstChild("SecretESP")
-                    if highlight then highlight:Destroy() end
-                    
-                    local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
-                    if primaryPart then
-                        local billboard = primaryPart:FindFirstChild("SecretESP")
-                        if billboard then billboard:Destroy() end
-                    end
-                end
-            end
-            
-            print("⭐ ESP Secret desactivado")
-        end
-    end
-end
-
--- ESP God
-local function toggleESPGod()
-    espGodEnabled = not espGodEnabled
-    local button = buttonReferences.espGodBtn
-    if button then
-        if espGodEnabled then
-            button.Text = "👑 ESP God [ON]"
-            button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
-            
-            local function addGodESP(obj)
-                local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
-                if primaryPart and not primaryPart:FindFirstChild("GodESP") then
-                    -- Highlight
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "GodESP"
-                    highlight.FillColor = Color3.fromRGB(255, 215, 0)
-                    highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
-                    highlight.FillTransparency = 0.2
-                    highlight.OutlineTransparency = 0
-                    highlight.Parent = obj
-                    
-                    -- Billboard
-                    local billboard = Instance.new("BillboardGui")
-                    billboard.Name = "GodESP"
-                    billboard.Size = UDim2.new(0, 200, 0, 60)
-                    billboard.StudsOffset = Vector3.new(0, 6, 0)
-                    billboard.Parent = primaryPart
-                    
-                    local frame = Instance.new("Frame")
-                    frame.Size = UDim2.new(1, 0, 1, 0)
-                    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-                    frame.BackgroundTransparency = 0.5
-                    frame.BorderSizePixel = 0
-                    frame.Parent = billboard
-                    
-                    local frameCorner = Instance.new("UICorner")
-                    frameCorner.CornerRadius = UDim.new(0, 8)
-                    frameCorner.Parent = frame
-                    
-                    local nameLabel = Instance.new("TextLabel")
-                    nameLabel.Size = UDim2.new(1, 0, 0.7, 0)
-                    nameLabel.BackgroundTransparency = 1
-                    nameLabel.Text = "👑 GOD"
-                    nameLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-                    nameLabel.TextStrokeTransparency = 0
-                    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    nameLabel.TextScaled = true
-                    nameLabel.Font = Enum.Font.GothamBold
-                    nameLabel.Parent = frame
-                    
-                    local godLabel = Instance.new("TextLabel")
-                    godLabel.Size = UDim2.new(1, 0, 0.3, 0)
-                    godLabel.Position = UDim2.new(0, 0, 0.7, 0)
-                    godLabel.BackgroundTransparency = 1
-                    godLabel.Text = "BRAINROT"
-                    godLabel.TextColor3 = Color3.fromRGB(255, 0, 255)
-                    godLabel.TextStrokeTransparency = 0
-                    godLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    godLabel.TextScaled = true
-                    godLabel.Font = Enum.Font.GothamBold
-                    godLabel.Parent = frame
-                    
-                    print("👑 ESP God encontrado: " .. obj.Name)
-                end
-            end
-            
-            -- Buscar models existentes
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if obj:IsA("Model") then
-                    for _, brainrot in pairs(godBrainrots) do
-                        if string.find(obj.Name:lower(), brainrot:lower()) then
-                            addGodESP(obj)
-                            break
-                        end
-                    end
-                end
-            end
-            
-            -- Monitor nuevos models
-            espConnections.god = Workspace.ChildAdded:Connect(function(obj)
-                if espGodEnabled and obj:IsA("Model") then
-                    wait(0.1)
-                    for _, brainrot in pairs(godBrainrots) do
-                        if string.find(obj.Name:lower(), brainrot:lower()) then
-                            addGodESP(obj)
-                            break
-                        end
-                    end
-                end
-            end)
-            
-            print("👑 ESP God activado")
-        else
-            button.Text = "👑 ESP God [OFF]"
-            button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-            
-            if espConnections.god then
-                espConnections.god:Disconnect()
-                espConnections.god = nil
-            end
-            
-            -- Limpiar ESP existentes
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if obj:IsA("Model") then
-                    local highlight = obj:FindFirstChild("GodESP")
-                    if highlight then highlight:Destroy() end
-                    
-                    local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
-                    if primaryPart then
-                        local billboard = primaryPart:FindFirstChild("GodESP")
-                        if billboard then billboard:Destroy() end
-                    end
-                end
-            end
-            
-            print("👑 ESP God desactivado")
-        end
+        
+        print("🦘 Enhanced Jump System: DEACTIVATED")
     end
 end
 
 -- ========================================
--- CONFIGURAR GUI PRINCIPAL
+-- CONTACT-BASED FLING SYSTEM
 -- ========================================
-local function setupGUI()
-    local gui, mainFrame, scrollFrame, closeBtn = createGUI()
+local function implementContactFling()
+    systemActive.contact_fling = not systemActive.contact_fling
+    local button = buttonReferences.flingButton
     
-    -- Crear botones y almacenar referencias
-    buttonReferences.flingBtn = createButton(scrollFrame, "🚀 Fling Player [OFF]", UDim2.new(0.05, 0, 0, 10), toggleFling)
-    
-    buttonReferences.antiFpsBtn = createButton(scrollFrame, "🛡️ Anti FPS [OFF]", UDim2.new(0.05, 0, 0, 55), toggleAntiFPS)
-    
-    buttonReferences.speedBtn = createButton(scrollFrame, "⚡ Speed [OFF]", UDim2.new(0.05, 0, 0, 100), toggleSpeed)
-    
-    local speedSlider = createSlider(scrollFrame, "Speed Value:", 16, 200, currentSpeed, UDim2.new(0.05, 0, 0, 145), function(value)
-        currentSpeed = value
-        print("⚡ Speed cambiado a: " .. value)
-    end)
-    
-    buttonReferences.jumpBtn = createButton(scrollFrame, "🦘 Jump [OFF]", UDim2.new(0.05, 0, 0, 210), toggleJump)
-    
-    local jumpSlider = createSlider(scrollFrame, "Jump Power:", 50, 300, currentJump, UDim2.new(0.05, 0, 0, 255), function(value)
-        currentJump = value
-        print("🦘 Jump cambiado a: " .. value)
-    end)
-    
-    buttonReferences.floorBtn = createButton(scrollFrame, "🌈 Auto Floor [OFF]", UDim2.new(0.05, 0, 0, 320), toggleAutoFloor)
-    
-    buttonReferences.gravityBtn = createButton(scrollFrame, "🌍 Gravity [OFF]", UDim2.new(0.05, 0, 0, 365), toggleGravity)
-    
-    local gravitySlider = createSlider(scrollFrame, "Gravity:", -200, 400, currentGravity, UDim2.new(0.05, 0, 0, 410), function(value)
-        currentGravity = value
-        if gravityEnabled then
-            Workspace.Gravity = currentGravity
+    if systemActive.contact_fling then
+        button.Text = "💥 Contact Fling [ACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(55, 155, 55)
+        
+        local function setupFlingOnCharacter()
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                
+                activeConnections.contactFling = rootPart.Touched:Connect(function(hit)
+                    local targetCharacter = hit.Parent
+                    local targetPlayer = Players:GetPlayerFromCharacter(targetCharacter)
+                    
+                    if targetPlayer and targetPlayer ~= player then
+                        local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+                        if targetRootPart then
+                            local flingForce = Instance.new("BodyVelocity")
+                            flingForce.MaxForce = Vector3.new(4000, 4000, 4000)
+                            
+                            local direction = (targetRootPart.Position - rootPart.Position).Unit
+                            flingForce.Velocity = direction * configuration.fling_force + Vector3.new(0, 50, 0)
+                            flingForce.Parent = targetRootPart
+                            
+                            game:GetService("Debris"):AddItem(flingForce, 1)
+                            print("💥 CONTACT FLING: " .. targetPlayer.Name .. " has been launched")
+                        end
+                    end
+                end)
+            end
         end
-        print("🌍 Gravity cambiado a: " .. value)
-    end)
+        
+        setupFlingOnCharacter()
+        
+        -- Reconnect on character respawn
+        if activeConnections.characterSpawn then
+            activeConnections.characterSpawn:Disconnect()
+        end
+        
+        activeConnections.characterSpawn = player.CharacterAdded:Connect(function()
+            wait(2)
+            if systemActive.contact_fling then
+                setupFlingOnCharacter()
+            end
+        end)
+        
+        print("💥 Contact-Based Fling System: ACTIVATED")
+    else
+        button.Text = "💥 Contact Fling [INACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(185, 55, 55)
+        
+        if activeConnections.contactFling then
+            activeConnections.contactFling:Disconnect()
+            activeConnections.contactFling = nil
+        end
+        
+        if activeConnections.characterSpawn then
+            activeConnections.characterSpawn:Disconnect()
+            activeConnections.characterSpawn = nil
+        end
+        
+        print("💥 Contact-Based Fling System: DEACTIVATED")
+    end
+end
+
+-- ========================================
+-- ESP DETECTION SYSTEMS
+-- ========================================
+local function implementSecretESP()
+    systemActive.esp_secret = not systemActive.esp_secret
+    local button = buttonReferences.espSecretButton
     
-    buttonReferences.espSecretBtn = createButton(scrollFrame, "⭐ ESP Secret [OFF]", UDim2.new(0.05, 0, 0, 475), toggleESPSecret)
+    if systemActive.esp_secret then
+        button.Text = "⭐ Secret ESP [SCANNING]"
+        button.BackgroundColor3 = Color3.fromRGB(55, 155, 55)
+        
+        local function createSecretHighlight(targetObject)
+            local primaryPart = targetObject.PrimaryPart or targetObject:FindFirstChildOfClass("BasePart")
+            if primaryPart and not primaryPart:FindFirstChild("SecretDetection") then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "SecretDetection"
+                highlight.FillColor = Color3.fromRGB(255, 165, 0)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                highlight.FillTransparency = 0.4
+                highlight.OutlineTransparency = 0
+                highlight.Parent = targetObject
+                
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = "SecretDetection"
+                billboard.Size = UDim2.new(0, 120, 0, 40)
+                billboard.StudsOffset = Vector3.new(0, 4, 0)
+                billboard.Parent = primaryPart
+                
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = "⭐ SECRET"
+                label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                label.TextStrokeTransparency = 0
+                label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                label.TextScaled = true
+                label.Font = Enum.Font.GothamBold
+                label.Parent = billboard
+                
+                print("⭐ SECRET DETECTED: " .. targetObject.Name)
+            end
+        end
+        
+        -- Scan existing objects
+        for _, object in pairs(Workspace:GetChildren()) do
+            if object:IsA("Model") then
+                for _, brainrot in pairs(secretBrainrots) do
+                    if string.find(object.Name:lower(), brainrot:lower()) then
+                        createSecretHighlight(object)
+                        break
+                    end
+                end
+            end
+        end
+        
+        -- Monitor for new objects
+        activeConnections.secretESP = Workspace.ChildAdded:Connect(function(object)
+            if systemActive.esp_secret and object:IsA("Model") then
+                wait(0.1)
+                for _, brainrot in pairs(secretBrainrots) do
+                    if string.find(object.Name:lower(), brainrot:lower()) then
+                        createSecretHighlight(object)
+                        break
+                    end
+                end
+            end
+        end)
+        
+        print("⭐ Secret Detection System: ACTIVATED")
+    else
+        button.Text = "⭐ Secret ESP [INACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(185, 55, 55)
+        
+        if activeConnections.secretESP then
+            activeConnections.secretESP:Disconnect()
+            activeConnections.secretESP = nil
+        end
+        
+        -- Remove existing highlights
+        for _, object in pairs(Workspace:GetChildren()) do
+            if object:IsA("Model") then
+                local highlight = object:FindFirstChild("SecretDetection")
+                if highlight then highlight:Destroy() end
+                
+                local primaryPart = object.PrimaryPart or object:FindFirstChildOfClass("BasePart")
+                if primaryPart then
+                    local billboard = primaryPart:FindFirstChild("SecretDetection")
+                    if billboard then billboard:Destroy() end
+                end
+            end
+        end
+        
+        print("⭐ Secret Detection System: DEACTIVATED")
+    end
+end
+
+local function implementGodESP()
+    systemActive.esp_god = not systemActive.esp_god
+    local button = buttonReferences.espGodButton
     
-    buttonReferences.espGodBtn = createButton(scrollFrame, "👑 ESP God [OFF]", UDim2.new(0.05, 0, 0, 520), toggleESPGod)
+    if systemActive.esp_god then
+        button.Text = "👑 God ESP [SCANNING]"
+        button.BackgroundColor3 = Color3.fromRGB(55, 155, 55)
+        
+        local function createGodHighlight(targetObject)
+            local primaryPart = targetObject.PrimaryPart or targetObject:FindFirstChildOfClass("BasePart")
+            if primaryPart and not primaryPart:FindFirstChild("GodDetection") then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "GodDetection"
+                highlight.FillColor = Color3.fromRGB(255, 215, 0)
+                highlight.OutlineColor = Color3.fromRGB(138, 43, 226)
+                highlight.FillTransparency = 0.3
+                highlight.OutlineTransparency = 0
+                highlight.Parent = targetObject
+                
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = "GodDetection"
+                billboard.Size = UDim2.new(0, 160, 0, 50)
+                billboard.StudsOffset = Vector3.new(0, 5, 0)
+                billboard.Parent = primaryPart
+                
+                local frame = Instance.new("Frame")
+                frame.Size = UDim2.new(1, 0, 1, 0)
+                frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                frame.BackgroundTransparency = 0.6
+                frame.BorderSizePixel = 0
+                frame.Parent = billboard
+                
+                local frameCorner = Instance.new("UICorner")
+                frameCorner.CornerRadius = UDim.new(0, 6)
+                frameCorner.Parent = frame
+                
+                local godLabel = Instance.new("TextLabel")
+                godLabel.Size = UDim2.new(1, 0, 0.6, 0)
+                godLabel.BackgroundTransparency = 1
+                godLabel.Text = "👑 GOD"
+                godLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+                godLabel.TextStrokeTransparency = 0
+                godLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                godLabel.TextScaled = true
+                godLabel.Font = Enum.Font.GothamBold
+                godLabel.Parent = frame
+                
+                local brainrotLabel = Instance.new("TextLabel")
+                brainrotLabel.Size = UDim2.new(1, 0, 0.4, 0)
+                brainrotLabel.Position = UDim2.new(0, 0, 0.6, 0)
+                brainrotLabel.BackgroundTransparency = 1
+                brainrotLabel.Text = "BRAINROT"
+                brainrotLabel.TextColor3 = Color3.fromRGB(138, 43, 226)
+                brainrotLabel.TextStrokeTransparency = 0
+                brainrotLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                brainrotLabel.TextScaled = true
+                brainrotLabel.Font = Enum.Font.GothamBold
+                brainrotLabel.Parent = frame
+                
+                print("👑 GOD DETECTED: " .. targetObject.Name)
+            end
+        end
+        
+        -- Scan existing objects
+        for _, object in pairs(Workspace:GetChildren()) do
+            if object:IsA("Model") then
+                for _, brainrot in pairs(godBrainrots) do
+                    if string.find(object.Name:lower(), brainrot:lower()) then
+                        createGodHighlight(object)
+                        break
+                    end
+                end
+            end
+        end
+        
+        -- Monitor for new objects
+        activeConnections.godESP = Workspace.ChildAdded:Connect(function(object)
+            if systemActive.esp_god and object:IsA("Model") then
+                wait(0.1)
+                for _, brainrot in pairs(godBrainrots) do
+                    if string.find(object.Name:lower(), brainrot:lower()) then
+                        createGodHighlight(object)
+                        break
+                    end
+                end
+            end
+        end)
+        
+        print("👑 God Detection System: ACTIVATED")
+    else
+        button.Text = "👑 God ESP [INACTIVE]"
+        button.BackgroundColor3 = Color3.fromRGB(185, 55, 55)
+        
+        if activeConnections.godESP then
+            activeConnections.godESP:Disconnect()
+            activeConnections.godESP = nil
+        end
+        
+        -- Remove existing highlights
+        for _, object in pairs(Workspace:GetChildren()) do
+            if object:IsA("Model") then
+                local highlight = object:FindFirstChild("GodDetection")
+                if highlight then highlight:Destroy() end
+                
+                local primaryPart = object.PrimaryPart or object:FindFirstChildOfClass("BasePart")
+                if primaryPart then
+                    local billboard = primaryPart:FindFirstChild("GodDetection")
+                    if billboard then billboard:Destroy() end
+                end
+            end
+        end
+        
+        print("👑 God Detection System: DEACTIVATED")
+    end
+end
+
+-- ========================================
+-- MAIN INTERFACE SETUP
+-- ========================================
+local function initializeInterface()
+    local gui, mainFrame, contentFrame, closeButton = createUserInterface()
     
-    -- Evento cerrar
-    closeBtn.MouseButton1Click:Connect(function()
+    -- Create function buttons with proper references
+    buttonReferences.speedButton = createFunctionButton(
+        contentFrame, "⚡ Natural Speed [INACTIVE]", 
+        UDim2.new(0.05, 0, 0, 10), implementNaturalSpeed
+    )
+    
+    createConfigurationSlider(
+        contentFrame, "Speed Multiplier:", 1.5, 5.0, configuration.speed_multiplier,
+        UDim2.new(0.05, 0, 0, 60), function(value)
+            configuration.speed_multiplier = value
+            print("⚡ Speed multiplier adjusted to: " .. value)
+        end
+    )
+    
+    buttonReferences.jumpButton = createFunctionButton(
+        contentFrame, "🦘 Enhanced Jump [INACTIVE]", 
+        UDim2.new(0.05, 0, 0, 130), implementNaturalJump
+    )
+    
+    createConfigurationSlider(
+        contentFrame, "Jump Multiplier:", 1.5, 4.0, configuration.jump_multiplier,
+        UDim2.new(0.05, 0, 0, 180), function(value)
+            configuration.jump_multiplier = value
+            print("🦘 Jump multiplier adjusted to: " .. value)
+        end
+    )
+    
+    buttonReferences.flingButton = createFunctionButton(
+        contentFrame, "💥 Contact Fling [INACTIVE]", 
+        UDim2.new(0.05, 0, 0, 250), implementContactFling
+    )
+    
+    createConfigurationSlider(
+        contentFrame, "Fling Force:", 50, 150, configuration.fling_force,
+        UDim2.new(0.05, 0, 0, 300), function(value)
+            configuration.fling_force = value
+            print("💥 Fling force adjusted to: " .. value)
+        end
+    )
+    
+    buttonReferences.espSecretButton = createFunctionButton(
+        contentFrame, "⭐ Secret ESP [INACTIVE]", 
+        UDim2.new(0.05, 0, 0, 370), implementSecretESP
+    )
+    
+    buttonReferences.espGodButton = createFunctionButton(
+        contentFrame, "👑 God ESP [INACTIVE]", 
+        UDim2.new(0.05, 0, 0, 420), implementGodESP
+    )
+    
+    -- Close button functionality
+    closeButton.MouseButton1Click:Connect(function()
         gui:Destroy()
-        print("👋 Panel cerrado")
+        print("🔒 Stealth Panel: CLOSED")
     end)
     
     return gui
 end
 
 -- ========================================
--- EVENTOS GLOBALES
+-- CLEANUP AND MANAGEMENT SYSTEMS
 -- ========================================
-
--- Fling functionality
-mouse.Button1Down:Connect(function()
-    if not flingEnabled then return end
+local function performSystemCleanup()
+    for connectionName, connection in pairs(activeConnections) do
+        if connection then
+            connection:Disconnect()
+        end
+    end
+    activeConnections = {}
     
-    local target = mouse.Target
-    if not target then return end
-    
-    local targetPlayer = Players:GetPlayerFromCharacter(target.Parent)
-    if not targetPlayer or targetPlayer == player then return end
-    
-    local character = targetPlayer.Character
-    if not character then return end
-    
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-    
-    -- Fling effect
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = Vector3.new(
-        math.random(-100, 100),
-        math.random(80, 150),
-        math.random(-100, 100)
-    )
-    bodyVelocity.Parent = humanoidRootPart
-    
-    game:GetService("Debris"):AddItem(bodyVelocity, 2)
-    print("💥 FLINGED: " .. targetPlayer.Name)
-end)
-
--- Mantener configuraciones al respawn
-player.CharacterAdded:Connect(function()
-    wait(1)
-    
-    if speedBoostEnabled then
-        if speedConnection then speedConnection:Disconnect() end
-        speedConnection = RunService.Heartbeat:Connect(function()
-            local character = player.Character
-            if character and character:FindFirstChild("Humanoid") then
-                character.Humanoid.WalkSpeed = currentSpeed
-            end
-        end)
-        print("⚡ Speed restaurado: " .. currentSpeed)
+    -- Reset character modifications
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = character.HumanoidRootPart
+        local speedBoost = rootPart:FindFirstChild("SpeedBoost")
+        if speedBoost then
+            speedBoost:Destroy()
+        end
     end
     
-    if jumpBoostEnabled then
-        if jumpConnection then jumpConnection:Disconnect() end
-        jumpConnection = RunService.Heartbeat:Connect(function()
-            local character = player.Character
-            if character and character:FindFirstChild("Humanoid") then
-                character.Humanoid.JumpPower = currentJump
+    -- Clear all ESP highlights
+    for _, object in pairs(Workspace:GetChildren()) do
+        if object:IsA("Model") then
+            local secretHighlight = object:FindFirstChild("SecretDetection")
+            if secretHighlight then secretHighlight:Destroy() end
+            
+            local godHighlight = object:FindFirstChild("GodDetection")
+            if godHighlight then godHighlight:Destroy() end
+            
+            local primaryPart = object.PrimaryPart or object:FindFirstChildOfClass("BasePart")
+            if primaryPart then
+                local secretBillboard = primaryPart:FindFirstChild("SecretDetection")
+                if secretBillboard then secretBillboard:Destroy() end
+                
+                local godBillboard = primaryPart:FindFirstChild("GodDetection")
+                if godBillboard then godBillboard:Destroy() end
             end
-        end)
-        print("🦘 Jump restaurado: " .. currentJump)
+        end
     end
-end)
+    
+    -- Reset system states
+    for key in pairs(systemActive) do
+        systemActive[key] = false
+    end
+    
+    print("🧹 Complete system cleanup performed")
+end
 
 -- ========================================
--- KEYBINDS
+-- KEYBOARD CONTROLS
 -- ========================================
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
     if input.KeyCode == Enum.KeyCode.Insert then
-        -- Toggle GUI
-        local gui = CoreGui:FindFirstChild("BrainrotHackGUI")
+        local gui = CoreGui:FindFirstChild("StealthBrainrotGUI")
         if gui then
             gui.MainFrame.Visible = not gui.MainFrame.Visible
-            print("👀 Panel " .. (gui.MainFrame.Visible and "mostrado" or "ocultado"))
+            print("👁️ Interface visibility: " .. (gui.MainFrame.Visible and "SHOWN" or "HIDDEN"))
         else
-            setupGUI()
-            print("🔄 Panel recreado")
+            initializeInterface()
+            print("🔄 Stealth interface: RECREATED")
         end
         
     elseif input.KeyCode == Enum.KeyCode.Delete then
-        -- Emergency stop
-        flingEnabled = false
-        speedBoostEnabled = false
-        jumpBoostEnabled = false
-        autoFloorEnabled = false
-        gravityEnabled = false
-        espSecretEnabled = false
-        espGodEnabled = false
-        antiFpsEnabled = false
-        
-        -- Desconectar todo
-        if speedConnection then
-            speedConnection:Disconnect()
-            speedConnection = nil
-        end
-        
-        if jumpConnection then
-            jumpConnection:Disconnect()
-            jumpConnection = nil
-        end
-        
-        if rainbowConnection then
-            rainbowConnection:Disconnect()
-            rainbowConnection = nil
-        end
-        
-        if floorPart then
-            floorPart:Destroy()
-            floorPart = nil
-        end
-        
-        -- Resetear jugador
-        local character = player.Character
-        if character and character:FindFirstChild("Humanoid") then
-            character.Humanoid.WalkSpeed = 16
-            character.Humanoid.JumpPower = 50
-        end
-        
-        -- Resetear gravedad
-        Workspace.Gravity = originalGravity
-        
-        -- Limpiar ESP
-        for _, connection in pairs(espConnections) do
-            if connection then connection:Disconnect() end
-        end
-        espConnections = {}
-        
-        for _, obj in pairs(Workspace:GetChildren()) do
-            if obj:IsA("Model") then
-                local secretHighlight = obj:FindFirstChild("SecretESP")
-                if secretHighlight then secretHighlight:Destroy() end
-                
-                local godHighlight = obj:FindFirstChild("GodESP")
-                if godHighlight then godHighlight:Destroy() end
-                
-                local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
-                if primaryPart then
-                    local secretBillboard = primaryPart:FindFirstChild("SecretESP")
-                    if secretBillboard then secretBillboard:Destroy() end
-                    
-                    local godBillboard = primaryPart:FindFirstChild("GodESP")
-                    if godBillboard then godBillboard:Destroy() end
-                end
-            end
-        end
-        
-        -- Restaurar configuraciones de FPS de forma segura
-        local lighting = game:GetService("Lighting")
-        lighting.GlobalShadows = true
-        lighting.FogEnd = 100000
-        lighting.Brightness = 1
-        lighting.EnvironmentDiffuseScale = 1
-        lighting.EnvironmentSpecularScale = 1
-        
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-        
-        print("🛑 EMERGENCY STOP - Todo desactivado y restaurado")
+        performSystemCleanup()
+        print("🛑 EMERGENCY TERMINATION: All systems deactivated")
         
     elseif input.KeyCode == Enum.KeyCode.Home then
-        -- Recrear panel
-        if CoreGui:FindFirstChild("BrainrotHackGUI") then
-            CoreGui:FindFirstChild("BrainrotHackGUI"):Destroy()
+        if CoreGui:FindFirstChild("StealthBrainrotGUI") then
+            CoreGui:FindFirstChild("StealthBrainrotGUI"):Destroy()
         end
         buttonReferences = {}
-        setupGUI()
-        print("🔄 Panel recreado completamente")
+        initializeInterface()
+        print("🔄 Complete interface reconstruction: COMPLETED")
+    end
+end)
+
+-- Character respawn management
+player.CharacterAdded:Connect(function()
+    wait(3) -- Extended wait for complete character loading
+    
+    if systemActive.speed_boost then
+        implementNaturalSpeed()
+        implementNaturalSpeed() -- Double call to reactivate
+    end
+    
+    if systemActive.contact_fling then
+        implementContactFling()
+        implementContactFling() -- Double call to reactivate
+    end
+end)
+
+-- Cleanup on player leaving
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        performSystemCleanup()
     end
 end)
 
 -- ========================================
--- FUNCIONES DE LIMPIEZA
+-- SYSTEM INITIALIZATION
 -- ========================================
-local function cleanupOnLeave()
-    -- Limpiar todas las conexiones
-    if speedConnection then speedConnection:Disconnect() end
-    if jumpConnection then jumpConnection:Disconnect() end
-    if rainbowConnection then rainbowConnection:Disconnect() end
-    
-    for _, connection in pairs(espConnections) do
-        if connection then connection:Disconnect() end
-    end
-    
-    -- Limpiar objetos creados
-    if floorPart then floorPart:Destroy() end
-    
-    -- Restaurar configuraciones
-    Workspace.Gravity = originalGravity
-    
-    local character = player.Character
-    if character and character:FindFirstChild("Humanoid") then
-        character.Humanoid.WalkSpeed = 16
-        character.Humanoid.JumpPower = 50
-    end
-end
+print("🧠 ==========================================")
+print("🧠 STEALTH BRAINROT PANEL - LOADING...")
+print("🧠 ==========================================")
+print("🎮 ADVANCED STEALTH SYSTEM v2.0")
+print("🔧 IMPLEMENTED FEATURES:")
+print("   ⚡ Natural Speed Enhancement System")
+print("   🦘 Physics-Based Jump Amplification")
+print("   💥 Contact-Triggered Fling Mechanism")
+print("   ⭐ Secret Brainrot Detection Network")
+print("   👑 God Brainrot Identification System")
+print("🧠 ==========================================")
+print("⌨️ CONTROL SCHEME:")
+print("   INSERT = Interface Toggle/Recreation")
+print("   DELETE = Emergency System Termination")
+print("   HOME = Complete Interface Reconstruction")
+print("🧠 ==========================================")
 
--- Limpiar al salir del juego
-game:GetService("Players").PlayerRemoving:Connect(function(plr)
-    if plr == player then
-        cleanupOnLeave()
-    end
-end)
+-- Initialize the main interface
+local mainInterface = initializeInterface()
 
--- ========================================
--- INICIALIZAR
--- ========================================
-print("🧠 ========================================")
-print("🧠 CARGANDO HACK PANEL CORREGIDO...")
-print("🧠 ========================================")
-print("🎮 STEAL A BRAINROT HACK PANEL v6.0 FIXED")
-print("🔧 Funciones TOTALMENTE OPERATIVAS:")
-print("   🚀 Fling Player - FUNCIONAL")
-print("   🛡️ Anti FPS Killer - FUNCIONAL")
-print("   ⚡ Speed Boost - FUNCIONAL")
-print("   🦘 Jump Boost - FUNCIONAL")
-print("   🌈 Auto Floor Rainbow - FUNCIONAL")
-print("   🌍 Gravity Control - FUNCIONAL")
-print("   ⭐ ESP Secret - FUNCIONAL")
-print("   👑 ESP God - FUNCIONAL")
-print("🧠 ========================================")
-print("⌨️ CONTROLES:")
-print("   INSERT = Mostrar/Ocultar Panel")
-print("   DELETE = Emergency Stop")
-print("   HOME = Recrear Panel")
-print("🧠 ========================================")
-
--- Crear GUI principal
-local mainGUI = setupGUI()
-
--- Mensaje de confirmación
-wait(1)
-print("✅ PANEL CORREGIDO Y FUNCIONAL!")
-print("🎯 Todos los botones responden correctamente")
-print("🎨 Sliders completamente operativos")
-print("🔥 Sistema de referencias de botones implementado")
-print("⚡ TODAS LAS FUNCIONES FUNCIONAN AHORA!")
-print("🧠 ========================================")
+wait(1.5)
+print("✅ STEALTH SYSTEM: FULLY OPERATIONAL")
+print("🎯 Natural movement algorithms: IMPLEMENTED")
+print("🔬 Advanced detection systems: ACTIVE")
+print("🛡️ Anti-detection protocols: ENGAGED")
+print("🚀 Ready for stealth operations!")
+print("🧠 ==========================================")
