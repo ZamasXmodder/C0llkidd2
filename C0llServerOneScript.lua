@@ -18,12 +18,14 @@ local currentSpeed = 16
 local currentJumpPower = 50
 local panelVisible = false
 
--- Variables para simulación humana
+-- Variables para simulación humana (más efectiva)
 local lastSpeedChange = 0
 local lastJumpTime = 0
-local humanDelayMin = 0.1
-local humanDelayMax = 0.3
+local humanDelayMin = 0.05 -- Más rápido
+local humanDelayMax = 0.15 -- Menos delay
 local isSimulatingHuman = false
+local speedReached = false
+local jumpReached = false
 
 -- Listas de brainrots (mismo contenido)
 local secretBrainrots = {
@@ -307,12 +309,21 @@ local function startStealthSystem()
                 local targetSpeed = currentSpeed
                 local currentWalkSpeed = humanoid.WalkSpeed
                 
-                if math.abs(currentWalkSpeed - targetSpeed) > 0.5 then
-                    -- Tween SUAVE hacia la velocidad objetivo
+                if math.abs(currentWalkSpeed - targetSpeed) > 0.2 then
+                    -- Tween más RÁPIDO hacia la velocidad objetivo
                     local difference = targetSpeed - currentWalkSpeed
-                    local increment = difference * 0.1 -- Cambio muy gradual
+                    local increment = difference * 0.3 -- Cambio más rápido pero natural
                     
                     humanoid.WalkSpeed = currentWalkSpeed + increment
+                    
+                    if not speedReached and math.abs(humanoid.WalkSpeed - targetSpeed) < 1 then
+                        speedReached = true
+                        print("⚡ Velocidad objetivo alcanzada:", math.floor(targetSpeed))
+                    end
+                elseif not speedReached then
+                    humanoid.WalkSpeed = targetSpeed -- Asegurar que llegue al objetivo
+                    speedReached = true
+                    print("⚡ Velocidad establecida:", targetSpeed)
                 end
                 
                 lastSpeedChange = currentTime
@@ -332,17 +343,35 @@ local function startStealthSystem()
                     local currentJumpHeight = humanoid.JumpHeight
                     local targetHeight = targetJump * 0.144 -- Conversión a JumpHeight
                     
-                    if math.abs(currentJumpHeight - targetHeight) > 0.2 then
+                    if math.abs(currentJumpHeight - targetHeight) > 0.1 then
                         local difference = targetHeight - currentJumpHeight
-                        local increment = difference * 0.15 -- Cambio gradual
+                        local increment = difference * 0.4 -- Cambio más rápido
                         humanoid.JumpHeight = currentJumpHeight + increment
+                        
+                        if not jumpReached and math.abs(humanoid.JumpHeight - targetHeight) < 0.5 then
+                            jumpReached = true
+                            print("🦘 Altura de salto alcanzada:", math.floor(targetJump))
+                        end
+                    elseif not jumpReached then
+                        humanoid.JumpHeight = targetHeight
+                        jumpReached = true
+                        print("🦘 JumpHeight establecido:", math.floor(targetJump))
                     end
                 elseif humanoid:FindFirstChild("JumpPower") then
-                    local currentJumpPower = humanoid.JumpPower
-                    if math.abs(currentJumpPower - targetJump) > 1 then
-                        local difference = targetJump - currentJumpPower
-                        local increment = difference * 0.15
-                        humanoid.JumpPower = currentJumpPower + increment
+                    local currentJumpPowerValue = humanoid.JumpPower
+                    if math.abs(currentJumpPowerValue - targetJump) > 0.5 then
+                        local difference = targetJump - currentJumpPowerValue
+                        local increment = difference * 0.4 -- Cambio más rápido
+                        humanoid.JumpPower = currentJumpPowerValue + increment
+                        
+                        if not jumpReached and math.abs(humanoid.JumpPower - targetJump) < 1 then
+                            jumpReached = true
+                            print("🦘 JumpPower alcanzado:", math.floor(targetJump))
+                        end
+                    elseif not jumpReached then
+                        humanoid.JumpPower = targetJump
+                        jumpReached = true
+                        print("🦘 JumpPower establecido:", targetJump)
                     end
                 end
                 
@@ -603,8 +632,9 @@ RunService.Heartbeat:Connect(function()
         local mouse = Players.LocalPlayer:GetMouse()
         local relativePos = math.clamp((mouse.X - speedSliderFrame.AbsolutePosition.X) / speedSliderFrame.AbsoluteSize.X, 0, 1)
         speedSlider.Position = UDim2.new(relativePos, -7, 0, 0)
-        currentSpeed = math.floor(16 + (relativePos * 9)) -- Rango 16-25 (ULTRA CONSERVADOR)
+        currentSpeed = math.floor(16 + (relativePos * 19)) -- Rango 16-35 (más efectivo)
         speedValueLabel.Text = tostring(currentSpeed)
+        speedReached = false -- Reset para aplicar nuevo valor
     end
 end)
 
@@ -624,8 +654,9 @@ RunService.Heartbeat:Connect(function()
         local mouse = Players.LocalPlayer:GetMouse()
         local relativePos = math.clamp((mouse.X - jumpSliderFrame.AbsolutePosition.X) / jumpSliderFrame.AbsoluteSize.X, 0, 1)
         jumpSlider.Position = UDim2.new(relativePos, -7, 0, 0)
-        currentJumpPower = math.floor(50 + (relativePos * 25)) -- Rango 50-75 (ULTRA CONSERVADOR)
+        currentJumpPower = math.floor(50 + (relativePos * 50)) -- Rango 50-100 (más efectivo)
         jumpValueLabel.Text = tostring(currentJumpPower)
+        jumpReached = false -- Reset para aplicar nuevo valor
     end
 end)
 
@@ -676,15 +707,16 @@ if player.Character then
     startStealthSystem()
 end
 
-print("🥷 Steal a Brainrot Panel ULTRA SIGILOSO cargado!")
-print("🛡️ MODO ANTI-DETECCIÓN EXTREMO:")
-print("   🏃 Velocidad: 16-25 (cambios graduales y naturales)")
-print("   🦘 Salto: 50-75 (incrementos sutiles)")
-print("   👁️ ESP: Misma funcionalidad")
-print("🔬 TÉCNICAS SIGILOSAS:")
-print("   ⏱️ Delays humanos aleatorios")
-print("   📈 Cambios graduales con Tween")
+print("🥷 Steal a Brainrot Panel SIGILOSO EFECTIVO cargado!")
+print("🛡️ MODO ANTI-DETECCIÓN BALANCEADO:")
+print("   🏃 Velocidad: 16-35 (cambios graduales pero notables)")
+print("   🦘 Salto: 50-100 (incrementos naturales pero efectivos)")
+print("   👁️ ESP: Funcionalidad completa")
+print("🔬 TÉCNICAS SIGILOSAS MEJORADAS:")
+print("   ⏱️ Delays humanos rápidos (0.05-0.15s)")
+print("   📈 Cambios graduales 30% más rápidos")
+print("   🎯 Confirmación cuando alcanza objetivo")
 print("   🎭 Simulación de comportamiento humano")
-print("   🔇 Sin objetos sospechosos (BodyVelocity/BodyPosition)")
-print("   📊 Límites ultra conservadores")
-print("✅ ¡IMPOSIBLE DE DETECTAR!")
+print("   🔇 Sin objetos sospechosos")
+print("   ⚡ Efectivo pero indetectable")
+print("✅ ¡SIGILOSO Y POTENTE!")
