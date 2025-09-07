@@ -301,7 +301,7 @@ local function createSlider(parent, labelText, minVal, maxVal, currentVal, posit
             
             if callback then
                 callback(newValue)
-            end
+                                end
         end
     end)
     
@@ -481,6 +481,174 @@ local function toggleESPSecret(button)
                             highlight.FillColor = Color3.fromRGB(255, 100, 100)
                             highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
                             highlight.FillTransparency = 0.3
+                            highlight.OutlineTransparency = 0
+                            highlight.Parent = obj
+                            
+                            -- Billboard
+                            local billboard = Instance.new("BillboardGui")
+                            billboard.Size = UDim2.new(0, 150, 0, 50)
+                            billboard.StudsOffset = Vector3.new(0, 5, 0)
+                            billboard.Parent = primaryPart
+                            
+                            local label = Instance.new("TextLabel")
+                            label.Size = UDim2.new(1, 0, 1, 0)
+                            label.BackgroundTransparency = 1
+                            label.Text = "⭐ SECRET"
+                            label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                            label.TextStrokeTransparency = 0
+                            label.TextScaled = true
+                            label.Font = Enum.Font.GothamBold
+                            label.Parent = billboard
+                            
+                            print("⭐ ESP Secret encontrado: " .. obj.Name)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+        
+        -- Monitor nuevos models
+        espConnections.secret = Workspace.ChildAdded:Connect(function(obj)
+            if espSecretEnabled and obj:IsA("Model") then
+                wait(0.1)
+                for _, brainrot in pairs(secretBrainrots) do
+                    if obj.Name:lower():find(brainrot:lower()) then
+                        local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
+                        if primaryPart then
+                            local highlight = Instance.new("Highlight")
+                            highlight.FillColor = Color3.fromRGB(255, 100, 100)
+                            highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                            highlight.FillTransparency = 0.3
+                            highlight.OutlineTransparency = 0
+                            highlight.Parent = obj
+                            
+                            local billboard = Instance.new("BillboardGui")
+                            billboard.Size = UDim2.new(0, 150, 0, 50)
+                            billboard.StudsOffset = Vector3.new(0, 5, 0)
+                            billboard.Parent = primaryPart
+                            
+                            local label = Instance.new("TextLabel")
+                            label.Size = UDim2.new(1, 0, 1, 0)
+                            label.BackgroundTransparency = 1
+                            label.Text = "⭐ SECRET"
+                            label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                            label.TextStrokeTransparency = 0
+                            label.TextScaled = true
+                            label.Font = Enum.Font.GothamBold
+                            label.Parent = billboard
+                            
+                            print("⭐ Nuevo ESP Secret: " .. obj.Name)
+                        end
+                        break
+                    end
+                end
+            end
+        end)
+    else
+        button.Text = "⭐ ESP Secret [OFF]"
+        button.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+        
+        if espConnections.secret then
+            espConnections.secret:Disconnect()
+            espConnections.secret = nil
+        end
+        
+        -- Limpiar ESP existentes
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") then
+                local highlight = obj:FindFirstChild("Highlight")
+                if highlight then highlight:Destroy() end
+                
+                local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
+                if primaryPart then
+                    local billboard = primaryPart:FindFirstChild("BillboardGui")
+                    if billboard then billboard:Destroy() end
+                end
+            end
+        end
+    end
+    print("⭐ ESP Secret: " .. (espSecretEnabled and "ON" or "OFF"))
+end
+
+-- ESP God
+local function toggleESPGod(button)
+    espGodEnabled = not espGodEnabled
+    if espGodEnabled then
+        button.Text = "👑 ESP God [ON]"
+        button.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
+        
+        -- Buscar models existentes
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") then
+                for _, brainrot in pairs(godBrainrots) do
+                    if obj.Name:lower():find(brainrot:lower()) then
+                        local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
+                        if primaryPart then
+                            local highlight = Instance.new("Highlight")
+                            highlight.FillColor = Color3.fromRGB(255, 215, 0)
+                            highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
+                            highlight.FillTransparency = 0.2
+                            highlight.OutlineTransparency = 0
+                            highlight.Parent = obj
+                            
+                            local billboard = Instance.new("BillboardGui")
+                            billboard.Size = UDim2.new(0, 200, 0, 60)
+                            billboard.StudsOffset = Vector3.new(0, 6, 0)
+                            billboard.Parent = primaryPart
+                            
+                            local frame = Instance.new("Frame")
+                            frame.Size = UDim2.new(1, 0, 1, 0)
+                            frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                            frame.BackgroundTransparency = 0.5
+                            frame.BorderSizePixel = 0
+                            frame.Parent = billboard
+                            
+                            local frameCorner = Instance.new("UICorner")
+                            frameCorner.CornerRadius = UDim.new(0, 8)
+                            frameCorner.Parent = frame
+                            
+                            local nameLabel = Instance.new("TextLabel")
+                            nameLabel.Size = UDim2.new(1, 0, 0.7, 0)
+                            nameLabel.BackgroundTransparency = 1
+                            nameLabel.Text = "👑 GOD"
+                            nameLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+                            nameLabel.TextStrokeTransparency = 0
+                            nameLabel.TextScaled = true
+                            nameLabel.Font = Enum.Font.GothamBold
+                            nameLabel.Parent = frame
+                            
+                            local godLabel = Instance.new("TextLabel")
+                            godLabel.Size = UDim2.new(1, 0, 0.3, 0)
+                            godLabel.Position = UDim2.new(0, 0, 0.7, 0)
+                            godLabel.BackgroundTransparency = 1
+                            godLabel.Text = "BRAINROT"
+                            godLabel.TextColor3 = Color3.fromRGB(255, 0, 255)
+                            godLabel.TextStrokeTransparency = 0
+                            godLabel.TextScaled = true
+                            godLabel.Font = Enum.Font.GothamBold
+                            godLabel.Parent = frame
+                            
+                            print("👑 ESP God encontrado: " .. obj.Name)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+        
+        -- Monitor nuevos models
+        espConnections.god = Workspace.ChildAdded:Connect(function(obj)
+            if espGodEnabled and obj:IsA("Model") then
+                wait(0.1)
+                for _, brainrot in pairs(godBrainrots) do
+                    if obj.Name:lower():find(brainrot:lower()) then
+                        local primaryPart = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
+                        if primaryPart then
+                                                        local highlight = Instance.new("Highlight")
+                            highlight.FillColor = Color3.fromRGB(255, 215, 0)
+                            highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
+                            highlight.FillTransparency = 0.2
                             highlight.OutlineTransparency = 0
                             highlight.Parent = obj
                             
@@ -754,4 +922,15 @@ print("⌨️ CONTROLES:")
 print("   INSERT = Mostrar/Ocultar")
 print("   DELETE = Emergency Stop")
 print("   HOME = Recrear Panel")
+print("🧠 ========================================")
+
+-- Crear GUI
+local mainGUI = setupGUI()
+
+wait(1)
+print("✅ PANEL CARGADO CORRECTAMENTE!")
+print("🎯 Todas las funciones están funcionando")
+print("🎨 Panel compacto y moderno")
+print("🖱️ Draggable desde el título")
+print("🔥 Listo para usar!")
 print("🧠 ========================================")
