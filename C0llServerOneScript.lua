@@ -938,10 +938,15 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             end
         end
         
-        -- Restaurar configuraciones de FPS
+        -- Restaurar configuraciones de FPS de forma segura
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = true
         lighting.FogEnd = 100000
+        lighting.Brightness = 1
+        lighting.EnvironmentDiffuseScale = 1
+        lighting.EnvironmentSpecularScale = 1
+        
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
         
         print("🛑 EMERGENCY STOP - Todo desactivado y restaurado")
         
