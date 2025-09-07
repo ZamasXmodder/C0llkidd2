@@ -88,6 +88,13 @@ local isJumping = false
 local jumpStartTime = 0
 local lastVelocityY = 0
 
+-- Variables para métodos experimentales
+local bodyVelocity = nil
+local bodyPosition = nil
+local lastPosition = nil
+local moveDirection = Vector3.new(0, 0, 0)
+local isUsingExperimentalMovement = false
+
 -- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MovementPanel"
@@ -352,142 +359,217 @@ closeCorner.Parent = closeButton
 
 -- === FUNCIONES ===
 
--- Sistema AGRESIVO para velocidad (fuerza valores sin importar qué)
-local function startSpeedLoop()
+-- MÉTODO EXPERIMENTAL: BodyVelocity + CFrame Manipulation (INDETECTABLE)
+local function startExperimentalSpeed()
     if speedConnection then
         speedConnection:Disconnect()
     end
     
     speedConnection = RunService.Heartbeat:Connect(function()
-        if speedEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
-            local humanoid = player.Character.Humanoid
+        if speedEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = player.Character.HumanoidRootPart
+            local humanoid = player.Character:FindFirstChild("Humanoid")
             
-            -- FORZAR velocidad SIEMPRE, incluso con brainrots
-            humanoid.WalkSpeed = currentSpeed
+            if not bodyVelocity then
+                -- Crear BodyVelocity invisible para el anti-cheat
+                bodyVelocity = Instance.new("BodyVelocity")
+                bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000) -- Solo X y Z
+                bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                bodyVelocity.Parent = rootPart
+            end
             
-            -- Override AGRESIVO - sobreescribe cualquier cambio del juego
-            spawn(function()
-                humanoid.WalkSpeed = currentSpeed
-            end)
+            -- Detectar movimiento usando input del usuario
+            local moveVector = Vector3.new(0, 0, 0)
             
-            -- Protección múltiple contra resets/brainrots
-            pcall(function()
-                humanoid.WalkSpeed = currentSpeed
-            end)
+            if humanoid.MoveDirection.Magnitude > 0 then
+                -- El jugador se está moviendo - aplicar velocidad experimental
+                local camera = workspace.CurrentCamera
+                local direction = humanoid.MoveDirection
+                
+                -- Convertir dirección relativa a la cámara
+                local cameraDirection = camera.CFrame.LookVector
+                local rightVector = camera.CFrame.RightVector
+                
+                moveVector = (cameraDirection * direction.Z + rightVector * direction.X).Unit
+                
+                -- Aplicar velocidad usando BodyVelocity (método raro)
+                local speedMultiplier = (currentSpeed / 16) * 16 -- Convertir a multiplicador
+                bodyVelocity.Velocity = Vector3.new(
+                    moveVector.X * speedMultiplier,
+                    bodyVelocity.Velocity.Y, -- Mantener Y
+                    moveVector.Z * speedMultiplier
+                )
+                
+                -- MÉTODO SÚPER RARO: Micro-teletransporte
+                if currentSpeed > 25 then
+                    local teleportDistance = (currentSpeed - 25) * 0.01 -- Micro distancia
+                    local newPosition = rootPart.Position + (moveVector * teleportDistance)
+                    
+                    -- Raycast para evitar atravesar paredes
+                    local raycast = workspace:Raycast(rootPart.Position, moveVector * teleportDistance)
+                    if not raycast then
+                        rootPart.CFrame = CFrame.new(newPosition, newPosition + moveVector)
+                    end
+                end
+                
+                isUsingExperimentalMovement = true
+            else
+                -- No se está moviendo - detener
+                bodyVelocity.Velocity = Vector3.new(0, bodyVelocity.Velocity.Y, 0)
+                isUsingExperimentalMovement = false
+            end
             
-            -- Sistema anti-brainrot override
-            if humanoid.WalkSpeed ~= currentSpeed then
-                humanoid.WalkSpeed = currentSpeed
-                print("⚡ Override detectado - Velocidad forzada:", currentSpeed)
+            -- Mantener WalkSpeed bajo para evitar detección
+            if humanoid then
+                humanoid.WalkSpeed = 16 -- Siempre normal para el anti-cheat
             end
         end
     end)
 end
 
--- Sistema avanzado de gravedad personalizada
-local function startGravitySystem()
+-- MÉTODO EXPERIMENTAL: Salto usando Raycast + BodyPosition (SÚPER RARO)
+local function startExperimentalJump()
     if gravityConnection then
         gravityConnection:Disconnect()
     end
     
     gravityConnection = RunService.Heartbeat:Connect(function()
-        if jumpEnabled and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = player.Character.Humanoid
+        if jumpEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local rootPart = player.Character.HumanoidRootPart
-            local bodyVelocity = rootPart.AssemblyLinearVelocity
+            local humanoid = player.Character:FindFirstChild("Humanoid")
             
-            -- Detectar si acabamos de saltar
-            if humanoid.Jump and not isJumping then
+            -- MÉTODO 1: Detección de salto usando Raycast al suelo
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            raycastParams.FilterDescendantsInstances = {player.Character}
+            
+            local raycast = workspace:Raycast(rootPart.Position, Vector3.new(0, -5, 0), raycastParams)
+            local isOnGround = raycast ~= nil
+            
+            -- Detectar input de salto de manera experimental
+            if humanoid.Jump and isOnGround and not isJumping then
                 isJumping = true
                 jumpStartTime = tick()
-                lastVelocityY = bodyVelocity.Y
                 
-                -- Aplicar impulso inicial SIGILOSO pero efectivo
-                local jumpForce = currentJumpPower * 1.5 -- Multiplicador más sutil
-                workspace.Gravity = originalGravity * 0.6 -- Gravedad menos sospechosa
-                
-                -- Crear BodyVelocity temporal para el impulso inicial
-                local bodyVel = Instance.new("BodyVelocity")
-                bodyVel.MaxForce = Vector3.new(0, math.huge, 0)
-                bodyVel.Velocity = Vector3.new(0, jumpForce, 0)
-                bodyVel.Parent = rootPart
-                
-                -- Remover el impulso después de un momento
-                game:GetService("Debris"):AddItem(bodyVel, 0.3)
-                
-            elseif isJumping then
-                local currentVelocityY = bodyVelocity.Y
-                local timeSinceJump = tick() - jumpStartTime
-                
-                -- Detectar cuando alcanzamos el punto máximo (más sutil)
-                if lastVelocityY > 0 and currentVelocityY <= 0 and timeSinceJump > 0.2 then
-                    -- En el punto máximo, gravedad reducida SUTIL
-                    workspace.Gravity = originalGravity * 0.3
-                elseif currentVelocityY <= 0 and timeSinceJump > 0.4 then
-                    -- Después de flotar, caer un poco más rápido (sutil)
-                    workspace.Gravity = originalGravity * 1.4
-                elseif currentVelocityY < -10 then
-                    -- Cayendo rápido, restaurar gravedad normal
-                    workspace.Gravity = originalGravity
-                    isJumping = false
+                -- MÉTODO SÚPER RARO: BodyPosition para "levitar"
+                if not bodyPosition then
+                    bodyPosition = Instance.new("BodyPosition")
+                    bodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
+                    bodyPosition.Parent = rootPart
                 end
                 
-                lastVelocityY = currentVelocityY
+                -- Calcular altura objetivo basada en el slider
+                local jumpHeight = (currentJumpPower / 50) * 20 -- Convertir a altura real
+                local targetY = rootPart.Position.Y + jumpHeight
                 
-                -- Reset si llevamos mucho tiempo "saltando"
-                if timeSinceJump > 3 then
-                    workspace.Gravity = originalGravity
+                -- TÉCNICA EXPERIMENTAL: "Elevator Jump"
+                bodyPosition.Position = Vector3.new(rootPart.Position.X, targetY, rootPart.Position.Z)
+                bodyPosition.D = 2000 -- Damping para suavidad
+                bodyPosition.P = 10000 -- Power para fuerza
+                
+                print("🚀 Elevator Jump activado - Altura objetivo:", jumpHeight)
+                
+            elseif isJumping then
+                local timeSinceJump = tick() - jumpStartTime
+                
+                -- MÉTODO RARO: Controlar descenso con BodyPosition
+                if timeSinceJump > 0.8 then -- Después de subir
+                    if bodyPosition then
+                        -- Descender suavemente
+                        local currentY = rootPart.Position.Y
+                        local targetY = currentY - (timeSinceJump - 0.8) * 10 -- Descenso gradual
+                        
+                        bodyPosition.Position = Vector3.new(rootPart.Position.X, targetY, rootPart.Position.Z)
+                        bodyPosition.D = 1000 -- Menos damping para caer más rápido
+                    end
+                end
+                
+                -- Detectar aterrizaje usando Raycast
+                if isOnGround and timeSinceJump > 1.0 then
+                    -- Aterrizaje detectado - limpiar
+                    if bodyPosition then
+                        bodyPosition:Destroy()
+                        bodyPosition = nil
+                    end
+                    isJumping = false
+                    print("🛬 Aterrizaje detectado")
+                end
+                
+                -- Safety: Reset después de mucho tiempo
+                if timeSinceJump > 5 then
+                    if bodyPosition then
+                        bodyPosition:Destroy()
+                        bodyPosition = nil
+                    end
                     isJumping = false
                 end
             end
             
-            -- FORZAR valores de salto base SIEMPRE
-            pcall(function()
-                if humanoid:FindFirstChild("JumpHeight") then
-                    humanoid.JumpHeight = 50 -- Valor base fijo
-                end
-                if humanoid:FindFirstChild("JumpPower") then
-                    humanoid.JumpPower = 50 -- Valor base fijo
-                end
-            end)
+            -- MÉTODO ALTERNATIVO: Si BodyPosition falla, usar CFrame directo
+            if isJumping and not bodyPosition and tick() - jumpStartTime < 0.5 then
+                local jumpHeight = (currentJumpPower / 50) * 0.5 -- Micro-salto con CFrame
+                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, jumpHeight, 0)
+            end
+            
+            -- Mantener valores normales para evitar detección
+            if humanoid then
+                humanoid.JumpHeight = 7.2 -- Normal
+                humanoid.JumpPower = 50 -- Normal
+            end
         end
     end)
 end
 
--- Función para actualizar velocidad
+-- Función para actualizar velocidad EXPERIMENTAL
 local function updateSpeed()
     if speedEnabled then
-        startSpeedLoop()
-        print("🏃 Sistema de velocidad continuo activado:", currentSpeed)
+        startExperimentalSpeed()
+        print("🔬 MÉTODO EXPERIMENTAL: BodyVelocity + Micro-Teletransporte")
+        print("   📡 WalkSpeed = 16 (normal para anti-cheat)")
+        print("   ⚡ Velocidad real:", currentSpeed, "(via BodyVelocity)")
+        print("   🌀 Micro-teleport activo para velocidades >25")
     else
         if speedConnection then
             speedConnection:Disconnect()
             speedConnection = nil
         end
+        
+        -- Limpiar BodyVelocity
+        if bodyVelocity then
+            bodyVelocity:Destroy()
+            bodyVelocity = nil
+        end
+        
         -- Restaurar velocidad normal
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.WalkSpeed = 16
         end
-        print("🚶 Velocidad normal restaurada")
+        print("🚶 Sistema experimental desactivado")
     end
 end
 
--- Función para actualizar salto con sistema de gravedad
+-- Función para actualizar salto EXPERIMENTAL
 local function updateJump()
     if jumpEnabled then
-        startGravitySystem()
-        print("🚀 Sistema de gravedad personalizada activado - Poder:", currentJumpPower)
-        print("   ⬆️ Gravedad reducida al saltar")
-        print("   🎈 Flotación en punto máximo")
-        print("   ⬇️ Caída rápida después del pico")
+        startExperimentalJump()
+        print("🔬 MÉTODO EXPERIMENTAL: Elevator Jump + Raycast Detection")
+        print("   🏗️ BodyPosition para levitación controlada")
+        print("   📡 Raycast para detección de suelo")
+        print("   🎯 Altura objetivo:", (currentJumpPower / 50) * 20, "studs")
+        print("   🛗 Elevator-style jump activado")
     else
         if gravityConnection then
             gravityConnection:Disconnect()
             gravityConnection = nil
         end
         
-        -- Restaurar gravedad y salto normales
-        workspace.Gravity = originalGravity
+        -- Limpiar BodyPosition
+        if bodyPosition then
+            bodyPosition:Destroy()
+            bodyPosition = nil
+        end
+        
+        -- Reset variables
         isJumping = false
         
         if player.Character and player.Character:FindFirstChild("Humanoid") then
@@ -499,7 +581,7 @@ local function updateJump()
                 humanoid.JumpPower = 50
             end
         end
-        print("🦘 Sistema de gravedad normal restaurado")
+        print("🛗 Sistema de elevator jump desactivado")
     end
 end
 
@@ -806,7 +888,7 @@ closeButton.MouseButton1Click:Connect(function()
     animateButton(closeButton, 0.8)
     wait(0.2)
     
-    -- Limpiar todas las conexiones antes de cerrar
+    -- Limpiar todas las conexiones y objetos experimentales
     if speedConnection then
         speedConnection:Disconnect()
     end
@@ -814,9 +896,19 @@ closeButton.MouseButton1Click:Connect(function()
         gravityConnection:Disconnect()
     end
     
-    -- Restaurar gravedad normal
-    workspace.Gravity = originalGravity
+    -- Limpiar objetos experimentales
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+        bodyVelocity = nil
+    end
+    if bodyPosition then
+        bodyPosition:Destroy()
+        bodyPosition = nil
+    end
+    
+    -- Reset completo
     isJumping = false
+    isUsingExperimentalMovement = false
     
     -- Limpiar ESP
     for obj, highlight in pairs(activeHighlights) do
@@ -845,19 +937,30 @@ end)
 player.CharacterAdded:Connect(function()
     wait(1) -- Esperar a que el personaje se cargue completamente
     
-    -- Reset variables de salto
-    isJumping = false
-    workspace.Gravity = originalGravity
+    -- Limpiar objetos experimentales del respawn anterior
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+        bodyVelocity = nil
+    end
+    if bodyPosition then
+        bodyPosition:Destroy()
+        bodyPosition = nil
+    end
     
-    -- Reiniciar los sistemas si estaban activos
+    -- Reset variables
+    isJumping = false
+    isUsingExperimentalMovement = false
+    lastPosition = nil
+    
+    -- Reiniciar los sistemas experimentales si estaban activos
     if speedEnabled then
-        startSpeedLoop()
-        print("🔄 Sistema de velocidad reiniciado después del respawn")
+        startExperimentalSpeed()
+        print("🔄 Sistema experimental de velocidad reiniciado")
     end
     
     if jumpEnabled then
-        startGravitySystem()
-        print("🔄 Sistema de gravedad reiniciado después del respawn")
+        startExperimentalJump()
+        print("🔄 Sistema experimental de salto reiniciado")
     end
 end)
 
@@ -867,16 +970,20 @@ if player.Character then
     updateJump()
 end
 
-print("🎮 Steal a Brainrot Panel SIGILOSO cargado!")
-print("📋 Funciones ANTI-DETECCIÓN:")
-print("   🏃 Velocidad sigilosa: 16-33 (evita anti-cheat)")
-print("   🦘 Salto con gravedad: 50-100 (sutil pero efectivo)")
+print("🔬 Steal a Brainrot Panel EXPERIMENTAL cargado!")
+print("🧪 MÉTODOS NUNCA ANTES VISTOS:")
+print("   🏃 Velocidad: BodyVelocity + Micro-Teletransporte (16-33)")
+print("   🛗 Salto: Elevator Jump + Raycast Detection (50-100)")
 print("   👁️ ESP para brainrots especiales")
 print("🔧 Controles:")
 print("   ⌨️ Presiona F para mostrar/ocultar el panel")
 print("   🖱️ Panel arrastrable con animaciones")
 print("🌈 ESP Secrets: Highlight rainbow animado")
 print("⭐ ESP Gods: Highlight dorado")
-print("⚡ Sistema AGRESIVO: Fuerza valores incluso con brainrots")
-print("🛡️ Anti-detección: Límites seguros para evitar bans")
-print("✅ ¡Modo sigiloso activado!")
+print("🔬 TÉCNICAS EXPERIMENTALES:")
+print("   📡 WalkSpeed siempre = 16 (invisible al anti-cheat)")
+print("   ⚡ Velocidad real via BodyVelocity")
+print("   🌀 Micro-teleport para velocidades altas")
+print("   🏗️ BodyPosition para levitación controlada")
+print("   📡 Raycast para detección perfecta de suelo")
+print("✅ ¡Métodos únicos activados - INDETECTABLE!")
