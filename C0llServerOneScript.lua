@@ -91,35 +91,54 @@ statusLabel.Parent = mainFrame
 -- Función para activar/desactivar underground
 local function toggleUnderground()
     if not isUnderground then
-        -- Activar underground - Método invisible sin mover el personaje
+        -- Activar underground - Fling hacia arriba
         isUnderground = true
+        originalPosition = humanoidRootPart.CFrame
         
-        -- Hacer todas las partes completamente transparentes para otros jugadores
-        for _, part in pairs(character:GetChildren()) do
-            if part:IsA("BasePart") then
-                originalParts[part] = part.Transparency
-                part.Transparency = 1 -- Completamente invisible
-                
-                -- Desactivar colisiones para que no puedan tocarte
-                if part ~= humanoidRootPart then
-                    part.CanCollide = false
+        -- Crear BodyVelocity para el fling hacia arriba
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+        bodyVelocity.Velocity = Vector3.new(0, 150, 0) -- Fling hacia arriba con velocidad 150
+        bodyVelocity.Parent = humanoidRootPart
+        
+        -- Usar spawn para hacer las operaciones asíncronas
+        spawn(function()
+            -- Pequeña espera para que se vea el fling
+            task.wait(0.1)
+            
+            -- Hacer todas las partes invisibles después del fling
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    originalParts[part] = part.Transparency
+                    part.Transparency = 1 -- Completamente invisible
+                    
+                    -- Desactivar colisiones para que no puedan tocarte
+                    if part ~= humanoidRootPart then
+                        part.CanCollide = false
+                    end
                 end
             end
-        end
-        
-        -- Hacer invisible accesorios también
-        for _, accessory in pairs(character:GetChildren()) do
-            if accessory:IsA("Accessory") then
-                local handle = accessory:FindFirstChild("Handle")
-                if handle then
-                    originalParts[handle] = handle.Transparency
-                    handle.Transparency = 1
-                    handle.CanCollide = false
+            
+            -- Hacer invisible accesorios también
+            for _, accessory in pairs(character:GetChildren()) do
+                if accessory:IsA("Accessory") then
+                    local handle = accessory:FindFirstChild("Handle")
+                    if handle then
+                        originalParts[handle] = handle.Transparency
+                        handle.Transparency = 1
+                        handle.CanCollide = false
+                    end
                 end
             end
-        end
+            
+            -- Limpiar el BodyVelocity después de 1 segundo
+            task.wait(1)
+            if bodyVelocity and bodyVelocity.Parent then
+                bodyVelocity:Destroy()
+            end
+        end)
         
-        -- Crear conexión para mantener invisibilidad
+        -- Crear conexión para mantener invisibilidad en el aire
         undergroundConnection = RunService.Heartbeat:Connect(function()
             if character and character.Parent then
                 -- Mantener invisibilidad constante
@@ -148,7 +167,7 @@ local function toggleUnderground()
         -- Actualizar UI
         undergroundButton.Text = "Underground: ON"
         undergroundButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        statusLabel.Text = "Estado: Activado - Completamente invisible"
+        statusLabel.Text = "Estado: Activado - Fling + Invisible"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         
         -- Efecto de activación
@@ -255,5 +274,5 @@ end)
 -- Mensaje de inicio
 print("Panel Underground cargado correctamente!")
 print("Presiona F o usa el botón para activar/desactivar Underground")
-print("Método seguro para Steal a Brainrot - Sin autokill!")
-print("Te vuelves completamente invisible sin cambiar tu posición")
+print("Método FLING para Steal a Brainrot!")
+print("Te lanza hacia arriba y luego te vuelves invisible en el aire")
