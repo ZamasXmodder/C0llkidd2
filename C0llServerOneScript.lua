@@ -80,6 +80,13 @@ local rainbowConnections = {}
 -- Conexiones para el sistema continuo
 local speedConnection = nil
 local jumpConnection = nil
+local gravityConnection = nil
+
+-- Variables para el sistema de gravedad
+local originalGravity = workspace.Gravity
+local isJumping = false
+local jumpStartTime = 0
+local lastVelocityY = 0
 
 -- Crear la GUI principal
 local screenGui = Instance.new("ScreenGui")
@@ -361,28 +368,69 @@ local function startSpeedLoop()
     end)
 end
 
--- Sistema continuo para salto (se ejecuta cada frame)
-local function startJumpLoop()
-    if jumpConnection then
-        jumpConnection:Disconnect()
+-- Sistema avanzado de gravedad personalizada
+local function startGravitySystem()
+    if gravityConnection then
+        gravityConnection:Disconnect()
     end
     
-    jumpConnection = RunService.Heartbeat:Connect(function()
-        if jumpEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+    gravityConnection = RunService.Heartbeat:Connect(function()
+        if jumpEnabled and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart") then
             local humanoid = player.Character.Humanoid
+            local rootPart = player.Character.HumanoidRootPart
+            local bodyVelocity = rootPart.AssemblyLinearVelocity
             
-            -- Intentar ambos sistemas de salto para máxima compatibilidad
-            if humanoid:FindFirstChild("JumpHeight") then
-                local targetHeight = currentJumpPower * 0.35
-                if humanoid.JumpHeight ~= targetHeight then
-                    humanoid.JumpHeight = targetHeight
+            -- Detectar si acabamos de saltar
+            if humanoid.Jump and not isJumping then
+                isJumping = true
+                jumpStartTime = tick()
+                lastVelocityY = bodyVelocity.Y
+                
+                -- Aplicar impulso inicial de salto más potente
+                local jumpForce = currentJumpPower * 2 -- Multiplicador para más altura
+                workspace.Gravity = originalGravity * 0.3 -- Gravedad reducida al saltar
+                
+                -- Crear BodyVelocity temporal para el impulso inicial
+                local bodyVel = Instance.new("BodyVelocity")
+                bodyVel.MaxForce = Vector3.new(0, math.huge, 0)
+                bodyVel.Velocity = Vector3.new(0, jumpForce, 0)
+                bodyVel.Parent = rootPart
+                
+                -- Remover el impulso después de un momento
+                game:GetService("Debris"):AddItem(bodyVel, 0.3)
+                
+            elseif isJumping then
+                local currentVelocityY = bodyVelocity.Y
+                local timeSinceJump = tick() - jumpStartTime
+                
+                -- Detectar cuando alcanzamos el punto máximo (velocidad Y cambia de positiva a negativa)
+                if lastVelocityY > 0 and currentVelocityY <= 0 and timeSinceJump > 0.2 then
+                    -- En el punto máximo, reducir gravedad temporalmente para "flotar"
+                    workspace.Gravity = originalGravity * 0.1
+                elseif currentVelocityY <= 0 and timeSinceJump > 0.4 then
+                    -- Después de flotar, caer rápido
+                    workspace.Gravity = originalGravity * 2
+                elseif currentVelocityY < -10 then
+                    -- Cayendo rápido, restaurar gravedad normal
+                    workspace.Gravity = originalGravity
+                    isJumping = false
+                end
+                
+                lastVelocityY = currentVelocityY
+                
+                -- Reset si llevamos mucho tiempo "saltando"
+                if timeSinceJump > 3 then
+                    workspace.Gravity = originalGravity
+                    isJumping = false
                 end
             end
             
+            -- Asegurar que el salto básico funcione
+            if humanoid:FindFirstChild("JumpHeight") then
+                humanoid.JumpHeight = 50 -- Valor base, la gravedad hace el trabajo
+            end
             if humanoid:FindFirstChild("JumpPower") then
-                if humanoid.JumpPower ~= currentJumpPower then
-                    humanoid.JumpPower = currentJumpPower
-                end
+                humanoid.JumpPower = 50 -- Valor base
             end
         end
     end)
@@ -406,17 +454,24 @@ local function updateSpeed()
     end
 end
 
--- Función para actualizar salto
+-- Función para actualizar salto con sistema de gravedad
 local function updateJump()
     if jumpEnabled then
-        startJumpLoop()
-        print("🦘 Sistema de salto continuo activado:", currentJumpPower)
+        startGravitySystem()
+        print("🚀 Sistema de gravedad personalizada activado - Poder:", currentJumpPower)
+        print("   ⬆️ Gravedad reducida al saltar")
+        print("   🎈 Flotación en punto máximo")
+        print("   ⬇️ Caída rápida después del pico")
     else
-        if jumpConnection then
-            jumpConnection:Disconnect()
-            jumpConnection = nil
+        if gravityConnection then
+            gravityConnection:Disconnect()
+            gravityConnection = nil
         end
-        -- Restaurar salto normal
+        
+        -- Restaurar gravedad y salto normales
+        workspace.Gravity = originalGravity
+        isJumping = false
+        
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             local humanoid = player.Character.Humanoid
             if humanoid:FindFirstChild("JumpHeight") then
@@ -426,7 +481,7 @@ local function updateJump()
                 humanoid.JumpPower = 50
             end
         end
-        print("🦘 Salto normal restaurado")
+        print("🦘 Sistema de gravedad normal restaurado")
     end
 end
 
@@ -737,9 +792,13 @@ closeButton.MouseButton1Click:Connect(function()
     if speedConnection then
         speedConnection:Disconnect()
     end
-    if jumpConnection then
-        jumpConnection:Disconnect()
+    if gravityConnection then
+        gravityConnection:Disconnect()
     end
+    
+    -- Restaurar gravedad normal
+    workspace.Gravity = originalGravity
+    isJumping = false
     
     -- Limpiar ESP
     for obj, highlight in pairs(activeHighlights) do
@@ -768,6 +827,10 @@ end)
 player.CharacterAdded:Connect(function()
     wait(1) -- Esperar a que el personaje se cargue completamente
     
+    -- Reset variables de salto
+    isJumping = false
+    workspace.Gravity = originalGravity
+    
     -- Reiniciar los sistemas si estaban activos
     if speedEnabled then
         startSpeedLoop()
@@ -775,8 +838,8 @@ player.CharacterAdded:Connect(function()
     end
     
     if jumpEnabled then
-        startJumpLoop()
-        print("🔄 Sistema de salto reiniciado después del respawn")
+        startGravitySystem()
+        print("🔄 Sistema de gravedad reiniciado después del respawn")
     end
 end)
 
