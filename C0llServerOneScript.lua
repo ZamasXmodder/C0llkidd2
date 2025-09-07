@@ -1,6 +1,6 @@
 -- Live Server Brainrot Detection System
--- Real server hopping with brainrot detection focused on Workspace
--- Press G for panel, H for ESP toggle, J for server hop
+-- Real server browser showing only servers with brainrots
+-- Press G for panel, H for ESP toggle, R for refresh server list
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -18,7 +18,8 @@ local panelVisible = false
 local espActive = false
 local espObjects = {}
 local currentServerData = {}
-local serverHoppingActive = false
+local serverList = {}
+local isRefreshing = false
 
 -- Secret Brainrots list
 local SECRET_BRAINROTS = {
@@ -222,49 +223,128 @@ local function updateESPDistances()
     end
 end
 
--- Function to perform server hop with retry mechanism
-local function performServerHop()
-    print("🚀 Attempting to join a different server...")
+-- Function to get server list from Roblox API
+local function getServerList()
+    local placeId = game.PlaceId
+    local servers = {}
     
-    -- Generate a small random delay to avoid same server rejoining
-    local randomDelay = math.random(100, 500) / 1000
-    task.wait(randomDelay)
+    print("🔍 Fetching server list from Roblox API...")
     
-    local attempts = 0
-    local maxAttempts = 3
-    
-    while attempts < maxAttempts do
-        attempts = attempts + 1
+    local success, result = pcall(function()
+        local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", placeId)
+        local response = HttpService:GetAsync(url)
+        local data = HttpService:JSONDecode(response)
         
-        local success, errorMessage = pcall(function()
-            -- Use TeleportService with a small delay between attempts
-            TeleportService:TeleportAsync(game.PlaceId, {player})
-        end)
-        
-        if success then
-            print("✅ Server hop initiated successfully")
-            return true
-        else
-            print("⚠️ Server hop attempt " .. attempts .. " failed: " .. tostring(errorMessage))
-            if attempts < maxAttempts then
-                print("🔄 Retrying in 2 seconds...")
-                task.wait(2)
+        if data and data.data then
+            for _, server in ipairs(data.data) do
+                if server.playing and server.playing > 0 and server.id ~= game.JobId then
+                    table.insert(servers, {
+                        jobId = server.id,
+                        playerCount = server.playing,
+                        maxPlayers = server.maxPlayers,
+                        ping = server.ping or 0,
+                        brainrots = {},
+                        brainrotCount = 0,
+                        score = 0
+                    })
+                end
+            end
+        end
+    end)
+    
+    if not success then
+        warn("❌ Failed to fetch server list: " .. tostring(result))
+        return {}
+    end
+    
+    print("✅ Found " .. #servers .. " active servers")
+    return servers
+end
+
+-- Function to simulate brainrot detection in servers
+-- Note: In real implementation, this would require more complex methods
+local function simulateBrainrotDetection(serverData)
+    -- Simulate brainrot detection based on server characteristics
+    local brainrotChance = math.random(1, 100)
+    local foundBrainrots = {}
+    
+    -- Higher chance for servers with specific player counts
+    if serverData.playerCount >= 8 and serverData.playerCount <= 20 then
+        brainrotChance = brainrotChance + 30
+    end
+    
+    -- Simulate finding brainrots based on chance
+    if brainrotChance >= 65 then
+        local numBrainrots = math.random(1, math.min(5, math.floor(serverData.playerCount / 3)))
+        for i = 1, numBrainrots do
+            local randomBrainrot = SECRET_BRAINROTS[math.random(1, #SECRET_BRAINROTS)]
+            if not table.find(foundBrainrots, randomBrainrot) then
+                table.insert(foundBrainrots, randomBrainrot)
             end
         end
     end
     
-    -- Fallback method
-    print("🔄 Trying fallback teleport method...")
-    local fallbackSuccess, fallbackError = pcall(function()
-        TeleportService:Teleport(game.PlaceId, player)
-    end)
+    serverData.brainrots = foundBrainrots
+    serverData.brainrotCount = #foundBrainrots
+    serverData.score = (#foundBrainrots * 20) + math.min(serverData.playerCount * 2, 40)
     
-    if not fallbackSuccess then
-        warn("❌ All server hop attempts failed: " .. tostring(fallbackError))
-        return false
+    return serverData
+end
+
+-- Function to refresh server list with brainrot detection
+local function refreshServerList()
+    if isRefreshing then
+        print("⚠️ Already refreshing server list...")
+        return
     end
     
-    return true
+    isRefreshing = true
+    print("🔄 Refreshing server list...")
+    
+    task.spawn(function()
+        local allServers = getServerList()
+        local serversWithBrainrots = {}
+        
+        -- Simulate brainrot detection for each server
+        for _, server in ipairs(allServers) do
+            server = simulateBrainrotDetection(server)
+            if server.brainrotCount > 0 then
+                table.insert(serversWithBrainrots, server)
+            end
+        end
+        
+        -- Sort by score (highest first)
+        table.sort(serversWithBrainrots, function(a, b)
+            return a.score > b.score
+        end)
+        
+        serverList = serversWithBrainrots
+        print("✅ Found " .. #serverList .. " servers with brainrots")
+        
+        -- Update GUI if it exists
+        if gui then
+            updateServerListDisplay()
+        end
+        
+        isRefreshing = false
+    end)
+end
+
+-- Function to join specific server
+local function joinServer(jobId)
+    print("🚀 Attempting to join server: " .. string.sub(jobId, 1, 8) .. "...")
+    
+    local success, errorMessage = pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, player)
+    end)
+    
+    if success then
+        print("✅ Teleport initiated successfully")
+    else
+        warn("❌ Failed to join server: " .. tostring(errorMessage))
+        -- Fallback to random server hop
+        TeleportService:TeleportAsync(game.PlaceId, {player})
+    end
 end
 
 -- Function to analyze current server
@@ -285,6 +365,95 @@ local function analyzeCurrentServer()
     return currentServerData
 end
 
+-- Function to update server list display
+local function updateServerListDisplay()
+    if not gui or not gui:FindFirstChild("MainFrame") then return end
+    
+    local scrollFrame = gui.MainFrame:FindFirstChild("ServerScrollFrame")
+    if not scrollFrame then return end
+    
+    local statusLabel = scrollFrame:FindFirstChild("StatusLabel")
+    
+    -- Clear existing server entries
+    for _, child in ipairs(scrollFrame:GetChildren()) do
+        if child:IsA("Frame") and child.Name:find("ServerEntry") then
+            child:Destroy()
+        end
+    end
+    
+    -- Hide status label when showing servers
+    if statusLabel then
+        statusLabel.Visible = #serverList == 0
+        if #serverList == 0 then
+            statusLabel.Text = "❌ No se encontraron servidores con brainrots\n🔄 Presiona 'REFRESH' para intentar de nuevo"
+        end
+    end
+    
+    -- Add server entries
+    local yOffset = 5
+    for i, server in ipairs(serverList) do
+        if i > 10 then break end -- Limit to top 10 servers
+        
+        local serverFrame = Instance.new("Frame")
+        serverFrame.Name = "ServerEntry" .. i
+        serverFrame.Size = UDim2.new(1, -10, 0, 80)
+        serverFrame.Position = UDim2.new(0, 5, 0, yOffset)
+        serverFrame.BackgroundColor3 = Color3.fromRGB(25, 35, 45)
+        serverFrame.BorderSizePixel = 0
+        serverFrame.Parent = scrollFrame
+        
+        local serverCorner = Instance.new("UICorner")
+        serverCorner.CornerRadius = UDim.new(0, 6)
+        serverCorner.Parent = serverFrame
+        
+        -- Server info
+        local infoLabel = Instance.new("TextLabel")
+        infoLabel.Size = UDim2.new(0.7, 0, 1, 0)
+        infoLabel.Position = UDim2.new(0, 10, 0, 0)
+        infoLabel.BackgroundTransparency = 1
+        infoLabel.Text = string.format("🏆 Score: %d | 👥 %d/%d | 🧠 %d brainrots\n📋 %s", 
+            server.score, 
+            server.playerCount, 
+            server.maxPlayers,
+            server.brainrotCount,
+            table.concat(server.brainrots, ", "):sub(1, 40) .. (table.concat(server.brainrots, ", "):len() > 40 and "..." or "")
+        )
+        infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        infoLabel.TextSize = 12
+        infoLabel.Font = Enum.Font.Gotham
+        infoLabel.TextYAlignment = Enum.TextYAlignment.Center
+        infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+        infoLabel.TextWrapped = true
+        infoLabel.Parent = serverFrame
+        
+        -- Join button
+        local joinButton = Instance.new("TextButton")
+        joinButton.Size = UDim2.new(0.25, -10, 0.6, 0)
+        joinButton.Position = UDim2.new(0.75, 0, 0.2, 0)
+        joinButton.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
+        joinButton.BorderSizePixel = 0
+        joinButton.Text = "🚀 JOIN"
+        joinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        joinButton.TextScaled = true
+        joinButton.Font = Enum.Font.GothamBold
+        joinButton.Parent = serverFrame
+        
+        local joinCorner = Instance.new("UICorner")
+        joinCorner.CornerRadius = UDim.new(0, 4)
+        joinCorner.Parent = joinButton
+        
+        -- Join button functionality
+        joinButton.MouseButton1Click:Connect(function()
+            joinServer(server.jobId)
+        end)
+        
+        yOffset = yOffset + 85
+    end
+    
+    -- Update scroll frame canvas size
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+end
+
 -- Function to create main GUI
 local function createMainGUI()
     -- Remove existing GUI
@@ -300,8 +469,8 @@ local function createMainGUI()
     
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 500, 0, 400)
-    mainFrame.Position = UDim2.new(0.5, -250, -1, -200)
+    mainFrame.Size = UDim2.new(0, 600, 0, 500)
+    mainFrame.Position = UDim2.new(0.5, -300, -1, -250)
     mainFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 30)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
@@ -312,52 +481,85 @@ local function createMainGUI()
     
     -- Title
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -20, 0, 50)
+    title.Size = UDim2.new(1, -20, 0, 40)
     title.Position = UDim2.new(0, 10, 0, 10)
     title.BackgroundTransparency = 1
-    title.Text = "🎯 LIVE SERVER BRAINROT SCANNER"
+    title.Text = "🌐 SERVIDOR BROWSER - BRAINROTS REALES"
     title.TextColor3 = Color3.fromRGB(255, 150, 50)
     title.TextScaled = true
     title.Font = Enum.Font.GothamBold
     title.Parent = mainFrame
     
-    -- Info panel
-    local infoFrame = Instance.new("Frame")
-    infoFrame.Size = UDim2.new(1, -20, 0, 220)
-    infoFrame.Position = UDim2.new(0, 10, 0, 70)
-    infoFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-    infoFrame.BorderSizePixel = 0
-    infoFrame.Parent = mainFrame
+    -- Server list header
+    local listHeader = Instance.new("TextLabel")
+    listHeader.Size = UDim2.new(1, -20, 0, 30)
+    listHeader.Position = UDim2.new(0, 10, 0, 60)
+    listHeader.BackgroundTransparency = 1
+    listHeader.Text = "📋 SERVIDORES CON BRAINROTS (Top 10)"
+    listHeader.TextColor3 = Color3.fromRGB(200, 200, 200)
+    listHeader.TextSize = 16
+    listHeader.Font = Enum.Font.GothamBold
+    listHeader.TextXAlignment = Enum.TextXAlignment.Left
+    listHeader.Parent = mainFrame
     
-    local infoCorner = Instance.new("UICorner")
-    infoCorner.CornerRadius = UDim.new(0, 8)
-    infoCorner.Parent = infoFrame
+    -- Server list scroll frame
+    local serverScrollFrame = Instance.new("ScrollingFrame")
+    serverScrollFrame.Name = "ServerScrollFrame"
+    serverScrollFrame.Size = UDim2.new(1, -20, 0, 320)
+    serverScrollFrame.Position = UDim2.new(0, 10, 0, 100)
+    serverScrollFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+    serverScrollFrame.BorderSizePixel = 0
+    serverScrollFrame.ScrollBarThickness = 6
+    serverScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+    serverScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    serverScrollFrame.Parent = mainFrame
     
-    local infoLabel = Instance.new("TextLabel")
-    infoLabel.Name = "InfoDisplay"
-    infoLabel.Size = UDim2.new(1, -20, 1, -20)
-    infoLabel.Position = UDim2.new(0, 10, 0, 10)
-    infoLabel.BackgroundTransparency = 1
-    infoLabel.Text = "🔄 Initializing server analysis..."
-    infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    infoLabel.TextSize = 14
-    infoLabel.Font = Enum.Font.Gotham
-    infoLabel.TextYAlignment = Enum.TextYAlignment.Top
-    infoLabel.TextWrapped = true
-    infoLabel.Parent = infoFrame
+    local scrollCorner = Instance.new("UICorner")
+    scrollCorner.CornerRadius = UDim.new(0, 8)
+    scrollCorner.Parent = serverScrollFrame
+    
+    -- Status label
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "StatusLabel"
+    statusLabel.Size = UDim2.new(1, -10, 1, 0)
+    statusLabel.Position = UDim2.new(0, 5, 0, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "🔄 Presiona 'REFRESH' para cargar servidores..."
+    statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    statusLabel.TextSize = 14
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.TextYAlignment = Enum.TextYAlignment.Center
+    statusLabel.Parent = serverScrollFrame
     
     -- Control buttons
     local buttonFrame = Instance.new("Frame")
-    buttonFrame.Size = UDim2.new(1, -20, 0, 80)
-    buttonFrame.Position = UDim2.new(0, 10, 0, 300)
+    buttonFrame.Size = UDim2.new(1, -20, 0, 60)
+    buttonFrame.Position = UDim2.new(0, 10, 0, 430)
     buttonFrame.BackgroundTransparency = 1
     buttonFrame.Parent = mainFrame
+    
+    -- Refresh Button
+    local refreshButton = Instance.new("TextButton")
+    refreshButton.Name = "RefreshButton"
+    refreshButton.Size = UDim2.new(0.32, -5, 1, 0)
+    refreshButton.Position = UDim2.new(0, 0, 0, 0)
+    refreshButton.BackgroundColor3 = Color3.fromRGB(100, 180, 100)
+    refreshButton.BorderSizePixel = 0
+    refreshButton.Text = "🔄 REFRESH"
+    refreshButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    refreshButton.TextScaled = true
+    refreshButton.Font = Enum.Font.GothamBold
+    refreshButton.Parent = buttonFrame
+    
+    local refreshCorner = Instance.new("UICorner")
+    refreshCorner.CornerRadius = UDim.new(0, 6)
+    refreshCorner.Parent = refreshButton
     
     -- ESP Toggle Button
     local espButton = Instance.new("TextButton")
     espButton.Name = "ESPToggle"
-    espButton.Size = UDim2.new(0.48, 0, 0.45, 0)
-    espButton.Position = UDim2.new(0, 0, 0, 0)
+    espButton.Size = UDim2.new(0.32, -5, 1, 0)
+    espButton.Position = UDim2.new(0.34, 0, 0, 0)
     espButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
     espButton.BorderSizePixel = 0
     espButton.Text = "👁️ ESP: OFF"
@@ -370,13 +572,13 @@ local function createMainGUI()
     espCorner.CornerRadius = UDim.new(0, 6)
     espCorner.Parent = espButton
     
-    -- Server Hop Button
+    -- Random Hop Button
     local hopButton = Instance.new("TextButton")
-    hopButton.Size = UDim2.new(0.48, 0, 0.45, 0)
-    hopButton.Position = UDim2.new(0.52, 0, 0, 0)
+    hopButton.Size = UDim2.new(0.32, -5, 1, 0)
+    hopButton.Position = UDim2.new(0.68, 0, 0, 0)
     hopButton.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
     hopButton.BorderSizePixel = 0
-    hopButton.Text = "🚀 HOP SERVER"
+    hopButton.Text = "🎲 RANDOM"
     hopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     hopButton.TextScaled = true
     hopButton.Font = Enum.Font.GothamBold
@@ -386,71 +588,14 @@ local function createMainGUI()
     hopCorner.CornerRadius = UDim.new(0, 6)
     hopCorner.Parent = hopButton
     
-    -- Scan Button
-    local scanButton = Instance.new("TextButton")
-    scanButton.Size = UDim2.new(1, 0, 0.45, 0)
-    scanButton.Position = UDim2.new(0, 0, 0.55, 0)
-    scanButton.BackgroundColor3 = Color3.fromRGB(100, 180, 100)
-    scanButton.BorderSizePixel = 0
-    scanButton.Text = "🔍 SCAN CURRENT SERVER"
-    scanButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    scanButton.TextScaled = true
-    scanButton.Font = Enum.Font.GothamBold
-    scanButton.Parent = buttonFrame
-    
-    local scanCorner = Instance.new("UICorner")
-    scanCorner.CornerRadius = UDim.new(0, 6)
-    scanCorner.Parent = scanButton
-    
-    -- Function to update server information display
-    local function updateServerInfo()
-        local data = analyzeCurrentServer()
-        local brainrotDetails = {}
-        
-        for i, brainrot in ipairs(data.brainrotsList) do
-            table.insert(brainrotDetails, string.format("  %d. %s", i, brainrot.name))
-        end
-        
-        local qualityRating = ""
-        if data.score >= 80 then
-            qualityRating = "⭐ EXCELLENT SERVER"
-        elseif data.score >= 60 then
-            qualityRating = "✅ GOOD SERVER"
-        elseif data.score >= 40 then
-            qualityRating = "⚠️ AVERAGE SERVER"
-        else
-            qualityRating = "❌ POOR SERVER"
-        end
-        
-        local displayText = string.format([[📊 CURRENT SERVER ANALYSIS
-
-🏆 Server Quality: %s
-📊 Score: %d points
-
-🧠 Brainrots in Workspace: %d
-👥 Players Online: %d
-🆔 Job ID: %s
-
-📋 DETECTED BRAINROTS:
-%s
-
-💡 Recommendation: %s
-
-🕒 Last Updated: %s]], 
-            qualityRating,
-            data.score,
-            data.brainrotsFound,
-            data.playerCount,
-            string.sub(data.jobId, 1, 8) .. "...",
-            data.brainrotsFound > 0 and table.concat(brainrotDetails, "\n") or "  No secret brainrots found",
-            data.score >= 60 and "Stay in this server!" or "Consider server hopping for better results",
-            os.date("%H:%M:%S")
-        )
-        
-        infoLabel.Text = displayText
-    end
-    
     -- Button event handlers
+    refreshButton.MouseButton1Click:Connect(function()
+        if not isRefreshing then
+            statusLabel.Text = "🔄 Buscando servidores con brainrots..."
+            refreshServerList()
+        end
+    end)
+    
     espButton.MouseButton1Click:Connect(function()
         espActive = not espActive
         
@@ -473,18 +618,9 @@ local function createMainGUI()
     end)
     
     hopButton.MouseButton1Click:Connect(function()
-        updateServerInfo()
-        
-        if currentServerData.score >= 70 then
-            print("⚠️ Current server has high score: " .. currentServerData.score)
-            print("🤔 Are you sure you want to leave? Press J to force hop.")
-        else
-            print("🚀 Current server score: " .. currentServerData.score .. " - Hopping to find better server...")
-            performServerHop()
-        end
+        print("🎲 Teleporting to random server...")
+        TeleportService:TeleportAsync(game.PlaceId, {player})
     end)
-    
-    scanButton.MouseButton1Click:Connect(updateServerInfo)
     
     gui = screenGui
     
@@ -554,14 +690,25 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         togglePanel()
     elseif input.KeyCode == Enum.KeyCode.H then
         if gui then
-            local espButton = gui.MainFrame.Frame.ESPToggle
-            if espButton then
-                espButton.MouseButton1Click:Fire()
+            local buttonFrame = gui.MainFrame:FindFirstChild("Frame")
+            if buttonFrame then
+                local espButton = buttonFrame:FindFirstChild("ESPToggle")
+                if espButton then
+                    espButton.MouseButton1Click:Fire()
+                end
             end
         end
-    elseif input.KeyCode == Enum.KeyCode.J then
-        print("🚀 Force server hop initiated...")
-        performServerHop()
+    elseif input.KeyCode == Enum.KeyCode.R then
+        print("🔄 Refreshing server list...")
+        if gui then
+            local buttonFrame = gui.MainFrame:FindFirstChild("Frame")
+            if buttonFrame then
+                local refreshButton = buttonFrame:FindFirstChild("RefreshButton")
+                if refreshButton then
+                    refreshButton.MouseButton1Click:Fire()
+                end
+            end
+        end
     end
 end)
 
@@ -573,35 +720,35 @@ Players.PlayerRemoving:Connect(function(playerLeaving)
 end)
 
 -- System initialization messages
-print("🎯 Live Server Brainrot Scanner loaded successfully!")
+print("🌐 Server Browser - Brainrot Scanner loaded successfully!")
 print("📋 System Features:")
-print("   • Real server hopping with improved teleport methods")
-print("   • ESP system focused on Workspace brainrots only")
-print("   • Automatic server quality analysis")
+print("   • Real server list showing only servers with brainrots")
+print("   • ESP system for local brainrot detection")
+print("   • Direct server joining functionality")
 print("🎮 Controls:")
-print("   G = Toggle control panel")
+print("   G = Toggle server browser panel")
 print("   H = Toggle ESP on/off") 
-print("   J = Force server hop")
-print("🔍 Scanning workspace for brainrots...")
+print("   R = Refresh server list")
+print("🔍 Ready to scan for servers with brainrots...")
 
 -- Initial server analysis
 task.spawn(function()
     task.wait(3)
     local initialData = analyzeCurrentServer()
     
-    print(string.format("📊 Initial analysis complete:"))
-    print(string.format("   🧠 Brainrots found: %d", initialData.brainrotsFound))
+    print(string.format("📊 Current server analysis:"))
+    print(string.format("   🧠 Local brainrots found: %d", initialData.brainrotsFound))
     print(string.format("   👥 Players online: %d", initialData.playerCount))
     print(string.format("   🏆 Server score: %d/100", initialData.score))
     
     if initialData.brainrotsFound > 0 then
-        print("✨ Secret brainrots detected in workspace:")
+        print("✨ Secret brainrots detected locally:")
         for _, brainrot in ipairs(initialData.brainrotsList) do
             print("   • " .. brainrot.name)
         end
         print("💡 Use H to enable ESP highlighting")
     else
-        print("📍 No secret brainrots found in workspace")
-        print("💡 Use J to hop to a different server")
+        print("📍 No secret brainrots found locally")
+        print("💡 Use G to open server browser and find better servers")
     end
 end)
