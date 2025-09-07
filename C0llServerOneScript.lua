@@ -343,23 +343,38 @@ closeCorner.Parent = closeButton
 
 -- Función para actualizar la velocidad del jugador
 local function updateSpeed()
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        if speedEnabled then
-            player.Character.Humanoid.WalkSpeed = currentSpeed
-        else
-            player.Character.Humanoid.WalkSpeed = 16 -- Velocidad normal
-        end
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    if speedEnabled then
+        humanoid.WalkSpeed = currentSpeed
+        print("🏃 Velocidad activada:", currentSpeed)
+    else
+        humanoid.WalkSpeed = 16 -- Velocidad normal
+        print("🚶 Velocidad normal: 16")
     end
 end
 
 -- Función para actualizar la altura de salto del jugador
 local function updateJump()
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        if jumpEnabled then
-            player.Character.Humanoid.JumpPower = currentJumpPower
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    if jumpEnabled then
+        -- Usar JumpHeight en lugar de JumpPower para compatibilidad
+        if humanoid:FindFirstChild("JumpHeight") then
+            humanoid.JumpHeight = currentJumpPower * 0.35 -- Conversión aproximada
         else
-            player.Character.Humanoid.JumpPower = 50 -- Altura normal
+            humanoid.JumpPower = currentJumpPower
         end
+        print("🦘 Salto activado:", currentJumpPower)
+    else
+        if humanoid:FindFirstChild("JumpHeight") then
+            humanoid.JumpHeight = 7.2 -- Altura normal
+        else
+            humanoid.JumpPower = 50 -- Altura normal
+        end
+        print("🦘 Salto normal")
     end
 end
 
@@ -422,16 +437,21 @@ end
 
 -- Función para verificar si es un brainrot especial
 local function isBrainrot(name)
+    -- Limpiar el nombre (quitar espacios extra y convertir a lowercase para comparación)
+    local cleanName = string.lower(string.gsub(name, "%s+", " "))
+    
     -- Verificar si es secret
     for _, secretName in pairs(secretBrainrots) do
-        if string.find(name, secretName) then
+        local cleanSecret = string.lower(secretName)
+        if string.find(cleanName, cleanSecret, 1, true) or string.find(name, secretName, 1, true) then
             return true, true -- es brainrot, es secret
         end
     end
     
     -- Verificar si es god
     for _, godName in pairs(godBrainrots) do
-        if string.find(name, godName) then
+        local cleanGod = string.lower(godName)
+        if string.find(cleanName, cleanGod, 1, true) or string.find(name, godName, 1, true) then
             return true, false -- es brainrot, no es secret (es god)
         end
     end
@@ -439,14 +459,41 @@ local function isBrainrot(name)
     return false, false -- no es brainrot especial
 end
 
--- Función para aplicar ESP a un objeto
+-- Función para aplicar ESP a un objeto (busca en Models y Parts)
 local function applyESP(obj)
-    if not obj or not obj:IsA("BasePart") then return end
-    
-    local isBrain, isSecret = isBrainrot(obj.Name)
-    if isBrain and not activeHighlights[obj] then
-        local highlight = createHighlight(obj, isSecret)
-        activeHighlights[obj] = highlight
+    -- Si es un Model, aplicar highlight a todas sus partes
+    if obj:IsA("Model") then
+        local isBrain, isSecret = isBrainrot(obj.Name)
+        if isBrain and not activeHighlights[obj] then
+            -- Crear highlight para el model completo
+            local highlight = createHighlight(obj, isSecret)
+            activeHighlights[obj] = highlight
+            
+            -- También destacar las partes individuales del model
+            for _, part in pairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") and not activeHighlights[part] then
+                    local partHighlight = createHighlight(part, isSecret)
+                    activeHighlights[part] = partHighlight
+                end
+            end
+        end
+    elseif obj:IsA("BasePart") then
+        -- Verificar si la parte pertenece a un brainrot
+        local parent = obj.Parent
+        if parent and parent:IsA("Model") then
+            local isBrain, isSecret = isBrainrot(parent.Name)
+            if isBrain and not activeHighlights[obj] then
+                local highlight = createHighlight(obj, isSecret)
+                activeHighlights[obj] = highlight
+            end
+        else
+            -- Verificar si la parte en sí es un brainrot
+            local isBrain, isSecret = isBrainrot(obj.Name)
+            if isBrain and not activeHighlights[obj] then
+                local highlight = createHighlight(obj, isSecret)
+                activeHighlights[obj] = highlight
+            end
+        end
     end
 end
 
@@ -465,17 +512,30 @@ end
 -- Función para actualizar ESP
 local function updateESP()
     if espEnabled then
-        -- Aplicar ESP a todos los objetos existentes
+        -- Buscar en carpeta Animals si existe
+        local animalsFolder = Workspace:FindFirstChild("Animals")
+        if animalsFolder then
+            for _, obj in pairs(animalsFolder:GetDescendants()) do
+                if obj:IsA("Model") or obj:IsA("BasePart") then
+                    applyESP(obj)
+                end
+            end
+        end
+        
+        -- También buscar en todo el workspace por si acaso
         for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
+            if obj:IsA("Model") or obj:IsA("BasePart") then
                 applyESP(obj)
             end
         end
+        
+        print("🔍 ESP activado - Buscando brainrots...")
     else
         -- Remover todos los highlights
         for obj, highlight in pairs(activeHighlights) do
             removeESP(obj)
         end
+        print("❌ ESP desactivado")
     end
 end
 
@@ -487,10 +547,12 @@ end
 
 -- Función para crear efecto de animación en botones
 local function animateButton(button, scale)
-    local tween = TweenService:Create(button, TweenInfo.new(0.1), {Size = button.Size * scale})
+    local originalSize = button.Size
+    local newSize = UDim2.new(originalSize.X.Scale * scale, originalSize.X.Offset * scale, originalSize.Y.Scale * scale, originalSize.Y.Offset * scale)
+    local tween = TweenService:Create(button, TweenInfo.new(0.1), {Size = newSize})
     tween:Play()
     tween.Completed:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.1), {Size = button.Size / scale}):Play()
+        TweenService:Create(button, TweenInfo.new(0.1), {Size = originalSize}):Play()
     end)
 end
 
@@ -537,6 +599,29 @@ espToggle.MouseButton1Click:Connect(function()
     if espEnabled then
         espToggle.Text = "ON"
         espToggle.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        
+        -- Debug: mostrar estructura del workspace
+        print("🔍 Explorando workspace...")
+        local animalsFolder = Workspace:FindFirstChild("Animals")
+        if animalsFolder then
+            print("✅ Carpeta Animals encontrada!")
+            print("📁 Contenido de Animals:")
+            for _, child in pairs(animalsFolder:GetChildren()) do
+                print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
+                if child:IsA("Model") then
+                    local isBrain, isSecret = isBrainrot(child.Name)
+                    if isBrain then
+                        print("    🎯 ¡BRAINROT DETECTADO! Secret:", isSecret)
+                    end
+                end
+            end
+        else
+            print("❌ Carpeta Animals no encontrada")
+            print("📁 Explorando workspace completo...")
+            for _, child in pairs(Workspace:GetChildren()) do
+                print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
+            end
+        end
     else
         espToggle.Text = "OFF"
         espToggle.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
@@ -604,7 +689,7 @@ end)
 
 -- Detectar nuevos objetos para ESP
 Workspace.DescendantAdded:Connect(function(obj)
-    if espEnabled and obj:IsA("BasePart") then
+    if espEnabled and (obj:IsA("Model") or obj:IsA("BasePart")) then
         applyESP(obj)
     end
 end)
