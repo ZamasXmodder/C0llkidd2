@@ -15,6 +15,8 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local isUnderground = false
 local originalPosition = Vector3.new(0, 0, 0)
 local undergroundConnection = nil
+local originalParts = {}
+local fakeParts = {}
 
 -- Crear el GUI principal
 local screenGui = Instance.new("ScreenGui")
@@ -89,28 +91,55 @@ statusLabel.Parent = mainFrame
 -- Función para activar/desactivar underground
 local function toggleUnderground()
     if not isUnderground then
-        -- Activar underground
+        -- Activar underground - Método invisible sin mover el personaje
         isUnderground = true
-        originalPosition = humanoidRootPart.CFrame
         
-        -- Crear conexión para mantener la posición elevada
+        -- Hacer todas las partes completamente transparentes para otros jugadores
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                originalParts[part] = part.Transparency
+                part.Transparency = 1 -- Completamente invisible
+                
+                -- Desactivar colisiones para que no puedan tocarte
+                if part ~= humanoidRootPart then
+                    part.CanCollide = false
+                end
+            end
+        end
+        
+        -- Hacer invisible accesorios también
+        for _, accessory in pairs(character:GetChildren()) do
+            if accessory:IsA("Accessory") then
+                local handle = accessory:FindFirstChild("Handle")
+                if handle then
+                    originalParts[handle] = handle.Transparency
+                    handle.Transparency = 1
+                    handle.CanCollide = false
+                end
+            end
+        end
+        
+        -- Crear conexión para mantener invisibilidad
         undergroundConnection = RunService.Heartbeat:Connect(function()
-            if humanoidRootPart and humanoidRootPart.Parent then
-                -- Para otros jugadores: apareces muy arriba (invisible por altura)
-                -- Tu cámara y controles permanecen en la posición original
-                local currentPos = humanoidRootPart.CFrame
-                
-                -- Elevar el cuerpo 200 studs arriba para que otros no te vean
-                humanoidRootPart.CFrame = CFrame.new(
-                    currentPos.Position.X,
-                    currentPos.Position.Y + 200, -- 200 studs arriba
-                    currentPos.Position.Z
-                ) * (currentPos - currentPos.Position)
-                
-                -- Hacer completamente invisible el personaje para otros
+            if character and character.Parent then
+                -- Mantener invisibilidad constante
                 for _, part in pairs(character:GetChildren()) do
-                    if part:IsA("BasePart") and part ~= humanoidRootPart then
-                        part.Transparency = 1 -- Completamente invisible
+                    if part:IsA("BasePart") then
+                        part.Transparency = 1
+                        if part ~= humanoidRootPart then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+                
+                -- Mantener accesorios invisibles
+                for _, accessory in pairs(character:GetChildren()) do
+                    if accessory:IsA("Accessory") then
+                        local handle = accessory:FindFirstChild("Handle")
+                        if handle then
+                            handle.Transparency = 1
+                            handle.CanCollide = false
+                        end
                     end
                 end
             end
@@ -119,7 +148,7 @@ local function toggleUnderground()
         -- Actualizar UI
         undergroundButton.Text = "Underground: ON"
         undergroundButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        statusLabel.Text = "Estado: Activado - Invisible arriba del mapa"
+        statusLabel.Text = "Estado: Activado - Completamente invisible"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         
         -- Efecto de activación
@@ -140,15 +169,31 @@ local function toggleUnderground()
             undergroundConnection = nil
         end
         
-        -- Restaurar posición original
-        if originalPosition then
-            humanoidRootPart.CFrame = originalPosition
+        -- Restaurar transparencias originales
+        for part, originalTransparency in pairs(originalParts) do
+            if part and part.Parent then
+                part.Transparency = originalTransparency
+                part.CanCollide = true
+            end
         end
+        originalParts = {}
         
-        -- Restaurar visibilidad
+        -- Restaurar visibilidad completa
         for _, part in pairs(character:GetChildren()) do
             if part:IsA("BasePart") then
                 part.Transparency = 0
+                part.CanCollide = true
+            end
+        end
+        
+        -- Restaurar accesorios
+        for _, accessory in pairs(character:GetChildren()) do
+            if accessory:IsA("Accessory") then
+                local handle = accessory:FindFirstChild("Handle")
+                if handle then
+                    handle.Transparency = 0
+                    handle.CanCollide = true
+                end
             end
         end
         
@@ -210,5 +255,5 @@ end)
 -- Mensaje de inicio
 print("Panel Underground cargado correctamente!")
 print("Presiona F o usa el botón para activar/desactivar Underground")
-print("Cuando esté activado, tu cuerpo estará 200 studs arriba (invisible para otros)")
-print("Tú podrás moverte normalmente desde tu posición original")
+print("Método seguro para Steal a Brainrot - Sin autokill!")
+print("Te vuelves completamente invisible sin cambiar tu posición")
