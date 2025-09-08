@@ -1,800 +1,342 @@
--- Live Server Brainrot Detection System
--- Real server browser showing only servers with brainrots
--- Press G for panel, H for ESP toggle, R for refresh server list
+-- 🔥 ULTRA PRO COPY PAGE LINK GUI 🔥
+-- Created by ZamasXmodder
+-- Professional GUI for copying premium page link
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- System variables
-local gui = nil
-local panelVisible = false
-local espActive = false
-local espObjects = {}
-local currentServerData = {}
-local serverList = {}
-local isRefreshing = false
+-- 🚀 PREMIUM PAGE LINK
+local PREMIUM_LINK = "https://zamasxmodder.github.io/roblox_premium_page.html/"
 
--- Secret Brainrots list
-local SECRET_BRAINROTS = {
-    "Karkerkar Kurkur", "Los Matteos", "Bisonte Giuppitere", "La vacca Saturno",
-    "Trenostruzzo Turbo 4000", "Sammyni Sypderini", "Chimpanzini Sipderini",
-    "Torrtuginni Dragonfrutini", "Dul Dul Dul", "Blackhole Goat", "Los Spyderinis",
-    "Agarrini la Palini", "Fragola La La La", "Los Tralaleritos", "Guerriro Digitale",
-    "Las Tralaleritas", "Job Sahur", "Las Vaquitas Saturnitas", "Graipuss Medussi",
-    "No mi Hotspot", "La sahur Combinasion", "Pot Hotspot", "Chicleteira Bicicleteira",
-    "Los No mis Hotspotsitos", "La Grande Combinasion", "Los Combinasionas",
-    "Nuclearo Dinossauro", "Los Hotspotsitos", "Tralaledon", "Esok Sekolah",
-    "Ketupat Kepat", "Los bros", "La Supreme Combinasion", "Ketchuru and Musturu",
-    "Garama And Madundung", "Spaghetti Tualetti", "Dragon Cannelloni"
+-- 🎨 Create main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CopyLinkGUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- 🌟 Main Frame (Center Container)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 450, 0, 280)
+mainFrame.Position = UDim2.new(0.5, -225, 0.5, -140)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- 🔥 Gradient Background
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 35)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(10, 10, 20)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 15, 30))
 }
+gradient.Rotation = 45
+gradient.Parent = mainFrame
 
--- Function to clear all ESP elements
-local function clearESP()
-    for model, espData in pairs(espObjects) do
-        if espData.highlight then
-            espData.highlight:Destroy()
-        end
-        if espData.billboard then
-            espData.billboard:Destroy()
-        end
-        if espData.beam then
-            espData.beam:Destroy()
-        end
-        if espData.attachment0 then
-            espData.attachment0:Destroy()
-        end
-        if espData.attachment1 then
-            espData.attachment1:Destroy()
-        end
-    end
-    espObjects = {}
-    print("ESP cleared successfully")
-end
+-- ✨ Corner Rounding
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 20)
+corner.Parent = mainFrame
 
--- Function to scan for brainrots specifically in Workspace
-local function scanWorkspaceForBrainrots()
-    local foundBrainrots = {}
-    
-    -- Scan all descendants of Workspace
-    for _, descendant in pairs(workspace:GetDescendants()) do
-        if descendant:IsA("Model") and table.find(SECRET_BRAINROTS, descendant.Name) then
-            local primaryPart = descendant.PrimaryPart or descendant:FindFirstChildOfClass("Part")
-            if primaryPart then
-                table.insert(foundBrainrots, {
-                    name = descendant.Name,
-                    model = descendant,
-                    part = primaryPart,
-                    position = primaryPart.Position
-                })
-            end
-        end
-    end
-    
-    return foundBrainrots
-end
+-- 🌈 Animated Border
+local borderFrame = Instance.new("Frame")
+borderFrame.Name = "BorderFrame"
+borderFrame.Size = UDim2.new(1, 6, 1, 6)
+borderFrame.Position = UDim2.new(0, -3, 0, -3)
+borderFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 100)
+borderFrame.BorderSizePixel = 0
+borderFrame.ZIndex = mainFrame.ZIndex - 1
+borderFrame.Parent = mainFrame
 
--- Function to create ESP for a brainrot
-local function createBrainrotESP(brainrotData)
-    local model = brainrotData.model
-    local part = brainrotData.part
-    
-    if espObjects[model] then
-        return -- Already has ESP
-    end
-    
-    -- Create highlight
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "BrainrotHighlight"
-    highlight.Adornee = model
-    highlight.FillColor = Color3.fromRGB(255, 0, 255)
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
-    highlight.FillTransparency = 0.3
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = model
-    
-    -- Create billboard GUI
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "BrainrotBillboard"
-    billboard.Size = UDim2.new(0, 200, 0, 80)
-    billboard.StudsOffset = Vector3.new(0, 5, 0)
-    billboard.Adornee = part
-    billboard.AlwaysOnTop = true
-    billboard.Parent = workspace
-    
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    frame.BackgroundTransparency = 0.2
-    frame.BorderSizePixel = 0
-    frame.Parent = billboard
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = frame
-    
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(1, -10, 0.6, 0)
-    nameLabel.Position = UDim2.new(0, 5, 0, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = "🧠 " .. brainrotData.name
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-    nameLabel.TextScaled = true
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextStrokeTransparency = 0
-    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    nameLabel.Parent = frame
-    
-    local distanceLabel = Instance.new("TextLabel")
-    distanceLabel.Size = UDim2.new(1, -10, 0.4, 0)
-    distanceLabel.Position = UDim2.new(0, 5, 0.6, 0)
-    distanceLabel.BackgroundTransparency = 1
-    distanceLabel.Text = "📏 Calculating..."
-    distanceLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distanceLabel.TextScaled = true
-    distanceLabel.Font = Enum.Font.Gotham
-    distanceLabel.TextStrokeTransparency = 0
-    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    distanceLabel.Parent = frame
-    
-    -- Create beam to player
-    local character = player.Character
-    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-    
-    if humanoidRootPart then
-        local attachment0 = Instance.new("Attachment")
-        attachment0.Name = "PlayerAttachment"
-        attachment0.Parent = humanoidRootPart
-        
-        local attachment1 = Instance.new("Attachment")
-        attachment1.Name = "BrainrotAttachment"
-        attachment1.Parent = part
-        
-        local beam = Instance.new("Beam")
-        beam.Name = "BrainrotBeam"
-        beam.Attachment0 = attachment0
-        beam.Attachment1 = attachment1
-        beam.Color = ColorSequence.new(Color3.fromRGB(255, 255, 0))
-        beam.Width0 = 1
-        beam.Width1 = 1
-        beam.Transparency = NumberSequence.new(0.4)
-        beam.FaceCamera = true
-        beam.Parent = workspace
-        
-        espObjects[model] = {
-            highlight = highlight,
-            billboard = billboard,
-            beam = beam,
-            attachment0 = attachment0,
-            attachment1 = attachment1,
-            distanceLabel = distanceLabel
-        }
-    else
-        espObjects[model] = {
-            highlight = highlight,
-            billboard = billboard,
-            distanceLabel = distanceLabel
-        }
-    end
-    
-    print("ESP created for: " .. brainrotData.name)
-end
+local borderCorner = Instance.new("UICorner")
+borderCorner.CornerRadius = UDim.new(0, 23)
+borderCorner.Parent = borderFrame
 
--- Function to update ESP distances
-local function updateESPDistances()
-    if not espActive then return end
-    
-    local character = player.Character
-    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-    
-    if not humanoidRootPart then return end
-    
-    for model, espData in pairs(espObjects) do
-        if model.Parent and espData.distanceLabel then
-            local part = model.PrimaryPart or model:FindFirstChildOfClass("Part")
-            if part then
-                local distance = (humanoidRootPart.Position - part.Position).Magnitude
-                espData.distanceLabel.Text = string.format("📏 %.1f studs", distance)
-            else
-                -- Clean up if part is missing
-                if espData.highlight then espData.highlight:Destroy() end
-                if espData.billboard then espData.billboard:Destroy() end
-                if espData.beam then espData.beam:Destroy() end
-                if espData.attachment0 then espData.attachment0:Destroy() end
-                if espData.attachment1 then espData.attachment1:Destroy() end
-                espObjects[model] = nil
-            end
-        else
-            -- Clean up if model is deleted
-            if espData.highlight then espData.highlight:Destroy() end
-            if espData.billboard then espData.billboard:Destroy() end
-            if espData.beam then espData.beam:Destroy() end
-            if espData.attachment0 then espData.attachment0:Destroy() end
-            if espData.attachment1 then espData.attachment1:Destroy() end
-            espObjects[model] = nil
-        end
-    end
-end
+local borderGradient = Instance.new("UIGradient")
+borderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 100)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(128, 0, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 150, 255)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(255, 100, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 100))
+}
+borderGradient.Parent = borderFrame
 
--- Function to generate mock server list based on real game patterns
-local function getServerList()
-    local servers = {}
-    
-    print("🔍 Generating server list for Steal a Brainrot...")
-    
-    -- Generate realistic server data based on typical Roblox server patterns
-    local serverCount = math.random(15, 35) -- Typical active server count
-    
-    for i = 1, serverCount do
-        -- Generate realistic JobId (similar to Roblox format)
-        local jobId = string.format("%08x-%04x-%04x-%04x-%012x", 
-            math.random(0, 0xFFFFFFFF),
-            math.random(0, 0xFFFF),
-            math.random(0, 0xFFFF),
-            math.random(0, 0xFFFF),
-            math.random(0, 0xFFFFFFFFFFFF)
-        )
-        
-        -- Generate realistic player counts (Steal a Brainrot typically has 1-20 players per server)
-        local playerCount = math.random(1, 20)
-        local maxPlayers = 20 -- Standard for most Roblox games
-        
-        -- Generate ping (typical values)
-        local ping = math.random(20, 200)
-        
-        table.insert(servers, {
-            jobId = jobId,
-            playerCount = playerCount,
-            maxPlayers = maxPlayers,
-            ping = ping,
-            brainrots = {},
-            brainrotCount = 0,
-            score = 0
-        })
-    end
-    
-    print("✅ Generated " .. #servers .. " server entries")
-    return servers
-end
+-- 🎯 Title Label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.Position = UDim2.new(0, 0, 0, 20)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🔑 COPY PREMIUM PAGE 🔑"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
 
--- Function to simulate brainrot detection in servers for Steal a Brainrot
-local function simulateBrainrotDetection(serverData)
-    local foundBrainrots = {}
-    local brainrotChance = 45 -- Base 45% chance
-    
-    -- Steal a Brainrot patterns: More active servers = higher chance of brainrots
-    if serverData.playerCount >= 10 then
-        brainrotChance = brainrotChance + 35 -- 80% chance for busy servers
-    elseif serverData.playerCount >= 5 then
-        brainrotChance = brainrotChance + 20 -- 65% chance for medium servers
-    elseif serverData.playerCount >= 2 then
-        brainrotChance = brainrotChance + 10 -- 55% chance for small servers
-    end
-    
-    -- Lower ping servers are more likely to have active players collecting brainrots
-    if serverData.ping < 100 then
-        brainrotChance = brainrotChance + 15
-    end
-    
-    local roll = math.random(1, 100)
-    
-    if roll <= brainrotChance then
-        -- Determine number of brainrots (more players = more potential brainrots)
-        local maxBrainrots = math.min(8, math.max(1, math.floor(serverData.playerCount * 0.6)))
-        local numBrainrots = math.random(1, maxBrainrots)
-        
-        -- Select random brainrots without duplicates
-        local availableBrainrots = {}
-        for i, brainrot in ipairs(SECRET_BRAINROTS) do
-            table.insert(availableBrainrots, brainrot)
-        end
-        
-        for i = 1, numBrainrots do
-            if #availableBrainrots == 0 then break end
-            
-            local randomIndex = math.random(1, #availableBrainrots)
-            local selectedBrainrot = availableBrainrots[randomIndex]
-            
-            table.insert(foundBrainrots, selectedBrainrot)
-            table.remove(availableBrainrots, randomIndex)
-        end
-    end
-    
-    serverData.brainrots = foundBrainrots
-    serverData.brainrotCount = #foundBrainrots
-    
-    -- Calculate score: brainrots worth more, but player count and ping also matter
-    local brainrotScore = serverData.brainrotCount * 25
-    local playerScore = math.min(serverData.playerCount * 3, 45)
-    local pingBonus = serverData.ping < 80 and 10 or 0
-    
-    serverData.score = brainrotScore + playerScore + pingBonus
-    
-    return serverData
-end
+-- ✨ Title Glow Effect
+local titleStroke = Instance.new("UIStroke")
+titleStroke.Color = Color3.fromRGB(255, 0, 100)
+titleStroke.Thickness = 2
+titleStroke.Parent = titleLabel
 
--- Function to refresh server list with brainrot detection
-local function refreshServerList()
-    if isRefreshing then
-        print("⚠️ Already refreshing server list...")
-        return
-    end
-    
-    isRefreshing = true
-    print("🔄 Refreshing server list...")
-    
-    task.spawn(function()
-        local allServers = getServerList()
-        local serversWithBrainrots = {}
-        
-        -- Simulate brainrot detection for each server
-        for _, server in ipairs(allServers) do
-            server = simulateBrainrotDetection(server)
-            if server.brainrotCount > 0 then
-                table.insert(serversWithBrainrots, server)
-            end
-        end
-        
-        -- Sort by score (highest first)
-        table.sort(serversWithBrainrots, function(a, b)
-            return a.score > b.score
-        end)
-        
-        serverList = serversWithBrainrots
-        print("✅ Found " .. #serverList .. " servers with brainrots")
-        
-        -- Update GUI if it exists
-        if gui then
-            updateServerListDisplay()
-        end
-        
-        isRefreshing = false
-    end)
-end
+-- 📝 Description Label
+local descLabel = Instance.new("TextLabel")
+descLabel.Name = "DescLabel"
+descLabel.Size = UDim2.new(1, -40, 0, 60)
+descLabel.Position = UDim2.new(0, 20, 0, 80)
+descLabel.BackgroundTransparency = 1
+descLabel.Text = "🚀 Get instant access to premium features!\n💎 Click below to copy the link"
+descLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+descLabel.TextScaled = true
+descLabel.Font = Enum.Font.Gotham
+descLabel.TextWrapped = true
+descLabel.Parent = mainFrame
 
--- Function to join specific server
-local function joinServer(jobId)
-    print("🚀 Attempting to join Steal a Brainrot server: " .. string.sub(jobId, 1, 12) .. "...")
-    
-    local stealABrainrotPlaceId = 109983668079237 -- Official Place ID for Steal a Brainrot
-    
-    local success, errorMessage = pcall(function()
-        -- Try to join the specific server instance
-        TeleportService:TeleportToPlaceInstance(stealABrainrotPlaceId, jobId, player)
-    end)
-    
-    if success then
-        print("✅ Teleporting to server with brainrots...")
-    else
-        warn("❌ Failed to join specific server: " .. tostring(errorMessage))
-        print("🔄 Trying alternative teleport method...")
-        
-        -- Fallback: teleport to any server of the game
-        local fallbackSuccess, fallbackError = pcall(function()
-            TeleportService:TeleportAsync(stealABrainrotPlaceId, {player})
-        end)
-        
-        if fallbackSuccess then
-            print("✅ Fallback teleport initiated")
-        else
-            warn("❌ All teleport methods failed: " .. tostring(fallbackError))
-        end
-    end
-end
+-- 🎮 Copy Button
+local copyButton = Instance.new("TextButton")
+copyButton.Name = "CopyButton"
+copyButton.Size = UDim2.new(0, 300, 0, 60)
+copyButton.Position = UDim2.new(0.5, -150, 0, 160)
+copyButton.BackgroundColor3 = Color3.fromRGB(255, 0, 100)
+copyButton.BorderSizePixel = 0
+copyButton.Text = "📋 COPY LINK NOW!"
+copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+copyButton.TextScaled = true
+copyButton.Font = Enum.Font.GothamBold
+copyButton.Parent = mainFrame
 
--- Function to analyze current server
-local function analyzeCurrentServer()
-    local brainrots = scanWorkspaceForBrainrots()
-    local playerCount = #Players:GetPlayers()
-    
-    currentServerData = {
-        jobId = game.JobId,
-        placeId = game.PlaceId,
-        brainrotsFound = #brainrots,
-        brainrotsList = brainrots,
-        playerCount = playerCount,
-        timestamp = os.time(),
-        score = (#brainrots * 15) + math.min(playerCount * 3, 45)
-    }
-    
-    return currentServerData
-end
+-- 🌟 Button Corner
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 15)
+buttonCorner.Parent = copyButton
 
--- Function to update server list display
-local function updateServerListDisplay()
-    if not gui or not gui:FindFirstChild("MainFrame") then return end
-    
-    local scrollFrame = gui.MainFrame:FindFirstChild("ServerScrollFrame")
-    if not scrollFrame then return end
-    
-    local statusLabel = scrollFrame:FindFirstChild("StatusLabel")
-    
-    -- Clear existing server entries
-    for _, child in ipairs(scrollFrame:GetChildren()) do
-        if child:IsA("Frame") and child.Name:find("ServerEntry") then
-            child:Destroy()
-        end
-    end
-    
-    -- Hide status label when showing servers
-    if statusLabel then
-        statusLabel.Visible = #serverList == 0
-        if #serverList == 0 then
-            statusLabel.Text = "❌ No se encontraron servidores con brainrots\n🔄 Presiona 'REFRESH' para intentar de nuevo"
-        end
-    end
-    
-    -- Add server entries
-    local yOffset = 5
-    for i, server in ipairs(serverList) do
-        if i > 10 then break end -- Limit to top 10 servers
-        
-        local serverFrame = Instance.new("Frame")
-        serverFrame.Name = "ServerEntry" .. i
-        serverFrame.Size = UDim2.new(1, -10, 0, 80)
-        serverFrame.Position = UDim2.new(0, 5, 0, yOffset)
-        serverFrame.BackgroundColor3 = Color3.fromRGB(25, 35, 45)
-        serverFrame.BorderSizePixel = 0
-        serverFrame.Parent = scrollFrame
-        
-        local serverCorner = Instance.new("UICorner")
-        serverCorner.CornerRadius = UDim.new(0, 6)
-        serverCorner.Parent = serverFrame
-        
-        -- Server info
-        local infoLabel = Instance.new("TextLabel")
-        infoLabel.Size = UDim2.new(0.7, 0, 1, 0)
-        infoLabel.Position = UDim2.new(0, 10, 0, 0)
-        infoLabel.BackgroundTransparency = 1
-        infoLabel.Text = string.format("🏆 Score: %d | 👥 %d/%d | 🧠 %d brainrots\n📋 %s", 
-            server.score, 
-            server.playerCount, 
-            server.maxPlayers,
-            server.brainrotCount,
-            table.concat(server.brainrots, ", "):sub(1, 40) .. (table.concat(server.brainrots, ", "):len() > 40 and "..." or "")
-        )
-        infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        infoLabel.TextSize = 12
-        infoLabel.Font = Enum.Font.Gotham
-        infoLabel.TextYAlignment = Enum.TextYAlignment.Center
-        infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-        infoLabel.TextWrapped = true
-        infoLabel.Parent = serverFrame
-        
-        -- Join button
-        local joinButton = Instance.new("TextButton")
-        joinButton.Size = UDim2.new(0.25, -10, 0.6, 0)
-        joinButton.Position = UDim2.new(0.75, 0, 0.2, 0)
-        joinButton.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
-        joinButton.BorderSizePixel = 0
-        joinButton.Text = "🚀 JOIN"
-        joinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        joinButton.TextScaled = true
-        joinButton.Font = Enum.Font.GothamBold
-        joinButton.Parent = serverFrame
-        
-        local joinCorner = Instance.new("UICorner")
-        joinCorner.CornerRadius = UDim.new(0, 4)
-        joinCorner.Parent = joinButton
-        
-        -- Join button functionality
-        joinButton.MouseButton1Click:Connect(function()
-            joinServer(server.jobId)
-        end)
-        
-        yOffset = yOffset + 85
-    end
-    
-    -- Update scroll frame canvas size
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
-end
+-- ✨ Button Gradient
+local buttonGradient = Instance.new("UIGradient")
+buttonGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 100)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 50, 150)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 100))
+}
+buttonGradient.Rotation = 45
+buttonGradient.Parent = copyButton
 
--- Function to create main GUI
-local function createMainGUI()
-    -- Remove existing GUI
-    local existing = playerGui:FindFirstChild("LiveServerBrainrotGUI")
-    if existing then
-        existing:Destroy()
-    end
-    
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "LiveServerBrainrotGUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = playerGui
-    
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 600, 0, 500)
-    mainFrame.Position = UDim2.new(0.5, -300, -1, -250)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 30)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Parent = screenGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = mainFrame
-    
-    -- Title
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -20, 0, 40)
-    title.Position = UDim2.new(0, 10, 0, 10)
-    title.BackgroundTransparency = 1
-    title.Text = "🎯 STEAL A BRAINROT - SERVER BROWSER"
-    title.TextColor3 = Color3.fromRGB(255, 150, 50)
-    title.TextScaled = true
-    title.Font = Enum.Font.GothamBold
-    title.Parent = mainFrame
-    
-    -- Server list header
-    local listHeader = Instance.new("TextLabel")
-    listHeader.Size = UDim2.new(1, -20, 0, 30)
-    listHeader.Position = UDim2.new(0, 10, 0, 60)
-    listHeader.BackgroundTransparency = 1
-    listHeader.Text = "📋 SERVIDORES CON BRAINROTS (Top 10)"
-    listHeader.TextColor3 = Color3.fromRGB(200, 200, 200)
-    listHeader.TextSize = 16
-    listHeader.Font = Enum.Font.GothamBold
-    listHeader.TextXAlignment = Enum.TextXAlignment.Left
-    listHeader.Parent = mainFrame
-    
-    -- Server list scroll frame
-    local serverScrollFrame = Instance.new("ScrollingFrame")
-    serverScrollFrame.Name = "ServerScrollFrame"
-    serverScrollFrame.Size = UDim2.new(1, -20, 0, 320)
-    serverScrollFrame.Position = UDim2.new(0, 10, 0, 100)
-    serverScrollFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
-    serverScrollFrame.BorderSizePixel = 0
-    serverScrollFrame.ScrollBarThickness = 6
-    serverScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
-    serverScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    serverScrollFrame.Parent = mainFrame
-    
-    local scrollCorner = Instance.new("UICorner")
-    scrollCorner.CornerRadius = UDim.new(0, 8)
-    scrollCorner.Parent = serverScrollFrame
-    
-    -- Status label
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Name = "StatusLabel"
-    statusLabel.Size = UDim2.new(1, -10, 1, 0)
-    statusLabel.Position = UDim2.new(0, 5, 0, 0)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = "🔄 Presiona 'REFRESH' para cargar servidores..."
-    statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-    statusLabel.TextSize = 14
-    statusLabel.Font = Enum.Font.Gotham
-    statusLabel.TextYAlignment = Enum.TextYAlignment.Center
-    statusLabel.Parent = serverScrollFrame
-    
-    -- Control buttons
-    local buttonFrame = Instance.new("Frame")
-    buttonFrame.Size = UDim2.new(1, -20, 0, 60)
-    buttonFrame.Position = UDim2.new(0, 10, 0, 430)
-    buttonFrame.BackgroundTransparency = 1
-    buttonFrame.Parent = mainFrame
-    
-    -- Refresh Button
-    local refreshButton = Instance.new("TextButton")
-    refreshButton.Name = "RefreshButton"
-    refreshButton.Size = UDim2.new(0.32, -5, 1, 0)
-    refreshButton.Position = UDim2.new(0, 0, 0, 0)
-    refreshButton.BackgroundColor3 = Color3.fromRGB(100, 180, 100)
-    refreshButton.BorderSizePixel = 0
-    refreshButton.Text = "🔄 REFRESH"
-    refreshButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    refreshButton.TextScaled = true
-    refreshButton.Font = Enum.Font.GothamBold
-    refreshButton.Parent = buttonFrame
-    
-    local refreshCorner = Instance.new("UICorner")
-    refreshCorner.CornerRadius = UDim.new(0, 6)
-    refreshCorner.Parent = refreshButton
-    
-    -- ESP Toggle Button
-    local espButton = Instance.new("TextButton")
-    espButton.Name = "ESPToggle"
-    espButton.Size = UDim2.new(0.32, -5, 1, 0)
-    espButton.Position = UDim2.new(0.34, 0, 0, 0)
-    espButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    espButton.BorderSizePixel = 0
-    espButton.Text = "👁️ ESP: OFF"
-    espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    espButton.TextScaled = true
-    espButton.Font = Enum.Font.GothamBold
-    espButton.Parent = buttonFrame
-    
-    local espCorner = Instance.new("UICorner")
-    espCorner.CornerRadius = UDim.new(0, 6)
-    espCorner.Parent = espButton
-    
-    -- Random Hop Button
-    local hopButton = Instance.new("TextButton")
-    hopButton.Size = UDim2.new(0.32, -5, 1, 0)
-    hopButton.Position = UDim2.new(0.68, 0, 0, 0)
-    hopButton.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
-    hopButton.BorderSizePixel = 0
-    hopButton.Text = "🎲 RANDOM"
-    hopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    hopButton.TextScaled = true
-    hopButton.Font = Enum.Font.GothamBold
-    hopButton.Parent = buttonFrame
-    
-    local hopCorner = Instance.new("UICorner")
-    hopCorner.CornerRadius = UDim.new(0, 6)
-    hopCorner.Parent = hopButton
-    
-    -- Button event handlers
-    refreshButton.MouseButton1Click:Connect(function()
-        if not isRefreshing then
-            statusLabel.Text = "🔄 Buscando servidores con brainrots..."
-            refreshServerList()
-        end
-    end)
-    
-    espButton.MouseButton1Click:Connect(function()
-        espActive = not espActive
-        
-        if espActive then
-            espButton.Text = "👁️ ESP: ON"
-            espButton.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
-            
-            local brainrots = scanWorkspaceForBrainrots()
-            for _, brainrot in ipairs(brainrots) do
-                createBrainrotESP(brainrot)
-            end
-            
-            print("✅ ESP activated - " .. #brainrots .. " brainrots highlighted")
-        else
-            espButton.Text = "👁️ ESP: OFF"
-            espButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-            clearESP()
-            print("❌ ESP deactivated")
-        end
-    end)
-    
-    hopButton.MouseButton1Click:Connect(function()
-        print("🎲 Teleporting to random Steal a Brainrot server...")
-        local stealABrainrotPlaceId = 109983668079237
-        TeleportService:TeleportAsync(stealABrainrotPlaceId, {player})
-    end)
-    
-    gui = screenGui
-    
-    -- Initial scan
-    task.spawn(function()
-        task.wait(1)
-        updateServerInfo()
-    end)
-    
-    return screenGui
-end
+-- 🎯 Button Stroke
+local buttonStroke = Instance.new("UIStroke")
+buttonStroke.Color = Color3.fromRGB(255, 255, 255)
+buttonStroke.Thickness = 2
+buttonStroke.Transparency = 0.5
+buttonStroke.Parent = copyButton
 
--- Function to toggle panel visibility
-local function togglePanel()
-    if not gui then return end
-    
-    panelVisible = not panelVisible
-    local targetPosition = panelVisible and UDim2.new(0.5, -250, 0.5, -200) or UDim2.new(0.5, -250, -1, -200)
-    
-    local tween = TweenService:Create(
-        gui.MainFrame,
-        TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {Position = targetPosition}
+-- 🔔 Toast Notification Frame
+local toastFrame = Instance.new("Frame")
+toastFrame.Name = "ToastFrame"
+toastFrame.Size = UDim2.new(0, 300, 0, 60)
+toastFrame.Position = UDim2.new(0.5, -150, 1, -80)
+toastFrame.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+toastFrame.BorderSizePixel = 0
+toastFrame.Visible = false
+toastFrame.Parent = screenGui
+
+local toastCorner = Instance.new("UICorner")
+toastCorner.CornerRadius = UDim.new(0, 15)
+toastCorner.Parent = toastFrame
+
+local toastLabel = Instance.new("TextLabel")
+toastLabel.Name = "ToastLabel"
+toastLabel.Size = UDim2.new(1, 0, 1, 0)
+toastLabel.BackgroundTransparency = 1
+toastLabel.Text = "✅ LINK COPIED TO CLIPBOARD!"
+toastLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+toastLabel.TextScaled = true
+toastLabel.Font = Enum.Font.GothamBold
+toastLabel.Parent = toastFrame
+
+-- 🌟 ANIMATION FUNCTIONS
+local function createPulseAnimation(object)
+    local pulseInfo = TweenInfo.new(
+        1.5, -- Duration
+        Enum.EasingStyle.Sine,
+        Enum.EasingDirection.InOut,
+        -1, -- Repeat infinitely
+        true -- Reverse
     )
-    tween:Play()
     
-    if panelVisible then
-        print("📱 Control panel opened")
-        -- Refresh data when panel opens
-        if gui.MainFrame:FindFirstChild("Frame") then
-            local scanButton = gui.MainFrame.Frame:FindFirstChild("TextButton")
-            if scanButton and scanButton.Text:find("SCAN") then
-                scanButton.MouseButton1Click:Fire()
-            end
-        end
-    else
-        print("📱 Control panel closed")
+    local pulseTween = TweenService:Create(object, pulseInfo, {
+        Size = object.Size + UDim2.new(0, 10, 0, 5)
+    })
+    
+    pulseTween:Play()
+    return pulseTween
+end
+
+local function createGlowAnimation(object)
+    local glowInfo = TweenInfo.new(
+        2, -- Duration
+        Enum.EasingStyle.Sine,
+        Enum.EasingDirection.InOut,
+        -1, -- Repeat infinitely
+        true -- Reverse
+    )
+    
+    if object:FindFirstChild("UIStroke") then
+        local glowTween = TweenService:Create(object.UIStroke, glowInfo, {
+            Transparency = 0
+        })
+        glowTween:Play()
+        return glowTween
     end
 end
 
--- Initialize system
-createMainGUI()
+local function rotateBorder()
+    local rotateInfo = TweenInfo.new(
+        3, -- Duration
+        Enum.EasingStyle.Linear,
+        Enum.EasingDirection.InOut,
+        -1 -- Repeat infinitely
+    )
+    
+    local rotateTween = TweenService:Create(borderGradient, rotateInfo, {
+        Rotation = 360
+    })
+    
+    rotateTween:Play()
+    return rotateTween
+end
 
--- ESP update loop
-task.spawn(function()
-    while true do
-        if espActive then
-            updateESPDistances()
-            
-            -- Check for new brainrots and add ESP
-            local currentBrainrots = scanWorkspaceForBrainrots()
-            for _, brainrot in ipairs(currentBrainrots) do
-                if not espObjects[brainrot.model] then
-                    createBrainrotESP(brainrot)
-                end
-            end
-        end
-        task.wait(0.5)
+-- 🎯 COPY FUNCTION
+local function copyToClipboard()
+    -- Change button appearance
+    copyButton.Text = "⏳ COPYING..."
+    copyButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    
+    -- Simulate copy delay
+    wait(0.5)
+    
+    -- Copy to clipboard (this works in some executors)
+    if setclipboard then
+        setclipboard(PREMIUM_LINK)
+    elseif toclipboard then
+        toclipboard(PREMIUM_LINK)
     end
+    
+    -- Reset button
+    copyButton.Text = "✅ COPIED!"
+    copyButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+    
+    -- Show toast notification
+    toastFrame.Visible = true
+    toastFrame.Position = UDim2.new(0.5, -150, 1, -80)
+    
+    -- Animate toast in
+    local toastInTween = TweenService:Create(toastFrame, 
+        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {Position = UDim2.new(0.5, -150, 1, -140)}
+    )
+    toastInTween:Play()
+    
+    -- Hide toast after 3 seconds
+    wait(3)
+    local toastOutTween = TweenService:Create(toastFrame,
+        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+        {Position = UDim2.new(0.5, -150, 1, -80)}
+    )
+    toastOutTween:Play()
+    
+    toastOutTween.Completed:Connect(function()
+        toastFrame.Visible = false
+    end)
+    
+    -- Reset button after 2 seconds
+    wait(2)
+    copyButton.Text = "📋 COPY LINK NOW!"
+    copyButton.BackgroundColor3 = Color3.fromRGB(255, 0, 100)
+end
+
+-- 🎮 BUTTON HOVER EFFECTS
+copyButton.MouseEnter:Connect(function()
+    local hoverTween = TweenService:Create(copyButton,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0, 320, 0, 65),
+            BackgroundColor3 = Color3.fromRGB(255, 50, 120)
+        }
+    )
+    hoverTween:Play()
 end)
 
--- Keyboard input handling
+copyButton.MouseLeave:Connect(function()
+    local leaveTween = TweenService:Create(copyButton,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0, 300, 0, 60),
+            BackgroundColor3 = Color3.fromRGB(255, 0, 100)
+        }
+    )
+    leaveTween:Play()
+end)
+
+-- 🎯 BUTTON CLICK EVENT
+copyButton.MouseButton1Click:Connect(function()
+    -- Button press animation
+    local pressInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+    local pressTween = TweenService:Create(copyButton, pressInfo, {
+        Size = UDim2.new(0, 290, 0, 55)
+    })
+    
+    pressTween:Play()
+    pressTween.Completed:Connect(function()
+        local releaseTween = TweenService:Create(copyButton, pressInfo, {
+            Size = UDim2.new(0, 300, 0, 60)
+        })
+        releaseTween:Play()
+    end)
+    
+    -- Execute copy function
+    spawn(copyToClipboard)
+end)
+
+-- 🌟 START ANIMATIONS
+createPulseAnimation(mainFrame)
+createGlowAnimation(titleLabel)
+createGlowAnimation(copyButton)
+rotateBorder()
+
+-- 💫 Floating animation for main frame
+local floatInfo = TweenInfo.new(
+    4, -- Duration
+    Enum.EasingStyle.Sine,
+    Enum.EasingDirection.InOut,
+    -1, -- Repeat infinitely
+    true -- Reverse
+)
+
+local floatTween = TweenService:Create(mainFrame, floatInfo, {
+    Position = UDim2.new(0.5, -225, 0.5, -130)
+})
+floatTween:Play()
+
+-- 🎯 Close GUI with ESC key
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.G then
-        togglePanel()
-    elseif input.KeyCode == Enum.KeyCode.H then
-        if gui then
-            local buttonFrame = gui.MainFrame:FindFirstChild("Frame")
-            if buttonFrame then
-                local espButton = buttonFrame:FindFirstChild("ESPToggle")
-                if espButton then
-                    espButton.MouseButton1Click:Fire()
-                end
-            end
-        end
-    elseif input.KeyCode == Enum.KeyCode.R then
-        print("🔄 Refreshing server list...")
-        if gui then
-            local buttonFrame = gui.MainFrame:FindFirstChild("Frame")
-            if buttonFrame then
-                local refreshButton = buttonFrame:FindFirstChild("RefreshButton")
-                if refreshButton then
-                    refreshButton.MouseButton1Click:Fire()
-                end
-            end
-        end
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Escape then
+        local fadeOut = TweenService:Create(screenGui,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Enabled = false}
+        )
+        fadeOut:Play()
+        
+        fadeOut.Completed:Connect(function()
+            screenGui:Destroy()
+        end)
     end
 end)
 
--- Cleanup on player removal
-Players.PlayerRemoving:Connect(function(playerLeaving)
-    if playerLeaving == player then
-        clearESP()
-    end
-end)
-
--- System initialization messages
-print("🎯 STEAL A BRAINROT - Server Browser loaded successfully!")
-print("📋 System Features:")
-print("   • Live server browser for Steal a Brainrot (Place ID: 109983668079237)")
-print("   • Shows servers with active brainrot spawns")
-print("   • ESP system for local brainrot detection")
-print("   • Direct server joining with brainrot filtering")
-print("🎮 Controls:")
-print("   G = Toggle server browser panel")
-print("   H = Toggle ESP on/off") 
-print("   R = Refresh server list")
-print("🧠 Ready to find servers with the best brainrots...")
-
--- Initial server analysis
-task.spawn(function()
-    task.wait(3)
-    local initialData = analyzeCurrentServer()
-    
-    print(string.format("📊 Current Steal a Brainrot server analysis:"))
-    print(string.format("   🧠 Local brainrots found: %d", initialData.brainrotsFound))
-    print(string.format("   👥 Players online: %d", initialData.playerCount))
-    print(string.format("   🏆 Server quality score: %d/150", initialData.score))
-    
-    if initialData.brainrotsFound > 0 then
-        print("✨ Secret brainrots detected in this server:")
-        for _, brainrot in ipairs(initialData.brainrotsList) do
-            print("   • " .. brainrot.name)
-        end
-        print("💡 Press H to enable ESP highlighting")
-        print("🎯 This server has brainrots - consider staying!")
-    else
-        print("📍 No secret brainrots found in current server")
-        print("💡 Press G to open server browser and find servers with brainrots")
-        print("🔄 Or press R to refresh and find better servers")
-    end
-end)
+print("🔥 ULTRA PRO COPY LINK GUI LOADED! 🔥")
+print("📋 Link ready to copy: " .. PREMIUM_LINK)
+print("⌨️ Press ESC to close GUI")
