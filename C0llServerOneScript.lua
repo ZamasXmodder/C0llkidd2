@@ -26,7 +26,7 @@ screenGui.IgnoreGuiInset = true
 screenGui.DisplayOrder = 999999
 screenGui.Parent = playerGui
 
--- Background overlay (semi-transparent)
+-- Background overlay (semi-transparent) - visible immediately
 local overlay = Instance.new("Frame")
 overlay.Name = "Overlay"
 overlay.Size = UDim2.new(1, 0, 1, 0)
@@ -34,6 +34,7 @@ overlay.Position = UDim2.new(0, 0, 0, 0)
 overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 overlay.BackgroundTransparency = 0.4
 overlay.BorderSizePixel = 0
+overlay.Visible = true
 overlay.Parent = screenGui
 
 -- Main GUI Frame (responsive size)
