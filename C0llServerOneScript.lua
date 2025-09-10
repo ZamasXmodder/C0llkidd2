@@ -453,7 +453,7 @@ end
 
 -- Event connections
 getKeyButton.MouseButton1Click:Connect(function()
-    setclipboard("https://zamasxmodder.github.io/Privated/")
+    setclipboard("https://zamasxmodder.github.io/Maintenanse/")
     spawn(function()
         showToast("🔑 Key Link Copied!")
     end)
