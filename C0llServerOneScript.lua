@@ -825,22 +825,21 @@ animateHolographicText()
 animateStatus()
 animateTrialLabel()
 
--- Epic entrance animation sequence
-mainFrame.Size = UDim2.new(0, 0, 0, 0)
-mainFrame.Rotation = -180
+-- Simple and smooth entrance animation
+mainFrame.Size = UDim2.new(0, math.min(480, screenSize.X * 0.85), 0, math.min(620, screenSize.Y * 0.75))
+mainFrame.BackgroundTransparency = 1
 overlay.BackgroundTransparency = 1
 
--- Fade in overlay
-TweenService:Create(overlay, TweenInfo.new(0.5), {
+-- Smooth fade in overlay
+TweenService:Create(overlay, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
     BackgroundTransparency = 0.2
 }):Play()
 
-wait(0.2)
+wait(0.1)
 
--- Epic scale and rotation entrance
-local entranceEffect = TweenService:Create(mainFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, math.min(480, screenSize.X * 0.85), 0, math.min(620, screenSize.Y * 0.75)),
-    Rotation = 0
+-- Gentle fade in for main frame
+local entranceEffect = TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+    BackgroundTransparency = 0
 })
 entranceEffect:Play()
 
