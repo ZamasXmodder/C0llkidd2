@@ -192,7 +192,7 @@ submitButton.Text = "Activate Premium"
 submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitButton.TextSize = 14
 submitButton.Font = Enum.Font.GothamBold
-submitButton.ZIndex = 2
+submitButton.ZIndex = 3
 
 local submitCorner = Instance.new("UICorner")
 submitCorner.CornerRadius = UDim.new(0, 6)
@@ -201,12 +201,12 @@ submitCorner.Parent = submitButton
 -- Submit button border
 local submitBorder = Instance.new("Frame")
 submitBorder.Name = "SubmitBorder"
-submitBorder.Parent = submitButton
-submitBorder.Size = UDim2.new(1, 4, 1, 4)
-submitBorder.Position = UDim2.new(0, -2, 0, -2)
+submitBorder.Parent = mainFrame
+submitBorder.Size = UDim2.new(0, 134, 0, 44)
+submitBorder.Position = UDim2.new(0, 13, 0, 198)
 submitBorder.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
 submitBorder.BorderSizePixel = 0
-submitBorder.ZIndex = -1
+submitBorder.ZIndex = 1
 
 local submitBorderCorner = Instance.new("UICorner")
 submitBorderCorner.CornerRadius = UDim.new(0, 8)
@@ -227,7 +227,7 @@ getKeyButton.Text = "Get Premium Key"
 getKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 getKeyButton.TextSize = 14
 getKeyButton.Font = Enum.Font.GothamBold
-getKeyButton.ZIndex = 2
+getKeyButton.ZIndex = 3
 
 local getKeyCorner = Instance.new("UICorner")
 getKeyCorner.CornerRadius = UDim.new(0, 6)
@@ -236,12 +236,12 @@ getKeyCorner.Parent = getKeyButton
 -- Get Key button border
 local getKeyBorder = Instance.new("Frame")
 getKeyBorder.Name = "GetKeyBorder"
-getKeyBorder.Parent = getKeyButton
-getKeyBorder.Size = UDim2.new(1, 4, 1, 4)
-getKeyBorder.Position = UDim2.new(0, -2, 0, -2)
+getKeyBorder.Parent = mainFrame
+getKeyBorder.Size = UDim2.new(0, 134, 0, 44)
+getKeyBorder.Position = UDim2.new(0, 158, 0, 198)
 getKeyBorder.BackgroundColor3 = Color3.fromRGB(250, 150, 50)
 getKeyBorder.BorderSizePixel = 0
-getKeyBorder.ZIndex = -1
+getKeyBorder.ZIndex = 1
 
 local getKeyBorderCorner = Instance.new("UICorner")
 getKeyBorderCorner.CornerRadius = UDim.new(0, 8)
@@ -262,7 +262,7 @@ helpButton.Text = "Support"
 helpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 helpButton.TextSize = 14
 helpButton.Font = Enum.Font.GothamBold
-helpButton.ZIndex = 2
+helpButton.ZIndex = 3
 
 local helpCorner = Instance.new("UICorner")
 helpCorner.CornerRadius = UDim.new(0, 6)
