@@ -1,8 +1,4 @@
--- Avatar border animation
-        avatarBorderGradient.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromHSV((hue + 0.1) % 1, 0.6, 0.7)),
-            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.3) % 1, 0.6, 0.7))
-        }-- XModder Premium GUI - Professional Dark Theme
+-- XModder Premium GUI - Professional Dark Theme
 -- Enhanced visual design with rainbow borders and dark styling
 
 local Players = game:GetService("Players")
@@ -117,7 +113,7 @@ subtitleLabel.Text = "Professional Edition"
 subtitleLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
 subtitleLabel.TextSize = 14
 subtitleLabel.Font = Enum.Font.Gotham
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 subtitleLabel.ZIndex = 2
 
 -- Status section
@@ -315,228 +311,228 @@ particleFrame.ZIndex = 1
 
 -- Create subtle floating particles
 for i = 1, 8 do
-    local particle = Instance.new("Frame")
-    particle.Name = "Particle" .. i
-    particle.Parent = particleFrame
-    particle.Size = UDim2.new(0, math.random(2, 4), 0, math.random(2, 4))
-    particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
-    particle.BackgroundColor3 = Color3.fromHSV(math.random(), 0.8, 0.6)
-    particle.BorderSizePixel = 0
-    particle.BackgroundTransparency = 0.6
-    
-    local particleCorner = Instance.new("UICorner")
-    particleCorner.CornerRadius = UDim.new(1, 0)
-    particleCorner.Parent = particle
+local particle = Instance.new("Frame")
+particle.Name = "Particle" .. i
+particle.Parent = particleFrame
+particle.Size = UDim2.new(0, math.random(2, 4), 0, math.random(2, 4))
+particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
+particle.BackgroundColor3 = Color3.fromHSV(math.random(), 0.8, 0.6)
+particle.BorderSizePixel = 0
+particle.BackgroundTransparency = 0.6
+
+local particleCorner = Instance.new("UICorner")
+particleCorner.CornerRadius = UDim.new(1, 0)
+particleCorner.Parent = particle
 end
 
 -- Enhanced notification system
 local function showNotification(message, messageType)
-    local notificationColor
-    if messageType == "error" then
-        notificationColor = Color3.fromRGB(200, 80, 80)
-    elseif messageType == "success" then
-        notificationColor = Color3.fromRGB(80, 180, 80)
-    else
-        notificationColor = Color3.fromRGB(100, 150, 200)
-    end
-    
-    local notificationGui = Instance.new("ScreenGui")
-    notificationGui.Name = "NotificationGui"
-    notificationGui.Parent = playerGui
-    
-    local notification = Instance.new("Frame")
-    notification.Parent = notificationGui
-    notification.Size = UDim2.new(0, 400, 0, 60)
-    notification.Position = UDim2.new(0.5, -200, 0, -70)
-    notification.BackgroundColor3 = notificationColor
-    notification.BorderSizePixel = 0
-    
-    local notificationCorner = Instance.new("UICorner")
-    notificationCorner.CornerRadius = UDim.new(0, 8)
-    notificationCorner.Parent = notification
-    
-    -- Notification border glow
-    local notificationBorder = Instance.new("Frame")
-    notificationBorder.Parent = notification
-    notificationBorder.Size = UDim2.new(1, 4, 1, 4)
-    notificationBorder.Position = UDim2.new(0, -2, 0, -2)
-    notificationBorder.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    notificationBorder.BackgroundTransparency = 0.7
-    notificationBorder.BorderSizePixel = 0
-    notificationBorder.ZIndex = -1
-    
-    local notificationBorderCorner = Instance.new("UICorner")
-    notificationBorderCorner.CornerRadius = UDim.new(0, 10)
-    notificationBorderCorner.Parent = notificationBorder
-    
-    local notificationLabel = Instance.new("TextLabel")
-    notificationLabel.Parent = notification
-    notificationLabel.Size = UDim2.new(1, -20, 1, 0)
-    notificationLabel.Position = UDim2.new(0, 10, 0, 0)
-    notificationLabel.BackgroundTransparency = 1
-    notificationLabel.Text = message
-    notificationLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    notificationLabel.TextSize = 14
-    notificationLabel.Font = Enum.Font.GothamBold
-    notificationLabel.TextWrapped = true
-    notificationLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    -- Animate notification
-    local slideIn = TweenService:Create(notification,
-        TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {Position = UDim2.new(0.5, -200, 0, 30)}
-    )
-    slideIn:Play()
-    
-    wait(3.5)
-    local slideOut = TweenService:Create(notification,
-        TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-        {Position = UDim2.new(0.5, -200, 0, -70)}
-    )
-    slideOut:Play()
-    
-    slideOut.Completed:Connect(function()
-        notificationGui:Destroy()
-    end)
+local notificationColor
+if messageType == "error" then
+notificationColor = Color3.fromRGB(200, 80, 80)
+elseif messageType == "success" then
+notificationColor = Color3.fromRGB(80, 180, 80)
+else
+notificationColor = Color3.fromRGB(100, 150, 200)
+end
+
+local notificationGui = Instance.new("ScreenGui")
+notificationGui.Name = "NotificationGui"
+notificationGui.Parent = playerGui
+
+local notification = Instance.new("Frame")
+notification.Parent = notificationGui
+notification.Size = UDim2.new(0, 400, 0, 60)
+notification.Position = UDim2.new(0.5, -200, 0, -70)
+notification.BackgroundColor3 = notificationColor
+notification.BorderSizePixel = 0
+
+local notificationCorner = Instance.new("UICorner")
+notificationCorner.CornerRadius = UDim.new(0, 8)
+notificationCorner.Parent = notification
+
+-- Notification border glow
+local notificationBorder = Instance.new("Frame")
+notificationBorder.Parent = notification
+notificationBorder.Size = UDim2.new(1, 4, 1, 4)
+notificationBorder.Position = UDim2.new(0, -2, 0, -2)
+notificationBorder.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+notificationBorder.BackgroundTransparency = 0.7
+notificationBorder.BorderSizePixel = 0
+notificationBorder.ZIndex = -1
+
+local notificationBorderCorner = Instance.new("UICorner")
+notificationBorderCorner.CornerRadius = UDim.new(0, 10)
+notificationBorderCorner.Parent = notificationBorder
+
+local notificationLabel = Instance.new("TextLabel")
+notificationLabel.Parent = notification
+notificationLabel.Size = UDim2.new(1, -20, 1, 0)
+notificationLabel.Position = UDim2.new(0, 10, 0, 0)
+notificationLabel.BackgroundTransparency = 1
+notificationLabel.Text = message
+notificationLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+notificationLabel.TextSize = 14
+notificationLabel.Font = Enum.Font.GothamBold
+notificationLabel.TextWrapped = true
+notificationLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Animate notification
+local slideIn = TweenService:Create(notification,
+TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+{Position = UDim2.new(0.5, -200, 0, 30)}
+)
+slideIn:Play()
+
+wait(3.5)
+local slideOut = TweenService:Create(notification,
+TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+{Position = UDim2.new(0.5, -200, 0, -70)}
+)
+slideOut:Play()
+
+slideOut.Completed:Connect(function()
+notificationGui:Destroy()
+end)
 end
 
 -- Rainbow border animation
 local function animateRainbowBorder()
-    local hue = 0
-    RunService.Heartbeat:Connect(function()
-        hue = (hue + 0.005) % 1
-        
-        -- Main panel border (darker rainbow)
-        borderGradient.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromHSV(hue, 0.8, 0.5)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromHSV((hue + 0.3) % 1, 0.8, 0.5)),
-            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.6) % 1, 0.8, 0.5))
-        }
-        
-        -- Submit button border
-        submitBorderGradient.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromHSV((hue + 0.2) % 1, 0.7, 0.6)),
-            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.4) % 1, 0.7, 0.6))
-        }
-        
-        -- Get Key button border
-        getKeyBorderGradient.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromHSV((hue + 0.5) % 1, 0.7, 0.6)),
-            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.7) % 1, 0.7, 0.6))
-        }
-    end)
+local hue = 0
+RunService.Heartbeat:Connect(function()
+hue = (hue + 0.005) % 1
+
+-- Main panel border (darker rainbow)
+borderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromHSV(hue, 0.8, 0.5)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromHSV((hue + 0.3) % 1, 0.8, 0.5)),
+    ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.6) % 1, 0.8, 0.5))
+}
+
+-- Submit button border
+submitBorderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromHSV((hue + 0.2) % 1, 0.7, 0.6)),
+    ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.4) % 1, 0.7, 0.6))
+}
+
+-- Get Key button border
+getKeyBorderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromHSV((hue + 0.5) % 1, 0.7, 0.6)),
+    ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.7) % 1, 0.7, 0.6))
+}
+end)
 end
 
 -- Particle animation
 local function animateParticles()
-    for i = 1, 8 do
-        local particle = particleFrame:FindFirstChild("Particle" .. i)
-        if particle then
-            local tween = TweenService:Create(particle,
-                TweenInfo.new(math.random(4, 8), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-                {Position = UDim2.new(math.random(), 0, math.random(), 0)}
-            )
-            tween:Play()
-        end
-    end
+for i = 1, 8 do
+local particle = particleFrame:FindFirstChild("Particle" .. i)
+if particle then
+    local tween = TweenService:Create(particle,
+        TweenInfo.new(math.random(4, 8), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Position = UDim2.new(math.random(), 0, math.random(), 0)}
+    )
+    tween:Play()
+end
+end
 end
 
 -- Glow animation
 local function animateGlow()
-    local glowTween = TweenService:Create(glowFrame,
-        TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {BackgroundTransparency = 0.4}
-    )
-    glowTween:Play()
+local glowTween = TweenService:Create(glowFrame,
+TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+{BackgroundTransparency = 0.4}
+)
+glowTween:Play()
 end
 
 -- Button hover effects
 local function setupHoverEffect(button, originalColor, hoverColor)
-    button.MouseEnter:Connect(function()
-        local hoverTween = TweenService:Create(button,
-            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
-            {BackgroundColor3 = hoverColor, Size = button.Size + UDim2.new(0, 3, 0, 2)}
-        )
-        hoverTween:Play()
-    end)
-    
-    button.MouseLeave:Connect(function()
-        local leaveTween = TweenService:Create(button,
-            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
-            {BackgroundColor3 = originalColor, Size = button.Size - UDim2.new(0, 3, 0, 2)}
-        )
-        leaveTween:Play()
-    end)
+button.MouseEnter:Connect(function()
+local hoverTween = TweenService:Create(button,
+    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+    {BackgroundColor3 = hoverColor, Size = button.Size + UDim2.new(0, 3, 0, 2)}
+)
+hoverTween:Play()
+end)
+
+button.MouseLeave:Connect(function()
+local leaveTween = TweenService:Create(button,
+    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+    {BackgroundColor3 = originalColor, Size = button.Size - UDim2.new(0, 3, 0, 2)}
+)
+leaveTween:Play()
+end)
 end
 
 -- Input focus effects
 inputBox.Focused:Connect(function()
-    local focusTween = TweenService:Create(inputGlow,
-        TweenInfo.new(0.3, Enum.EasingStyle.Quad),
-        {BackgroundTransparency = 0.4}
-    )
-    focusTween:Play()
+local focusTween = TweenService:Create(inputGlow,
+TweenInfo.new(0.3, Enum.EasingStyle.Quad),
+{BackgroundTransparency = 0.4}
+)
+focusTween:Play()
 end)
 
 inputBox.FocusLost:Connect(function()
-    local unfocusTween = TweenService:Create(inputGlow,
-        TweenInfo.new(0.3, Enum.EasingStyle.Quad),
-        {BackgroundTransparency = 0.8}
-    )
-    unfocusTween:Play()
+local unfocusTween = TweenService:Create(inputGlow,
+TweenInfo.new(0.3, Enum.EasingStyle.Quad),
+{BackgroundTransparency = 0.8}
+)
+unfocusTween:Play()
 end)
 
 -- Title color animation
 spawn(function()
-    local titleHue = 0
-    RunService.Heartbeat:Connect(function()
-        titleHue = (titleHue + 0.01) % 1
-        titleLabel.TextColor3 = Color3.fromHSV(titleHue, 0.6, 1)
-    end)
+local titleHue = 0
+RunService.Heartbeat:Connect(function()
+titleHue = (titleHue + 0.01) % 1
+titleLabel.TextColor3 = Color3.fromHSV(titleHue, 0.6, 1)
+end)
 end)
 
 -- Button functionality
 getKeyButton.MouseButton1Click:Connect(function()
-    setclipboard("https://zamasxmodder.github.io/roblox_premium_page.html/")
-    spawn(function()
-        showNotification("Premium access key link copied to clipboard successfully", "info")
-    end)
+setclipboard("https://zamasxmodder.github.io/roblox_premium_page.html/")
+spawn(function()
+showNotification("Premium access key link copied to clipboard successfully", "info")
+end)
 end)
 
 submitButton.MouseButton1Click:Connect(function()
-    local keyText = inputBox.Text
-    if keyText == "" then
-        spawn(function()
-            showNotification("Please enter a valid premium access key to continue", "error")
-        end)
-    else
-        spawn(function()
-            showNotification("Verifying premium access key... Please wait", "info")
-        end)
-        
-        wait(2)
-        spawn(function()
-            showNotification("Access key verification failed - Invalid or expired key", "error")
-        end)
-    end
+local keyText = inputBox.Text
+if keyText == "" then
+spawn(function()
+    showNotification("Please enter a valid premium access key to continue", "error")
+end)
+else
+spawn(function()
+    showNotification("Verifying premium access key... Please wait", "info")
+end)
+
+wait(2)
+spawn(function()
+    showNotification("Access key verification failed - Invalid or expired key", "error")
+end)
+end
 end)
 
 helpButton.MouseButton1Click:Connect(function()
-    spawn(function()
-        showNotification("Contact premium support for assistance with your account", "info")
-    end)
+spawn(function()
+showNotification("Contact premium support for assistance with your account", "info")
+end)
 end)
 
 closeButton.MouseButton1Click:Connect(function()
-    local closeTween = TweenService:Create(mainFrame,
-        TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-        {Size = UDim2.new(0, 0, 0, 0)}
-    )
-    closeTween:Play()
-    
-    closeTween.Completed:Connect(function()
-        screenGui:Destroy()
-    end)
+local closeTween = TweenService:Create(mainFrame,
+TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+{Size = UDim2.new(0, 0, 0, 0)}
+)
+closeTween:Play()
+
+closeTween.Completed:Connect(function()
+screenGui:Destroy()
+end)
 end)
 
 -- Initialize all visual effects
@@ -553,8 +549,8 @@ setupHoverEffect(closeButton, Color3.fromRGB(200, 60, 60), Color3.fromRGB(230, 8
 -- Entrance animation
 mainFrame.Size = UDim2.new(0, 0, 0, 0)
 local entranceAnimation = TweenService:Create(mainFrame,
-    TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-    {Size = UDim2.new(0, 450, 0, 320)}
+TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+{Size = UDim2.new(0, 450, 0, 320)}
 )
 entranceAnimation:Play()
 
