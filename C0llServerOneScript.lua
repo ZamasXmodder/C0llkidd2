@@ -192,7 +192,9 @@ submitButton.Text = "Activate Premium"
 submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitButton.TextSize = 14
 submitButton.Font = Enum.Font.GothamBold
-submitButton.ZIndex = 3
+submitButton.TextStrokeTransparency = 0.5
+submitButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+submitButton.ZIndex = 5
 
 local submitCorner = Instance.new("UICorner")
 submitCorner.CornerRadius = UDim.new(0, 6)
@@ -227,7 +229,9 @@ getKeyButton.Text = "Get Premium Key"
 getKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 getKeyButton.TextSize = 14
 getKeyButton.Font = Enum.Font.GothamBold
-getKeyButton.ZIndex = 3
+getKeyButton.TextStrokeTransparency = 0.5
+getKeyButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+getKeyButton.ZIndex = 5
 
 local getKeyCorner = Instance.new("UICorner")
 getKeyCorner.CornerRadius = UDim.new(0, 6)
@@ -262,7 +266,9 @@ helpButton.Text = "Support"
 helpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 helpButton.TextSize = 14
 helpButton.Font = Enum.Font.GothamBold
-helpButton.ZIndex = 3
+helpButton.TextStrokeTransparency = 0.5
+helpButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+helpButton.ZIndex = 5
 
 local helpCorner = Instance.new("UICorner")
 helpCorner.CornerRadius = UDim.new(0, 6)
