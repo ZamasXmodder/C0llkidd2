@@ -73,7 +73,7 @@ titleLabel.Parent = mainFrame
 titleLabel.Size = UDim2.new(1, 0, 0, 60)
 titleLabel.Position = UDim2.new(0, 0, 0, 10)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "XMODDER PREMIUM"
+titleLabel.Text = "🔥 XMODDER PREMIUM 🔥"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
@@ -85,7 +85,7 @@ subtitleLabel.Parent = mainFrame
 subtitleLabel.Size = UDim2.new(1, 0, 0, 25)
 subtitleLabel.Position = UDim2.new(0, 0, 0, 65)
 subtitleLabel.BackgroundTransparency = 1
-subtitleLabel.Text = "(Steal a brainrot)"
+subtitleLabel.Text = "💀 (STEAL A BRAINROT) 💀"
 subtitleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 subtitleLabel.TextScaled = true
 subtitleLabel.Font = Enum.Font.Gotham
@@ -97,7 +97,7 @@ trialLabel.Parent = mainFrame
 trialLabel.Size = UDim2.new(1, -20, 0, 20)
 trialLabel.Position = UDim2.new(0, 10, 1, -30)
 trialLabel.BackgroundTransparency = 1
-trialLabel.Text = "This script is a trial version - 5 days remaining. Get full version with premium key!"
+trialLabel.Text = "⚡ TRIAL MODE ACTIVATED ⚡ 5 DAYS LEFT TO EXPERIENCE THE ULTIMATE POWER! GET PREMIUM NOW! ⚡"
 trialLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 trialLabel.TextSize = 12
 trialLabel.Font = Enum.Font.Gotham
@@ -111,11 +111,11 @@ inputBox.Size = UDim2.new(1, -40, 0, 45)
 inputBox.Position = UDim2.new(0, 20, 0, 110)
 inputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 inputBox.BorderSizePixel = 0
-inputBox.Text = "Enter your premium key here..."
+inputBox.Text = "🔑 PASTE YOUR LEGENDARY KEY HERE TO UNLOCK GODMODE 🔑"
 inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-inputBox.TextSize = 16
-inputBox.Font = Enum.Font.Gotham
-inputBox.PlaceholderText = "Premium Key Required"
+inputBox.TextSize = 14
+inputBox.Font = Enum.Font.GothamBold
+inputBox.PlaceholderText = "💎 PREMIUM KEY REQUIRED FOR ULTIMATE POWER 💎"
 inputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
 
 local inputCorner = Instance.new("UICorner")
@@ -144,7 +144,7 @@ submitButton.Size = UDim2.new(0, 180, 0, 45)
 submitButton.Position = UDim2.new(0, 30, 0, 180)
 submitButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 submitButton.BorderSizePixel = 0
-submitButton.Text = "SUBMIT KEY"
+submitButton.Text = "🚀 ACTIVATE GODMODE 🚀"
 submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitButton.TextSize = 16
 submitButton.Font = Enum.Font.GothamBold
@@ -152,6 +152,23 @@ submitButton.Font = Enum.Font.GothamBold
 local submitCorner = Instance.new("UICorner")
 submitCorner.CornerRadius = UDim.new(0, 8)
 submitCorner.Parent = submitButton
+
+-- Submit button rainbow border
+local submitBorder = Instance.new("Frame")
+submitBorder.Name = "SubmitBorder"
+submitBorder.Parent = submitButton
+submitBorder.Size = UDim2.new(1, 4, 1, 4)
+submitBorder.Position = UDim2.new(0, -2, 0, -2)
+submitBorder.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+submitBorder.BorderSizePixel = 0
+submitBorder.ZIndex = -1
+
+local submitBorderCorner = Instance.new("UICorner")
+submitBorderCorner.CornerRadius = UDim.new(0, 10)
+submitBorderCorner.Parent = submitBorder
+
+local submitBorderGradient = Instance.new("UIGradient")
+submitBorderGradient.Parent = submitBorder
 
 -- Get Key Button
 local getKeyButton = Instance.new("TextButton")
@@ -161,7 +178,7 @@ getKeyButton.Size = UDim2.new(0, 180, 0, 45)
 getKeyButton.Position = UDim2.new(0, 240, 0, 180)
 getKeyButton.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
 getKeyButton.BorderSizePixel = 0
-getKeyButton.Text = "GET KEY"
+getKeyButton.Text = "💎 GET LEGENDARY KEY 💎"
 getKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 getKeyButton.TextSize = 16
 getKeyButton.Font = Enum.Font.GothamBold
@@ -169,6 +186,23 @@ getKeyButton.Font = Enum.Font.GothamBold
 local getKeyCorner = Instance.new("UICorner")
 getKeyCorner.CornerRadius = UDim.new(0, 8)
 getKeyCorner.Parent = getKeyButton
+
+-- Get Key button rainbow border
+local getKeyBorder = Instance.new("Frame")
+getKeyBorder.Name = "GetKeyBorder"
+getKeyBorder.Parent = getKeyButton
+getKeyBorder.Size = UDim2.new(1, 4, 1, 4)
+getKeyBorder.Position = UDim2.new(0, -2, 0, -2)
+getKeyBorder.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+getKeyBorder.BorderSizePixel = 0
+getKeyBorder.ZIndex = -1
+
+local getKeyBorderCorner = Instance.new("UICorner")
+getKeyBorderCorner.CornerRadius = UDim.new(0, 10)
+getKeyBorderCorner.Parent = getKeyBorder
+
+local getKeyBorderGradient = Instance.new("UIGradient")
+getKeyBorderGradient.Parent = getKeyBorder
 
 -- Button glow effects
 local submitGlow = Instance.new("Frame")
@@ -244,10 +278,25 @@ local function animateRainbowBorder()
     local hue = 0
     RunService.Heartbeat:Connect(function()
         hue = (hue + 0.01) % 1
+        -- Main panel border
         borderGradient.Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromHSV(hue, 1, 1)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromHSV((hue + 0.3) % 1, 1, 1)),
-            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.6) % 1, 1, 1))
+            ColorSequenceKeypoint.new(0, Color3.fromHSV(hue, 1, 0.8)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromHSV((hue + 0.3) % 1, 1, 0.8)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.6) % 1, 1, 0.8))
+        }
+        
+        -- Submit button border (darker rainbow)
+        submitBorderGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromHSV(hue, 1, 0.6)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromHSV((hue + 0.2) % 1, 1, 0.6)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.4) % 1, 1, 0.6))
+        }
+        
+        -- Get Key button border (darker rainbow offset)
+        getKeyBorderGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromHSV((hue + 0.3) % 1, 1, 0.6)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromHSV((hue + 0.5) % 1, 1, 0.6)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.7) % 1, 1, 0.6))
         }
     end)
 end
@@ -342,7 +391,7 @@ end
 
 -- Input box focus effects
 inputBox.Focused:Connect(function()
-    if inputBox.Text == "Enter your premium key here..." then
+    if inputBox.Text == "🔑 PASTE YOUR LEGENDARY KEY HERE TO UNLOCK GODMODE 🔑" then
         inputBox.Text = ""
     end
     local focusTween = TweenService:Create(inputGlow,
@@ -354,7 +403,7 @@ end)
 
 inputBox.FocusLost:Connect(function()
     if inputBox.Text == "" then
-        inputBox.Text = "Enter your premium key here..."
+        inputBox.Text = "🔑 PASTE YOUR LEGENDARY KEY HERE TO UNLOCK GODMODE 🔑"
     end
     local unfocusTween = TweenService:Create(inputGlow,
         TweenInfo.new(0.3, Enum.EasingStyle.Quad),
@@ -370,7 +419,7 @@ getKeyButton.MouseButton1Click:Connect(function()
     
     -- Show toast notification
     spawn(function()
-        showToast("🔑 Key link copied to clipboard!", Color3.fromRGB(100, 0, 255))
+        showToast("🔥💎 LEGENDARY KEY LINK COPIED! UNLOCK YOUR DESTINY! 💎🔥", Color3.fromRGB(100, 0, 255))
     end)
     
     -- Button press animation
@@ -391,19 +440,19 @@ end)
 
 submitButton.MouseButton1Click:Connect(function()
     local keyText = inputBox.Text
-    if keyText == "" or keyText == "Enter your premium key here..." then
+    if keyText == "" or keyText == "🔑 PASTE YOUR LEGENDARY KEY HERE TO UNLOCK GODMODE 🔑" then
         spawn(function()
-            showToast("❌ Please enter a valid key!", Color3.fromRGB(200, 0, 0))
+            showToast("⚠️💀 GODMODE REQUIRES A LEGENDARY KEY! GET ONE NOW! 💀⚠️", Color3.fromRGB(200, 0, 0))
         end)
     else
         spawn(function()
-            showToast("🔍 Validating key... Please wait!", Color3.fromRGB(255, 165, 0))
+            showToast("🔍⚡ SCANNING LEGENDARY KEY... GODMODE LOADING... ⚡🔍", Color3.fromRGB(255, 165, 0))
         end)
         
         -- Simulate key validation
         wait(2)
         spawn(function()
-            showToast("❌ Invalid key! Get a new one.", Color3.fromRGB(200, 0, 0))
+            showToast("💥❌ KEY REJECTED! YOUR POWER LEVEL IS TOO LOW! GET PREMIUM! ❌💥", Color3.fromRGB(200, 0, 0))
         end)
     end
     
@@ -462,6 +511,31 @@ spawn(function()
     end)
 end)
 
-print("🚀 XModder Premium GUI loaded successfully!")
-print("💎 Dark rainbow theme activated!")
-print("✨ All animations and effects ready!")
+-- Trial text blinking animation
+spawn(function()
+    local blinkTween1 = TweenService:Create(trialLabel,
+        TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {TextTransparency = 0.3}
+    )
+    blinkTween1:Play()
+end)
+
+-- Button border pulsing effects
+spawn(function()
+    local pulseTween1 = TweenService:Create(submitBorder,
+        TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Size = UDim2.new(1, 8, 1, 8), Position = UDim2.new(0, -4, 0, -4)}
+    )
+    pulseTween1:Play()
+    
+    local pulseTween2 = TweenService:Create(getKeyBorder,
+        TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Size = UDim2.new(1, 8, 1, 8), Position = UDim2.new(0, -4, 0, -4)}
+    )
+    pulseTween2:Play()
+end)
+
+print("🔥💀 XMODDER PREMIUM GUI LOADED - GODMODE ACTIVATED! 💀🔥")
+print("🌈⚡ DARK RAINBOW BORDERS UNLEASHED - ULTIMATE POWER! ⚡🌈")
+print("💎✨ ALL LEGENDARY EFFECTS READY - BRAINROT MODE: ON! ✨💎")
+print("🚀💥 WELCOME TO THE MATRIX, LEGEND! 💥🚀")
