@@ -1,4 +1,8 @@
--- XModder Premium GUI - Professional Dark Theme
+-- Avatar border animation
+        avatarBorderGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromHSV((hue + 0.1) % 1, 0.6, 0.7)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV((hue + 0.3) % 1, 0.6, 0.7))
+        }-- XModder Premium GUI - Professional Dark Theme
 -- Enhanced visual design with rainbow borders and dark styling
 
 local Players = game:GetService("Players")
