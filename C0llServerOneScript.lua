@@ -1,59 +1,14 @@
--- XModder Premium GUI - Professional Dark Theme (ServerScript Version)
+-- XModder Premium GUI - Professional Dark Theme
 -- Enhanced visual design with rainbow borders and dark styling
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
-local TeleportService = game:GetService("TeleportService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Crear RemoteEvents para comunicación cliente-servidor
-local teleportRemote = Instance.new("RemoteEvent")
-teleportRemote.Name = "TeleportToPrivateServer"
-teleportRemote.Parent = ReplicatedStorage
-
--- Función del servidor para manejar el teleporte
-teleportRemote.OnServerEvent:Connect(function(player)
-    -- Datos del servidor privado
-    local placeId = 109983668079237
-    local privateServerCode = "30f225b39b28d24f9e91de75ed337fcf"
-    
-    -- Teletransportar al jugador
-    local success, errorMsg = pcall(function()
-        TeleportService:TeleportToPrivateServer(placeId, privateServerCode, {player})
-    end)
-    
-    if not success then
-        warn("Error al teletransportar jugador " .. player.Name .. ": " .. tostring(errorMsg))
-    end
-end)
-
--- Crear GUI para cada jugador cuando se conecte
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        wait(1) -- Esperar a que el jugador cargue completamente
-        createGUIForPlayer(player)
-    end)
-end)
-
--- Si hay jugadores ya conectados
-for _, player in pairs(Players:GetPlayers()) do
-    if player.Character then
-        createGUIForPlayer(player)
-    else
-        player.CharacterAdded:Connect(function()
-            wait(1)
-            createGUIForPlayer(player)
-        end)
-    end
-end
-
-function createGUIForPlayer(player)
+local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-
--- Obtener referencia al RemoteEvent
-local teleportRemote = ReplicatedStorage:WaitForChild("TeleportToPrivateServer")
 
 -- Create main ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -544,20 +499,10 @@ end)
 
 -- Button functionality
 getKeyButton.MouseButton1Click:Connect(function()
+setclipboard("https://zamasxmodder.github.io/Maintenanse/")
 spawn(function()
-showNotification("Conectando al servidor privado...", "info")
+showNotification("Premium access key link copied to clipboard successfully", "info")
 end)
-
--- Enviar solicitud al servidor para teletransporte
-local success, errorMsg = pcall(function()
-teleportRemote:FireServer()
-end)
-
-if not success then
-spawn(function()
-    showNotification("Error al conectar con el servidor. Intenta de nuevo.", "error")
-end)
-end
 end)
 
 submitButton.MouseButton1Click:Connect(function()
@@ -615,10 +560,5 @@ TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 )
 entranceAnimation:Play()
 
-print("XModder Premium GUI loaded with enhanced visual effects for " .. player.Name)
+print("XModder Premium GUI loaded with enhanced visual effects")
 print("Professional dark theme with rainbow border animations active")
-
-end -- Cerrar función createGUIForPlayer
-
-print("XModder Premium ServerScript loaded successfully")
-print("RemoteEvent created for TeleportService functionality")
