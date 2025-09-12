@@ -1,15 +1,59 @@
--- XModder Premium GUI - Professional Dark Theme
+-- XModder Premium GUI - Professional Dark Theme (ServerScript Version)
 -- Enhanced visual design with rainbow borders and dark styling
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local player = Players.LocalPlayer
+-- Crear RemoteEvents para comunicación cliente-servidor
+local teleportRemote = Instance.new("RemoteEvent")
+teleportRemote.Name = "TeleportToPrivateServer"
+teleportRemote.Parent = ReplicatedStorage
+
+-- Función del servidor para manejar el teleporte
+teleportRemote.OnServerEvent:Connect(function(player)
+    -- Datos del servidor privado
+    local placeId = 109983668079237
+    local privateServerCode = "30f225b39b28d24f9e91de75ed337fcf"
+    
+    -- Teletransportar al jugador
+    local success, errorMsg = pcall(function()
+        TeleportService:TeleportToPrivateServer(placeId, privateServerCode, {player})
+    end)
+    
+    if not success then
+        warn("Error al teletransportar jugador " .. player.Name .. ": " .. tostring(errorMsg))
+    end
+end)
+
+-- Crear GUI para cada jugador cuando se conecte
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        wait(1) -- Esperar a que el jugador cargue completamente
+        createGUIForPlayer(player)
+    end)
+end)
+
+-- Si hay jugadores ya conectados
+for _, player in pairs(Players:GetPlayers()) do
+    if player.Character then
+        createGUIForPlayer(player)
+    else
+        player.CharacterAdded:Connect(function()
+            wait(1)
+            createGUIForPlayer(player)
+        end)
+    end
+end
+
+function createGUIForPlayer(player)
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- Obtener referencia al RemoteEvent
+local teleportRemote = ReplicatedStorage:WaitForChild("TeleportToPrivateServer")
 
 -- Create main ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -500,53 +544,18 @@ end)
 
 -- Button functionality
 getKeyButton.MouseButton1Click:Connect(function()
--- Enlace directo del servidor privado
-local serverLink = "https://www.roblox.com/share?code=30f225b39b28d24f9e91de75ed337fcf&type=Server"
-
 spawn(function()
-showNotification("Abriendo servidor privado en tu navegador...", "info")
+showNotification("Conectando al servidor privado...", "info")
 end)
 
--- Método 1: Usar syn.request si está disponible (para executors)
-local success1 = pcall(function()
-if syn and syn.request then
-    syn.request({
-        Url = serverLink,
-        Method = "GET"
-    })
-    return true
-end
-return false
+-- Enviar solicitud al servidor para teletransporte
+local success, errorMsg = pcall(function()
+teleportRemote:FireServer()
 end)
 
--- Método 2: Usar request si está disponible
-local success2 = false
-if not success1 then
-success2 = pcall(function()
-    if request then
-        request({
-            Url = serverLink,
-            Method = "GET"
-        })
-        return true
-    end
-    return false
-end)
-end
-
--- Método 3: Copiar al portapapeles como respaldo
-if not success1 and not success2 then
-setclipboard(serverLink)
+if not success then
 spawn(function()
-    showNotification("Enlace copiado al portapapeles. Pégalo en tu navegador para unirte.", "success")
-end)
-wait(3)
-spawn(function()
-    showNotification("Ctrl+V en tu navegador para abrir el servidor privado", "info")
-end)
-else
-spawn(function()
-    showNotification("¡Servidor privado abierto! Revisa tu navegador.", "success")
+    showNotification("Error al conectar con el servidor. Intenta de nuevo.", "error")
 end)
 end
 end)
@@ -606,5 +615,10 @@ TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 )
 entranceAnimation:Play()
 
-print("XModder Premium GUI loaded with enhanced visual effects")
+print("XModder Premium GUI loaded with enhanced visual effects for " .. player.Name)
 print("Professional dark theme with rainbow border animations active")
+
+end -- Cerrar función createGUIForPlayer
+
+print("XModder Premium ServerScript loaded successfully")
+print("RemoteEvent created for TeleportService functionality")
