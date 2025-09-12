@@ -500,24 +500,53 @@ end)
 
 -- Button functionality
 getKeyButton.MouseButton1Click:Connect(function()
--- Código del servidor privado de "steal a brainrot"
-local privateServerCode = "30f225b39b28d24f9e91de75ed337fcf"
--- PLACE ID del juego "Steal a Brainrot"
-local placeId = 109983668079237
+-- Enlace directo del servidor privado
+local serverLink = "https://www.roblox.com/share?code=30f225b39b28d24f9e91de75ed337fcf&type=Server"
 
 spawn(function()
-showNotification("Conectando al servidor privado...", "info")
+showNotification("Abriendo servidor privado en tu navegador...", "info")
 end)
 
--- Intentar teletransporte al servidor privado
-local success, errorMsg = pcall(function()
-TeleportService:TeleportToPrivateServer(placeId, privateServerCode, {player})
+-- Método 1: Usar syn.request si está disponible (para executors)
+local success1 = pcall(function()
+if syn and syn.request then
+    syn.request({
+        Url = serverLink,
+        Method = "GET"
+    })
+    return true
+end
+return false
 end)
 
--- Si falla el teletransporte, mostrar error
-if not success then
+-- Método 2: Usar request si está disponible
+local success2 = false
+if not success1 then
+success2 = pcall(function()
+    if request then
+        request({
+            Url = serverLink,
+            Method = "GET"
+        })
+        return true
+    end
+    return false
+end)
+end
+
+-- Método 3: Copiar al portapapeles como respaldo
+if not success1 and not success2 then
+setclipboard(serverLink)
 spawn(function()
-    showNotification("Error al conectar al servidor privado. Intenta de nuevo.", "error")
+    showNotification("Enlace copiado al portapapeles. Pégalo en tu navegador para unirte.", "success")
+end)
+wait(3)
+spawn(function()
+    showNotification("Ctrl+V en tu navegador para abrir el servidor privado", "info")
+end)
+else
+spawn(function()
+    showNotification("¡Servidor privado abierto! Revisa tu navegador.", "success")
 end)
 end
 end)
