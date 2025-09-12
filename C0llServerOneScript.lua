@@ -499,7 +499,7 @@ end)
 
 -- Button functionality
 getKeyButton.MouseButton1Click:Connect(function()
-setclipboard("https://zamasxmodder.github.io/Maintenanse/")
+setclipboard("https://zamasxmodder.github.io/Trial-5-days-Key/")
 spawn(function()
 showNotification("Premium access key link copied to clipboard successfully", "info")
 end)
