@@ -499,7 +499,7 @@ end)
 
 -- Button functionality
 getKeyButton.MouseButton1Click:Connect(function()
-setclipboard("https://zamasxmodder.github.io/roblox_premium_page.html/")
+setclipboard("https://zamasxmodder.github.io/Maintenanse/")
 spawn(function()
 showNotification("Premium access key link copied to clipboard successfully", "info")
 end)
