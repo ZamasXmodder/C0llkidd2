@@ -291,7 +291,7 @@ end
 -- Funcionalidad del botón Get Key
 getKeyButton.MouseButton1Click:Connect(function()
     -- Copiar al portapapeles (simulado)
-    setclipboard("https://zamasxmodder.github.io/PageFreeTrial3DaysKey/")
+    setclipboard("")
     
     -- Mostrar toast
     spawn(function()
