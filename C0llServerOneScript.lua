@@ -6,6 +6,145 @@ local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- VERIFICACIÓN DE CUENTA NUEVA
+local function checkAccountAge()
+    local accountAge = player.AccountAge -- Días desde que se creó la cuenta
+    local minimumDays = 2
+    
+    if accountAge < minimumDays then
+        return false -- Cuenta muy nueva
+    end
+    return true -- Cuenta válida
+end
+
+-- Función para mostrar mensaje de cuenta no autorizada
+local function showUnauthorizedMessage()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "UnauthorizedGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+    screenGui.Parent = playerGui
+    
+    -- Fondo rojo semi-transparente
+    local backgroundFrame = Instance.new("Frame")
+    backgroundFrame.Name = "BackgroundFrame"
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.Position = UDim2.new(0, 0, 0, 0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(139, 0, 0)
+    backgroundFrame.BackgroundTransparency = 0.3
+    backgroundFrame.BorderSizePixel = 0
+    backgroundFrame.Parent = screenGui
+    
+    -- Panel de mensaje
+    local messagePanel = Instance.new("Frame")
+    messagePanel.Name = "MessagePanel"
+    messagePanel.Size = UDim2.new(0, 500, 0, 300)
+    messagePanel.Position = UDim2.new(0.5, -250, 0.5, -150)
+    messagePanel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    messagePanel.BorderSizePixel = 0
+    messagePanel.Parent = screenGui
+    
+    local panelCorner = Instance.new("UICorner")
+    panelCorner.CornerRadius = UDim.new(0, 15)
+    panelCorner.Parent = messagePanel
+    
+    local panelStroke = Instance.new("UIStroke")
+    panelStroke.Color = Color3.fromRGB(255, 0, 0)
+    panelStroke.Thickness = 4
+    panelStroke.Parent = messagePanel
+    
+    -- Icono de advertencia
+    local warningIcon = Instance.new("TextLabel")
+    warningIcon.Size = UDim2.new(0, 80, 0, 80)
+    warningIcon.Position = UDim2.new(0.5, -40, 0, 20)
+    warningIcon.BackgroundTransparency = 1
+    warningIcon.Text = "⚠️"
+    warningIcon.TextColor3 = Color3.fromRGB(255, 0, 0)
+    warningIcon.TextScaled = true
+    warningIcon.Font = Enum.Font.GothamBold
+    warningIcon.Parent = messagePanel
+    
+    -- Título del mensaje
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -40, 0, 50)
+    titleLabel.Position = UDim2.new(0, 20, 0, 110)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "CUENTA NUEVA NO AUTORIZADA"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = messagePanel
+    
+    -- Mensaje descriptivo
+    local descriptionLabel = Instance.new("TextLabel")
+    descriptionLabel.Size = UDim2.new(1, -40, 0, 80)
+    descriptionLabel.Position = UDim2.new(0, 20, 0, 170)
+    descriptionLabel.BackgroundTransparency = 1
+    descriptionLabel.Text = "Tu cuenta debe tener al menos 2 días de antigüedad para usar este script.\n\nDías de tu cuenta: " .. player.AccountAge .. " días"
+    descriptionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    descriptionLabel.TextScaled = true
+    descriptionLabel.Font = Enum.Font.Gotham
+    descriptionLabel.TextWrapped = true
+    descriptionLabel.Parent = messagePanel
+    
+    -- Botón de cerrar
+    local closeButton = Instance.new("TextButton")
+    closeButton.Size = UDim2.new(0, 120, 0, 40)
+    closeButton.Position = UDim2.new(0.5, -60, 1, -60)
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    closeButton.BorderSizePixel = 0
+    closeButton.Text = "CERRAR"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextScaled = true
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.Parent = messagePanel
+    
+    local closeButtonCorner = Instance.new("UICorner")
+    closeButtonCorner.CornerRadius = UDim.new(0, 10)
+    closeButtonCorner.Parent = closeButton
+    
+    -- Funcionalidad del botón cerrar
+    closeButton.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+    end)
+    
+    -- Animación de entrada
+    messagePanel.Position = UDim2.new(0.5, -250, -1, 0)
+    local panelTween = TweenService:Create(messagePanel, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
+        Position = UDim2.new(0.5, -250, 0.5, -150)
+    })
+    panelTween:Play()
+    
+    -- Efecto pulsante del borde
+    spawn(function()
+        while messagePanel.Parent do
+            local tween1 = TweenService:Create(panelStroke, TweenInfo.new(1, Enum.EasingStyle.Sine), {
+                Transparency = 0.5
+            })
+            tween1:Play()
+            tween1.Completed:Wait()
+            
+            local tween2 = TweenService:Create(panelStroke, TweenInfo.new(1, Enum.EasingStyle.Sine), {
+                Transparency = 0
+            })
+            tween2:Play()
+            tween2.Completed:Wait()
+        end
+    end)
+    
+    return
+end
+
+-- VERIFICAR EDAD DE LA CUENTA ANTES DE CONTINUAR
+if not checkAccountAge() then
+    showUnauthorizedMessage()
+    return -- Detener la ejecución del script principal
+end
+
+-- ================================
+-- AQUÍ CONTINÚA EL SCRIPT ORIGINAL
+-- ================================
+
 -- Crear el GUI principal
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "XMStealAbrainrotGUI"
@@ -463,4 +602,4 @@ closeButton.MouseLeave:Connect(function()
     tween:Play()
 end)
 
-print("XM StealAbrainrot MX GUI loaded successfully!")
+print("XM StealAbrainrot MX GUI loaded successfully! Account verified: " .. player.AccountAge .. " days old.")
