@@ -88,11 +88,217 @@ createFloatingSakura(UDim2.new(0.85, 0, 0.75, 0), "🌺")
 createFloatingSakura(UDim2.new(0.15, 0, 0.3, 0), "🌸")
 createFloatingSakura(UDim2.new(0.8, 0, 0.4, 0), "🌺")
 
--- Panel principal con escalado automático
+-- Panel de status (lado izquierdo)
+local statusPanel = Instance.new("Frame")
+statusPanel.Name = "StatusPanel"
+statusPanel.Size = UDim2.new(0, 280, 0, 420)
+statusPanel.Position = UDim2.new(0, 30, 0.5, -210)
+statusPanel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+statusPanel.BackgroundTransparency = 0.85
+statusPanel.BorderSizePixel = 0
+statusPanel.Parent = screenGui
+
+-- Corner radius para el panel de status
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 20)
+statusCorner.Parent = statusPanel
+
+-- Borde del panel de status
+local statusStroke = Instance.new("UIStroke")
+statusStroke.Color = Color3.fromRGB(186, 85, 211)
+statusStroke.Thickness = 2
+statusStroke.Transparency = 0.6
+statusStroke.Parent = statusPanel
+
+-- Gradiente en el borde del status
+local statusStrokeGradient = Instance.new("UIGradient")
+statusStrokeGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(186, 85, 211)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 105, 180)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(147, 112, 219))
+}
+statusStrokeGradient.Parent = statusStroke
+
+-- Título del panel de status
+local statusTitle = Instance.new("TextLabel")
+statusTitle.Name = "StatusTitle"
+statusTitle.Size = UDim2.new(1, -20, 0, 50)
+statusTitle.Position = UDim2.new(0, 10, 0, 15)
+statusTitle.BackgroundTransparency = 1
+statusTitle.Text = "STATUS ONLINE CLIENTS"
+statusTitle.TextColor3 = Color3.fromRGB(147, 112, 219)
+statusTitle.TextScaled = true
+statusTitle.Font = Enum.Font.GothamBold
+statusTitle.Parent = statusPanel
+
+-- Gradiente del título de status
+local statusTitleGradient = Instance.new("UIGradient")
+statusTitleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(147, 112, 219)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(186, 85, 211)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(138, 43, 226))
+}
+statusTitleGradient.Rotation = 45
+statusTitleGradient.Parent = statusTitle
+
+-- ScrollingFrame para la lista de jugadores
+local playersScrollFrame = Instance.new("ScrollingFrame")
+playersScrollFrame.Name = "PlayersScrollFrame"
+playersScrollFrame.Size = UDim2.new(1, -20, 1, -80)
+playersScrollFrame.Position = UDim2.new(0, 10, 0, 70)
+playersScrollFrame.BackgroundTransparency = 1
+playersScrollFrame.ScrollBarThickness = 6
+playersScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(186, 85, 211)
+playersScrollFrame.ScrollBarImageTransparency = 0.3
+playersScrollFrame.BorderSizePixel = 0
+playersScrollFrame.Parent = statusPanel
+
+-- Layout para organizar los jugadores
+local playersLayout = Instance.new("UIListLayout")
+playersLayout.SortOrder = Enum.SortOrder.LayoutOrder
+playersLayout.Padding = UDim.new(0, 8)
+playersLayout.Parent = playersScrollFrame
+
+-- Lista completa de nombres de usuarios
+local allUsernames = {
+    "xJuanitoPro123", "SofiGamer_07", "DarkNinjaXD", "MariKawaii22", "ElPanDeAyer_44",
+    "ProMaxiYT", "CamilitaUwU", "Andresito_2009", "FerchoCrack21", "Luisa_Lolita12",
+    "KevinNoob_01", "DaniMasterX", "ValenCute25", "SebasYT_777", "LinaJuegaXD",
+    "Oscarito_09", "MrPapasLocas", "Pau_GirlxX", "xd_TomasGamer", "LauryPink_15",
+    "ElBananero_300", "AngelDark47", "SantiUwUPro", "Chloe_xX_Star", "PablitoXD_22",
+    "DianaCute_14", "GokuFan_999", "XimenaLove09", "CarlitosProXD", "Juana_0707",
+    "Nacho_elCrack", "SofiaLindaa23", "BrianUwU_04", "Andreita_xX", "EpicNoob_302",
+    "ValeGamerzzz", "PipeMaster77", "LauCuteUwU", "Jorgito_108", "MeliGamer_15",
+    "CrackXD_Samu", "FerxxoUwU88", "JuampiElNoob"
+}
+
+-- Función para crear un elemento de jugador
+local function createPlayerElement(username, isOnline)
+    local playerFrame = Instance.new("Frame")
+    playerFrame.Name = username
+    playerFrame.Size = UDim2.new(1, -10, 0, 35)
+    playerFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    playerFrame.BackgroundTransparency = 0.9
+    playerFrame.BorderSizePixel = 0
+    playerFrame.Parent = playersScrollFrame
+    
+    local playerCorner = Instance.new("UICorner")
+    playerCorner.CornerRadius = UDim.new(0, 8)
+    playerCorner.Parent = playerFrame
+    
+    -- Indicador de estado (círculo)
+    local statusIndicator = Instance.new("Frame")
+    statusIndicator.Name = "StatusIndicator"
+    statusIndicator.Size = UDim2.new(0, 12, 0, 12)
+    statusIndicator.Position = UDim2.new(0, 10, 0.5, -6)
+    statusIndicator.BackgroundColor3 = isOnline and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    statusIndicator.BorderSizePixel = 0
+    statusIndicator.Parent = playerFrame
+    
+    local indicatorCorner = Instance.new("UICorner")
+    indicatorCorner.CornerRadius = UDim.new(0.5, 0)
+    indicatorCorner.Parent = statusIndicator
+    
+    -- Efecto de pulso para jugadores online
+    if isOnline then
+        local pulseTween = TweenService:Create(statusIndicator,
+            TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {BackgroundColor3 = Color3.fromRGB(39, 174, 96)}
+        )
+        pulseTween:Play()
+    end
+    
+    -- Nombre del jugador
+    local usernameLabel = Instance.new("TextLabel")
+    usernameLabel.Name = "UsernameLabel"
+    usernameLabel.Size = UDim2.new(1, -80, 1, 0)
+    usernameLabel.Position = UDim2.new(0, 30, 0, 0)
+    usernameLabel.BackgroundTransparency = 1
+    usernameLabel.Text = username
+    usernameLabel.TextColor3 = Color3.fromRGB(139, 90, 140)
+    usernameLabel.TextScaled = true
+    usernameLabel.Font = Enum.Font.Gotham
+    usernameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    usernameLabel.Parent = playerFrame
+    
+    -- Estado del jugador
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "StatusLabel"
+    statusLabel.Size = UDim2.new(0, 50, 1, 0)
+    statusLabel.Position = UDim2.new(1, -55, 0, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = isOnline and "Online" or "Offline"
+    statusLabel.TextColor3 = isOnline and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    statusLabel.TextScaled = true
+    statusLabel.Font = Enum.Font.GothamMedium
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Right
+    statusLabel.Parent = playerFrame
+    
+    -- Animación de entrada
+    playerFrame.Size = UDim2.new(0, 0, 0, 35)
+    playerFrame.BackgroundTransparency = 1
+    
+    local enterTween = TweenService:Create(playerFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Back),
+        {Size = UDim2.new(1, -10, 0, 35), BackgroundTransparency = 0.9}
+    )
+    enterTween:Play()
+    
+    return playerFrame
+end
+
+-- Función para actualizar la lista de jugadores
+local function updatePlayersList()
+    -- Limpiar lista actual
+    for _, child in pairs(playersScrollFrame:GetChildren()) do
+        if child:IsA("Frame") and child.Name ~= "UIListLayout" then
+            local exitTween = TweenService:Create(child,
+                TweenInfo.new(0.3, Enum.EasingStyle.Back),
+                {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}
+            )
+            exitTween:Play()
+            exitTween.Completed:Connect(function()
+                child:Destroy()
+            end)
+        end
+    end
+    
+    -- Esperar a que se limpie
+    task.wait(0.4)
+    
+    -- Seleccionar 7 jugadores aleatorios
+    local selectedUsers = {}
+    local usedIndices = {}
+    
+    for i = 1, math.min(7, #allUsernames) do
+        local randomIndex
+        repeat
+            randomIndex = math.random(1, #allUsernames)
+        until not usedIndices[randomIndex]
+        
+        usedIndices[randomIndex] = true
+        selectedUsers[i] = allUsernames[randomIndex]
+    end
+    
+    -- Crear elementos de jugadores con delay
+    for i, username in ipairs(selectedUsers) do
+        task.spawn(function()
+            task.wait(i * 0.1) -- Delay escalonado para efecto visual
+            local isOnline = math.random() > 0.3 -- 70% probabilidad de estar online
+            createPlayerElement(username, isOnline)
+        end)
+    end
+    
+    -- Actualizar tamaño del scroll
+    task.wait(1)
+    playersScrollFrame.CanvasSize = UDim2.new(0, 0, 0, playersLayout.AbsoluteContentSize.Y + 10)
+end
+
+-- Panel principal con escalado automático (ajustado para dejar espacio al panel de status)
 local mainPanel = Instance.new("Frame")
 mainPanel.Name = "MainPanel"
 mainPanel.Size = UDim2.new(0, 450, 0, 480)
-mainPanel.Position = UDim2.new(0.5, -225, 0.5, -240)
+mainPanel.Position = UDim2.new(0.5, -100, 0.5, -240) -- Movido un poco a la derecha
 mainPanel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 mainPanel.BackgroundTransparency = 0.82
 mainPanel.BorderSizePixel = 0
@@ -664,8 +870,13 @@ local function updatePanelSize()
     local scale = math.min(screenSize.X / 1920, screenSize.Y / 1080)
     scale = math.clamp(scale, 0.5, 1.2)
     
+    -- Panel principal
     mainPanel.Size = UDim2.new(0, 450 * scale, 0, 480 * scale)
-    mainPanel.Position = UDim2.new(0.5, -225 * scale, 0.5, -240 * scale)
+    mainPanel.Position = UDim2.new(0.5, -100 * scale, 0.5, -240 * scale)
+    
+    -- Panel de status
+    statusPanel.Size = UDim2.new(0, 280 * scale, 0, 420 * scale)
+    statusPanel.Position = UDim2.new(0, 30 * scale, 0.5, -210 * scale)
 end
 
 -- Conectar el redimensionamiento
@@ -674,6 +885,35 @@ updatePanelSize() -- Aplicar al inicio
 
 -- Iniciar animaciones
 animatePanel()
+
+-- Actualizar lista de jugadores al inicio
+updatePlayersList()
+
+-- Actualizar lista cada 5 minutos (300 segundos)
+local statusUpdateConnection
+statusUpdateConnection = task.spawn(function()
+    while screenGui.Parent do
+        task.wait(300) -- 5 minutos
+        if screenGui.Parent then
+            updatePlayersList()
+        end
+    end
+end)
+
+-- Animación flotante del panel de status
+local function animateStatusPanel()
+    local floatTween = TweenService:Create(statusPanel,
+        TweenInfo.new(8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {
+            Position = UDim2.new(0, 30, 0.5, -220),
+            Rotation = math.random(-1, 1)
+        }
+    )
+    floatTween:Play()
+end
+
+-- Iniciar animación del panel de status
+animateStatusPanel()
 
 -- Crear pétalos iniciales más densos
 for i = 1, 25 do
@@ -687,6 +927,9 @@ end
 local function cleanup()
     if petalConnection then
         petalConnection:Disconnect()
+    end
+    if statusUpdateConnection then
+        task.cancel(statusUpdateConnection)
     end
     screenGui:Destroy()
 end
@@ -755,5 +998,7 @@ return {
     CreatePetal = createSakuraPetal,
     SpecialEffect = createSpecialEffect,
     ToggleGUI = toggleGUI,
-    SakuraExplosion = createSakuraExplosion
+    SakuraExplosion = createSakuraExplosion,
+    UpdatePlayersList = updatePlayersList,
+    StatusPanel = statusPanel
 }
