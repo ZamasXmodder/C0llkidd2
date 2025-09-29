@@ -163,11 +163,11 @@ local allUsernames = {
     "CrackXD_Samu", "FerxxoUwU88", "JuampiElNoob"
 }
 
--- Panel de status (lado izquierdo)
+-- Panel de status (lado izquierdo) - MÁS PEQUEÑO
 local statusPanel = Instance.new("Frame")
 statusPanel.Name = "StatusPanel"
-statusPanel.Size = UDim2.new(0, 280, 0, 420)
-statusPanel.Position = UDim2.new(0, 30, 0.5, -210)
+statusPanel.Size = UDim2.new(0, 220, 0, 350)
+statusPanel.Position = UDim2.new(0, 20, 0.5, -175)
 statusPanel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 statusPanel.BackgroundTransparency = 0.85
 statusPanel.BorderSizePixel = 0
@@ -185,10 +185,10 @@ statusStroke.Parent = statusPanel
 
 local statusTitle = Instance.new("TextLabel")
 statusTitle.Name = "StatusTitle"
-statusTitle.Size = UDim2.new(1, -20, 0, 50)
-statusTitle.Position = UDim2.new(0, 10, 0, 15)
+statusTitle.Size = UDim2.new(1, -20, 0, 40)
+statusTitle.Position = UDim2.new(0, 10, 0, 10)
 statusTitle.BackgroundTransparency = 1
-statusTitle.Text = "STATUS ONLINE CLIENTS"
+statusTitle.Text = "ONLINE CLIENTS"
 statusTitle.TextColor3 = Color3.fromRGB(147, 112, 219)
 statusTitle.TextScaled = true
 statusTitle.Font = Enum.Font.GothamBold
@@ -196,10 +196,10 @@ statusTitle.Parent = statusPanel
 
 local playersScrollFrame = Instance.new("ScrollingFrame")
 playersScrollFrame.Name = "PlayersScrollFrame"
-playersScrollFrame.Size = UDim2.new(1, -20, 1, -80)
-playersScrollFrame.Position = UDim2.new(0, 10, 0, 70)
+playersScrollFrame.Size = UDim2.new(1, -20, 1, -60)
+playersScrollFrame.Position = UDim2.new(0, 10, 0, 55)
 playersScrollFrame.BackgroundTransparency = 1
-playersScrollFrame.ScrollBarThickness = 6
+playersScrollFrame.ScrollBarThickness = 4
 playersScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(186, 85, 211)
 playersScrollFrame.ScrollBarImageTransparency = 0.3
 playersScrollFrame.BorderSizePixel = 0
@@ -210,11 +210,11 @@ playersLayout.SortOrder = Enum.SortOrder.LayoutOrder
 playersLayout.Padding = UDim.new(0, 8)
 playersLayout.Parent = playersScrollFrame
 
--- PANEL DE INFORMACIÓN DEL JUGADOR (lado derecho)
+-- PANEL DE INFORMACIÓN DEL JUGADOR (lado derecho) - MÁS PEQUEÑO
 local playerInfoPanel = Instance.new("Frame")
 playerInfoPanel.Name = "PlayerInfoPanel"
-playerInfoPanel.Size = UDim2.new(0, 300, 0, 480)
-playerInfoPanel.Position = UDim2.new(1, -330, 0.5, -240)
+playerInfoPanel.Size = UDim2.new(0, 240, 0, 400)
+playerInfoPanel.Position = UDim2.new(1, -260, 0.5, -200)
 playerInfoPanel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 playerInfoPanel.BackgroundTransparency = 0.85
 playerInfoPanel.BorderSizePixel = 0
@@ -232,8 +232,8 @@ infoStroke.Parent = playerInfoPanel
 
 -- Título del panel de info
 local infoTitle = Instance.new("TextLabel")
-infoTitle.Size = UDim2.new(1, -20, 0, 40)
-infoTitle.Position = UDim2.new(0, 10, 0, 10)
+infoTitle.Size = UDim2.new(1, -20, 0, 35)
+infoTitle.Position = UDim2.new(0, 10, 0, 8)
 infoTitle.BackgroundTransparency = 1
 infoTitle.Text = "YOUR PROFILE"
 infoTitle.TextColor3 = Color3.fromRGB(147, 112, 219)
@@ -241,10 +241,10 @@ infoTitle.TextScaled = true
 infoTitle.Font = Enum.Font.GothamBold
 infoTitle.Parent = playerInfoPanel
 
--- Headshot del jugador
+-- Headshot del jugador - MÁS PEQUEÑO
 local headshotFrame = Instance.new("Frame")
-headshotFrame.Size = UDim2.new(0, 120, 0, 120)
-headshotFrame.Position = UDim2.new(0.5, -60, 0, 60)
+headshotFrame.Size = UDim2.new(0, 90, 0, 90)
+headshotFrame.Position = UDim2.new(0.5, -45, 0, 50)
 headshotFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 headshotFrame.BorderSizePixel = 0
 headshotFrame.Parent = playerInfoPanel
@@ -271,32 +271,32 @@ headshotImgCorner.Parent = headshot
 
 -- Container de información
 local infoContainer = Instance.new("Frame")
-infoContainer.Size = UDim2.new(1, -20, 0, 260)
-infoContainer.Position = UDim2.new(0, 10, 0, 195)
+infoContainer.Size = UDim2.new(1, -20, 0, 240)
+infoContainer.Position = UDim2.new(0, 10, 0, 150)
 infoContainer.BackgroundTransparency = 1
 infoContainer.Parent = playerInfoPanel
 
 local infoLayout = Instance.new("UIListLayout")
 infoLayout.SortOrder = Enum.SortOrder.LayoutOrder
-infoLayout.Padding = UDim.new(0, 10)
+infoLayout.Padding = UDim.new(0, 6)
 infoLayout.Parent = infoContainer
 
--- Función para crear info item
+-- Función para crear info item - MÁS COMPACTO
 local function createInfoItem(title, value, icon)
     local itemFrame = Instance.new("Frame")
-    itemFrame.Size = UDim2.new(1, 0, 0, 45)
+    itemFrame.Size = UDim2.new(1, 0, 0, 35)
     itemFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     itemFrame.BackgroundTransparency = 0.9
     itemFrame.BorderSizePixel = 0
     itemFrame.Parent = infoContainer
     
     local itemCorner = Instance.new("UICorner")
-    itemCorner.CornerRadius = UDim.new(0, 10)
+    itemCorner.CornerRadius = UDim.new(0, 8)
     itemCorner.Parent = itemFrame
     
     local iconLabel = Instance.new("TextLabel")
-    iconLabel.Size = UDim2.new(0, 30, 0, 30)
-    iconLabel.Position = UDim2.new(0, 10, 0.5, -15)
+    iconLabel.Size = UDim2.new(0, 24, 0, 24)
+    iconLabel.Position = UDim2.new(0, 8, 0.5, -12)
     iconLabel.BackgroundTransparency = 1
     iconLabel.Text = icon
     iconLabel.TextScaled = true
@@ -304,8 +304,8 @@ local function createInfoItem(title, value, icon)
     iconLabel.Parent = itemFrame
     
     local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(0, 80, 1, 0)
-    titleLabel.Position = UDim2.new(0, 45, 0, 0)
+    titleLabel.Size = UDim2.new(0, 60, 1, 0)
+    titleLabel.Position = UDim2.new(0, 36, 0, 0)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = title
     titleLabel.TextColor3 = Color3.fromRGB(139, 90, 140)
@@ -315,8 +315,8 @@ local function createInfoItem(title, value, icon)
     titleLabel.Parent = itemFrame
     
     local valueLabel = Instance.new("TextLabel")
-    valueLabel.Size = UDim2.new(1, -135, 1, 0)
-    valueLabel.Position = UDim2.new(0, 130, 0, 0)
+    valueLabel.Size = UDim2.new(1, -105, 1, 0)
+    valueLabel.Position = UDim2.new(0, 100, 0, 0)
     valueLabel.BackgroundTransparency = 1
     valueLabel.Text = value
     valueLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
@@ -340,21 +340,21 @@ createInfoItem("User ID:", tostring(player.UserId), "🆔")
 createInfoItem("Account:", accountAge .. " days old", "📅")
 createInfoItem("Country:", playerCountry, "🌍")
 
--- Status del jugador
+-- Status del jugador - MÁS COMPACTO
 local statusItem = Instance.new("Frame")
-statusItem.Size = UDim2.new(1, 0, 0, 45)
+statusItem.Size = UDim2.new(1, 0, 0, 38)
 statusItem.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
 statusItem.BackgroundTransparency = 0.3
 statusItem.BorderSizePixel = 0
 statusItem.Parent = infoContainer
 
 local statusItemCorner = Instance.new("UICorner")
-statusItemCorner.CornerRadius = UDim.new(0, 10)
+statusItemCorner.CornerRadius = UDim.new(0, 8)
 statusItemCorner.Parent = statusItem
 
 local statusIcon = Instance.new("TextLabel")
-statusIcon.Size = UDim2.new(0, 30, 0, 30)
-statusIcon.Position = UDim2.new(0, 10, 0.5, -15)
+statusIcon.Size = UDim2.new(0, 24, 0, 24)
+statusIcon.Position = UDim2.new(0, 8, 0.5, -12)
 statusIcon.BackgroundTransparency = 1
 statusIcon.Text = "✅"
 statusIcon.TextScaled = true
@@ -362,10 +362,10 @@ statusIcon.Font = Enum.Font.Gotham
 statusIcon.Parent = statusItem
 
 local statusText = Instance.new("TextLabel")
-statusText.Size = UDim2.new(1, -50, 1, 0)
-statusText.Position = UDim2.new(0, 45, 0, 0)
+statusText.Size = UDim2.new(1, -40, 1, 0)
+statusText.Position = UDim2.new(0, 36, 0, 0)
 statusText.BackgroundTransparency = 1
-statusText.Text = "ACCESS GRANTED - VERIFIED"
+statusText.Text = "ACCESS GRANTED"
 statusText.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusText.TextScaled = true
 statusText.Font = Enum.Font.GothamBold
@@ -483,11 +483,11 @@ local function updatePlayersList()
     playersScrollFrame.CanvasSize = UDim2.new(0, 0, 0, playersLayout.AbsoluteContentSize.Y + 10)
 end
 
--- Panel principal
+-- Panel principal - MÁS PEQUEÑO
 local mainPanel = Instance.new("Frame")
 mainPanel.Name = "MainPanel"
-mainPanel.Size = UDim2.new(0, 450, 0, 480)
-mainPanel.Position = UDim2.new(0.5, -225, 0.5, -240)
+mainPanel.Size = UDim2.new(0, 380, 0, 400)
+mainPanel.Position = UDim2.new(0.5, -190, 0.5, -200)
 mainPanel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 mainPanel.BackgroundTransparency = 0.82
 mainPanel.BorderSizePixel = 0
@@ -918,23 +918,29 @@ end)
 
 -- Animación flotante de paneles
 local function animatePanels()
-    local mainTween = TweenService:Create(mainPanel,
-        TweenInfo.new(7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {Position = UDim2.new(0.5, -225, 0.5, -250), Rotation = math.random(-2, 2)}
-    )
-    mainTween:Play()
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local isMobile = screenSize.X < 800
     
-    local statusTween = TweenService:Create(statusPanel,
-        TweenInfo.new(8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {Position = UDim2.new(0, 30, 0.5, -220), Rotation = math.random(-1, 1)}
-    )
-    statusTween:Play()
-    
-    local infoTween = TweenService:Create(playerInfoPanel,
-        TweenInfo.new(7.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {Position = UDim2.new(1, -330, 0.5, -250), Rotation = math.random(-1, 1)}
-    )
-    infoTween:Play()
+    if not isMobile then
+        -- Solo animar en PC/Tablet
+        local mainTween = TweenService:Create(mainPanel,
+            TweenInfo.new(7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {Position = UDim2.new(0.5, -190, 0.5, -210), Rotation = math.random(-1, 1)}
+        )
+        mainTween:Play()
+        
+        local statusTween = TweenService:Create(statusPanel,
+            TweenInfo.new(8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {Position = UDim2.new(0, 20, 0.5, -185), Rotation = math.random(-1, 1)}
+        )
+        statusTween:Play()
+        
+        local infoTween = TweenService:Create(playerInfoPanel,
+            TweenInfo.new(7.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {Position = UDim2.new(1, -260, 0.5, -210), Rotation = math.random(-1, 1)}
+        )
+        infoTween:Play()
+    end
 end
 
 -- Iniciar animaciones
