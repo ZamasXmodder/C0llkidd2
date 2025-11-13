@@ -1,383 +1,376 @@
---// Roblox — Single Script Halloween Login (Luau)
---// Title: "Lennon X Zamas - Steal a brainrot v1.4"
---// Un solo script (cliente) para ejecutarse vía loadstring().
---// Panel con 1 contraseña (key), botones: [Get Key] y [Submit], temática Halloween.
---// NOTA: Validación 100% cliente. Para seguridad real, valida en servidor.
+-- LocalScript: DebugHackPanel
+-- Solo para pruebas en TU juego en Studio
 
--- =============== CONFIG ==================
-local TITLE = "Lennon X Zamas - Steal a brainrot v1.4"
-local VALID_KEY = "TRICK-OR-TREAT-2025" -- Cambia tu key aquí
-local GET_KEY_URL = "https://example.com/getkey" -- Pon tu URL de key aquí
--- =========================================
-
--- Utilidades seguras (compatibles con ejecutores y vanilla)
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-local lp = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
-local function safeParent()
-	-- Prioriza PlayerGui; si el ejecutor lo permite, podría usar CoreGui
-	local pg = lp:FindFirstChildOfClass("PlayerGui") or lp:WaitForChild("PlayerGui")
-	return pg
+if not RunService:IsStudio() then
+	script:Destroy()
+	return
 end
 
-local function setClipboard(text)
-	-- intenta usar setclipboard si existe
-	local ok, err = pcall(function()
-		(local setcb or setclipboard or (typeof(Syn ~= nil) and Syn ~= nil and Syn.setclipboard)) (text)
-	end)
-	return ok
-end
+local player = Players.LocalPlayer
 
--- Limpia instancias previas
-local guiName = "HalloweenLogin_v14"
-for _,g in ipairs(safeParent():GetChildren()) do
-	if g:IsA("ScreenGui") and g.Name == guiName then g:Destroy() end
-end
+-- ============ CONFIG TEST ============
 
--- ScreenGui
-local gui = Instance.new("ScreenGui")
-if gethui then
-	-- si el ejecutor soporta gethui(), evita interferencias
-	gui.Parent = gethui()
-else
-	gui.Parent = safeParent()
-end
-gui.Name = guiName
+local FLY_SPEED = 60
 
--- Contenedor raíz
-local root = Instance.new("Frame")
-root.Size = UDim2.fromScale(1,1)
-root.BackgroundColor3 = Color3.new(0,0,0)
-root.BackgroundTransparency = 1
-root.Parent = gui
+-- Estos deben coincidir con tus valores default del juego:
+local DEFAULT_WALKSPEED = 16
+local DEFAULT_JUMPPOWER = 50
 
--- Fondo cielo
-local sky = Instance.new("Frame")
-sky.Size = UDim2.fromScale(1,1)
-sky.BackgroundColor3 = Color3.fromRGB(5,5,14)
-sky.Parent = root
+-- Valores de hack
+local SPEED_HACK_WALKSPEED = 60
+local JUMP_HACK_POWER = 120
 
-local skyGrad = Instance.new("UIGradient")
-skyGrad.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(11,11,20)),
-	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,0,0))
-})
-skyGrad.Rotation = 270
-skyGrad.Parent = sky
+-- ============ ESTADO ============
 
--- Relámpagos
-local flash = Instance.new("Frame")
-flash.Size = UDim2.fromScale(1,1)
-flash.BackgroundColor3 = Color3.new(1,1,1)
-flash.BackgroundTransparency = 1
-flash.ZIndex = 5
-flash.Parent = root
+local wallhackEnabled = false
+local flyEnabled = false
+local noclipFlyEnabled = false
+local speedHackEnabled = false
+local jumpHackEnabled = false
 
--- Suelo
-local ground = Instance.new("Frame")
-ground.Size = UDim2.new(1,0,0,110)
-ground.Position = UDim2.new(0,0,1,-110)
-ground.BackgroundColor3 = Color3.fromRGB(10,10,10)
-local ggrad = Instance.new("UIGradient", ground)
-ggrad.Color = ColorSequence.new{
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(18,18,18)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(5,5,5)),
-}
+local wallhackConn
+local flyConn
 
-ground.Parent = root
+local flyVerticalInput = 0
 
--- Casas (siluetas)
-local village = Instance.new("Frame")
-village.BackgroundTransparency = 1
-village.Size = UDim2.new(1,0,0,180)
-village.Position = UDim2.new(0,0,1,-(110+180))
-village.Parent = root
+local baseWalkSpeed = DEFAULT_WALKSPEED
+local baseJumpPower = DEFAULT_JUMPPOWER
 
-local function makeHouse(x, w, h)
-	local base = Instance.new("Frame")
-	base.BackgroundColor3 = Color3.fromRGB(12,12,12)
-	base.Size = UDim2.new(0,w,0,h)
-	base.Position = UDim2.new(0,x,1,-h)
-	base.BorderSizePixel = 0
-	base.Parent = village
-	local roof = Instance.new("Frame")
-	roof.BackgroundColor3 = Color3.fromRGB(15,15,15)
-	roof.Size = UDim2.new(0,w+20,0,36)
-	roof.Position = UDim2.new(0,x-10,1,-(h+36))
-	roof.BorderSizePixel = 0
-	roof.Parent = village
-	local uic = Instance.new("UICorner", base); uic.CornerRadius = UDim.new(0,2)
-end
+-- ============ UI ============
 
-makeHouse(40,120,110)
-makeHouse(220,140,120)
-makeHouse(420,120,112)
-makeHouse(700,160,128)
-makeHouse(860,140,118)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DebugHackPanel"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Lluvia
-local rainFolder = Instance.new("Folder", root)
-rainFolder.Name = "Rain"
-local drops = {}
-local function newDrop()
-	local d = Instance.new("Frame")
-	d.Size = UDim2.new(0,1,0,math.random(10,28))
-	d.Position = UDim2.new(0, math.random(-10, sky.AbsoluteSize.X+10), 0, math.random(-sky.AbsoluteSize.Y, -10))
-	d.BackgroundColor3 = Color3.fromRGB(220,220,255)
-	d.BackgroundTransparency = 0.35
-	d.BorderSizePixel = 0
-	d.Parent = rainFolder
-	return d
-end
-for i=1,220 do drops[i] = newDrop() end
+local frame = Instance.new("Frame")
+frame.Parent = screenGui
+frame.AnchorPoint = Vector2.new(0, 0)
+frame.Position = UDim2.fromOffset(20, 100)
+frame.Size = UDim2.fromOffset(240, 230)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 25)
+frame.BorderSizePixel = 0
 
--- Fantasmas
-local ghostsFolder = Instance.new("Folder", root)
-local function makeGhost(x, y, s)
-	local g = Instance.new("Frame")
-	g.Size = UDim2.new(0, 60*s, 0, 70*s)
-	g.Position = UDim2.new(0, x, 0, y)
-	g.BackgroundColor3 = Color3.fromRGB(235,239,250)
-	g.BorderSizePixel = 0
-	g.BackgroundTransparency = 0.1
-	g.Parent = ghostsFolder
-	local corner = Instance.new("UICorner", g); corner.CornerRadius = UDim.new(0, 28)
-	local eyeL = Instance.new("Frame", g); eyeL.Size = UDim2.new(0,8*s,0,12*s); eyeL.Position = UDim2.new(0,18*s,0,22*s); eyeL.BackgroundColor3 = Color3.new(0,0,0)
-	local eyeR = eyeL:Clone(); eyeR.Parent = g; eyeR.Position = UDim2.new(1,-(18*s+8*s),0,22*s)
-	local mouth = Instance.new("Frame", g); mouth.Size = UDim2.new(0,14*s,0,10*s); mouth.Position = UDim2.new(0.5,-7*s,0,40*s); mouth.BackgroundColor3 = Color3.new(0,0,0); local mc=Instance.new("UICorner", mouth); mc.CornerRadius=UDim.new(0,8)
-	return g
-end
-local ghost1 = makeGhost(80, 180, 1)
-local ghost2 = makeGhost(680, 210, 0.9)
-local ghost3 = makeGhost(420, 230, 1.1)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
 
--- Calabazas
-local pumpkinsFolder = Instance.new("Folder", root)
-local function makePumpkin(x, s)
-	local p = Instance.new("Frame")
-	p.Size = UDim2.new(0, 70*s, 0, 50*s)
-	p.Position = UDim2.new(0, x, 1, - (110 + 50*s))
-	p.BackgroundColor3 = Color3.fromRGB(247,127,0)
-	p.BorderSizePixel = 0
-	p.Parent = pumpkinsFolder
-	local c = Instance.new("UICorner", p); c.CornerRadius = UDim.new(1,0)
-	local glow = Instance.new("Frame", p); glow.BackgroundColor3 = Color3.fromRGB(255, 217, 74); glow.BackgroundTransparency = 0.5; glow.Size = UDim2.new(0, 60*s, 0, 40*s); glow.Position = UDim2.new(0.5, -30*s, 0.5, -20*s); local gc=Instance.new("UICorner", glow); gc.CornerRadius = UDim.new(1,0)
-	local eyeL = Instance.new("Frame", p); eyeL.Size = UDim2.new(0,12*s,0,12*s); eyeL.Position = UDim2.new(0, 14*s, 0, 14*s); eyeL.BackgroundColor3 = Color3.fromRGB(255, 217, 74); eyeL.BorderSizePixel = 0
-	local eyeR = eyeL:Clone(); eyeR.Parent = p; eyeR.Position = UDim2.new(0, 44*s, 0, 14*s)
-	local mouth = Instance.new("Frame", p); mouth.Size = UDim2.new(0, 36*s, 0, 12*s); mouth.Position = UDim2.new(0.5, -18*s, 1, - (10*s + 12*s)); mouth.BackgroundColor3 = Color3.fromRGB(255,217,74); mouth.BorderSizePixel = 0
-	return p
-end
-makePumpkin(120, 1.0)
-makePumpkin(320, 1.2)
-makePumpkin(640, 0.95)
-makePumpkin(840, 1.1)
-
--- Panel de Login
-local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 460, 0, 240)
-panel.Position = UDim2.new(0.5, -230, 0.5, -120)
-panel.BackgroundColor3 = Color3.fromRGB(0,0,0)
-panel.BackgroundTransparency = 0.22
-panel.BorderSizePixel = 0
-panel.Parent = root
-local pc = Instance.new("UICorner", panel); pc.CornerRadius = UDim.new(0,16)
-local ps = Instance.new("UIStroke", panel); ps.Thickness = 1; ps.Color = Color3.fromRGB(255,255,255); ps.Transparency = 0.92
-
--- Luces alrededor
-local bulbsFolder = Instance.new("Folder", panel)
-for i=0, math.floor(460/26) do
-	local bulb = Instance.new("Frame")
-	bulb.Size = UDim2.new(0,8,0,8)
-	bulb.Position = UDim2.new(0, 14 + i*26, 0, 10)
-	bulb.BackgroundColor3 = Color3.fromRGB(255, 217, 74)
-	bulb.BorderSizePixel = 0
-	bulb.Parent = bulbsFolder
-	local bcorner = Instance.new("UICorner", bulb); bcorner.CornerRadius = UDim.new(1,0)
-	TweenService:Create(bulb, TweenInfo.new(2.2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = 0.2}):Play()
-end
-
--- Título
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -32, 0, 36)
-title.Position = UDim2.new(0,16,0,12)
+title.Parent = frame
 title.BackgroundTransparency = 1
-title.Text = TITLE
-title.TextColor3 = Color3.fromRGB(255,120,26)
-title.TextScaled = true
-title.Font = Enum.Font.GothamBlack
-local ts = Instance.new("UIStroke", title); ts.Color = Color3.fromRGB(139,0,0); ts.Thickness = 1.2
-title.Parent = panel
+title.Position = UDim2.fromOffset(10, 6)
+title.Size = UDim2.new(1, -20, 0, 20)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Text = "Debug Hack Panel"
 
--- Campo KEY
-local keyLabel = Instance.new("TextLabel")
-keyLabel.Size = UDim2.new(0, 60, 0, 20)
-keyLabel.Position = UDim2.new(0,24,0,72)
-keyLabel.BackgroundTransparency = 1
-keyLabel.Text = "Key:"
-keyLabel.TextColor3 = Color3.fromRGB(235,235,240)
-keyLabel.Font = Enum.Font.Gotham
-keyLabel.TextSize = 16
-keyLabel.Parent = panel
+local function createButton(y, text)
+	local btn = Instance.new("TextButton")
+	btn.Parent = frame
+	btn.Position = UDim2.fromOffset(10, y)
+	btn.Size = UDim2.new(1, -20, 0, 28)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+	btn.BorderSizePixel = 0
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Text = text
+	btn.AutoButtonColor = false
 
-local keyBox = Instance.new("TextBox")
-keyBox.Size = UDim2.new(1, -94, 0, 38)
-keyBox.Position = UDim2.new(0, 70, 0, 66)
-keyBox.BackgroundColor3 = Color3.fromRGB(23,23,23)
-keyBox.Text = ""
-keyBox.PlaceholderText = "Introduce tu key..."
-keyBox.PlaceholderColor3 = Color3.fromRGB(160,160,170)
-keyBox.TextColor3 = Color3.fromRGB(245,245,245)
-keyBox.ClearTextOnFocus = false
-keyBox.Font = Enum.Font.Gotham
-keyBox.TextSize = 18
-keyBox.TextXAlignment = Enum.TextXAlignment.Left
-keyBox.TextScaled = false
-keyBox.Parent = panel
-local kc = Instance.new("UICorner", keyBox); kc.CornerRadius = UDim.new(0,10)
-local ks = Instance.new("UIStroke", keyBox); ks.Color = Color3.fromRGB(255,122,24); ks.Transparency = 0.6; ks.Thickness = 1
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 8)
+	c.Parent = btn
 
--- Mensaje
-local message = Instance.new("TextLabel")
-message.BackgroundTransparency = 1
-message.Size = UDim2.new(1, -32, 0, 24)
-message.Position = UDim2.new(0,16,1,-92)
-message.Text = ""
-message.TextColor3 = Color3.fromRGB(255,255,255)
-message.Font = Enum.Font.Gotham
-message.TextSize = 16
-message.TextWrapped = true
-message.Parent = panel
-
--- Botones
-local function makeBtn(txt, x)
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(0,130,0,40)
-	b.Position = UDim2.new(0, x, 1, -56)
-	b.BackgroundColor3 = Color3.fromRGB(250,167,74)
-	b.Text = txt
-	b.TextColor3 = Color3.fromRGB(10,10,10)
-	b.Font = Enum.Font.GothamSemibold
-	b.TextSize = 18
-	b.AutoButtonColor = false
-	local bc = Instance.new("UICorner", b); bc.CornerRadius = UDim.new(0,10)
-	local bs = Instance.new("UIStroke", b); bs.Color = Color3.fromRGB(0,0,0); bs.Transparency = 0.15
-	b.MouseEnter:Connect(function()
-		TweenService:Create(b, TweenInfo.new(0.12), {Position = b.Position - UDim2.new(0,0,0,1)}):Play()
-	end)
-	b.MouseLeave:Connect(function()
-		TweenService:Create(b, TweenInfo.new(0.12), {Position = b.Position + UDim2.new(0,0,0,1)}):Play()
-	end)
-	return b
+	return btn
 end
 
-local btnGet = makeBtn("GET KEY", panel.AbsoluteSize.X) -- Pos luego
-local btnSub = makeBtn("SUBMIT", panel.AbsoluteSize.X)
-btnGet.Parent, btnSub.Parent = panel, panel
+local wallhackButton = createButton(34, "Wallhack: OFF")
+local flyButton      = createButton(68, "Fly: OFF")
+local noclipFlyButton= createButton(102, "Noclip Fly: OFF")
+local speedHackButton= createButton(136, "Speed Hack: OFF")
+local jumpHackButton = createButton(170, "Jump Hack: OFF")
 
--- Posiciona botones tras 1 frame (panel.AbsoluteSize listo)
-RunService.Heartbeat:Wait()
-btnGet.Position = UDim2.new(1, -(130*2 + 16 + 24), 1, -56)
-btnSub.Position = UDim2.new(1, -(130 + 24), 1, -56)
+local hint = Instance.new("TextLabel")
+hint.Parent = frame
+hint.BackgroundTransparency = 1
+hint.Position = UDim2.fromOffset(10, 204)
+hint.Size = UDim2.new(1, -20, 0, 20)
+hint.Font = Enum.Font.Gotham
+hint.TextSize = 12
+hint.TextXAlignment = Enum.TextXAlignment.Left
+hint.TextColor3 = Color3.fromRGB(180, 180, 180)
+hint.Text = "Fly: WASD + Espacio (subir) + Ctrl/Shift (bajar)"
 
--- Animación relámpagos aleatorios
-spawn(function()
-	while gui.Parent do
-		wait(math.random(6,12)/2)
-		for i=1,2 do
-			TweenService:Create(flash, TweenInfo.new(0.06), {BackgroundTransparency = 0.15}):Play()
-			wait(0.08)
-			flash.BackgroundTransparency = 1
-			wait(0.06)
-		end
-	end
-end)
+-- ============ UTIL ============
 
--- Animación fantasmas flotando
-spawn(function()
-	local t = 0
-	while gui.Parent do
-		RunService.Heartbeat:Wait()
-		t = t + 0.016
-		for i,g in ipairs(ghostsFolder:GetChildren()) do
-			local base = g.Position
-			g.Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, base.Y.Offset + math.sin(t*1.5 + i)*0.8)
-		end
-	end
-end)
-
--- Lluvia en bucle
-spawn(function()
-	while gui.Parent do
-		RunService.Heartbeat:Wait()
-		for _,d in ipairs(drops) do
-			local pos = d.Position
-			local newY = pos.Y.Offset + 720*0.016
-			local newX = pos.X.Offset + 80*0.016
-			if newY > sky.AbsoluteSize.Y + 10 or newX > sky.AbsoluteSize.X + 10 then
-				d.Position = UDim2.new(0, math.random(-10, sky.AbsoluteSize.X), 0, math.random(-sky.AbsoluteSize.Y, -10))
-			else
-				d.Position = UDim2.new(0, newX, 0, newY)
-			end
-		end
-	end
-end)
-
--- Efecto shake panel
-local function shake()
-	local o = panel.Position
-	for i=1,8 do
-		TweenService:Create(panel, TweenInfo.new(0.04), {Position = o + UDim2.new(0, (i%2==0 and -6 or 6), 0, 0)}):Play()
-		RunService.Heartbeat:Wait()
-	end
-	panel.Position = o
+local function getHumanoid()
+	local char = player.Character
+	if not char then return nil, nil end
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	return humanoid, hrp
 end
 
--- Acciones botones
-btnGet.MouseButton1Click:Connect(function()
-	local ok = setClipboard(GET_KEY_URL)
-	message.Text = ok and "Link copiado al portapapeles" or ("Key URL: "..GET_KEY_URL)
-end)
+local function applyCharacterCollision()
+	local char = player.Character
+	if not char then return end
 
-local function grantAccess()
-	message.Text = "✔ Acceso concedido — Bienvenido"
-	message.TextColor3 = Color3.fromRGB(50,255,150)
-	TweenService:Create(panel, TweenInfo.new(0.25), {BackgroundTransparency = 0.6}):Play()
-	wait(0.35)
-	gui:Destroy()
-	-- Aquí ejecuta tu payload
-	-- pcall(loadstring(game:HttpGet("https://tu.repo/script.lua")))
+	local shouldNoclip = wallhackEnabled or noclipFlyEnabled
+
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = not shouldNoclip
+		end
+	end
 end
 
-btnSub.MouseButton1Click:Connect(function()
-	local key = keyBox.Text or ""
-	if #key == 0 then
-		message.Text = "Ingresa una key primero"
-		message.TextColor3 = Color3.fromRGB(255,230,120)
-		shake()
+local function updateButtons()
+	-- Wallhack
+	if wallhackEnabled then
+		wallhackButton.Text = "Wallhack: ON"
+		wallhackButton.BackgroundColor3 = Color3.fromRGB(180, 70, 70)
+	else
+		wallhackButton.Text = "Wallhack: OFF"
+		wallhackButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+	end
+
+	-- Fly
+	if flyEnabled and not noclipFlyEnabled then
+		flyButton.Text = "Fly: ON"
+		flyButton.BackgroundColor3 = Color3.fromRGB(70, 140, 200)
+	elseif flyEnabled and noclipFlyEnabled then
+		flyButton.Text = "Fly: ON (Noclip)"
+		flyButton.BackgroundColor3 = Color3.fromRGB(120, 160, 220)
+	else
+		flyButton.Text = "Fly: OFF"
+		flyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+	end
+
+	-- Noclip Fly
+	if noclipFlyEnabled then
+		noclipFlyButton.Text = "Noclip Fly: ON"
+		noclipFlyButton.BackgroundColor3 = Color3.fromRGB(180, 100, 60)
+	else
+		noclipFlyButton.Text = "Noclip Fly: OFF"
+		noclipFlyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+	end
+
+	-- Speed Hack
+	if speedHackEnabled then
+		speedHackButton.Text = "Speed Hack: ON"
+		speedHackButton.BackgroundColor3 = Color3.fromRGB(90, 180, 90)
+	else
+		speedHackButton.Text = "Speed Hack: OFF"
+		speedHackButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+	end
+
+	-- Jump Hack
+	if jumpHackEnabled then
+		jumpHackButton.Text = "Jump Hack: ON"
+		jumpHackButton.BackgroundColor3 = Color3.fromRGB(200, 140, 60)
+	else
+		jumpHackButton.Text = "Jump Hack: OFF"
+		jumpHackButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+	end
+end
+
+-- ============ HACKS DE PROPIEDAD (SPEED/JUMP) ============
+
+local function applySpeedHack()
+	local humanoid = getHumanoid()
+	if not humanoid then return end
+
+	if speedHackEnabled then
+		humanoid.WalkSpeed = SPEED_HACK_WALKSPEED
+	else
+		humanoid.WalkSpeed = baseWalkSpeed
+	end
+end
+
+local function applyJumpHack()
+	local humanoid = getHumanoid()
+	if not humanoid then return end
+
+	if jumpHackEnabled then
+		humanoid.UseJumpPower = true
+		humanoid.JumpPower = JUMP_HACK_POWER
+	else
+		humanoid.UseJumpPower = true
+		humanoid.JumpPower = baseJumpPower
+	end
+end
+
+-- ============ WALLHACK / FLY ============
+
+local function setWallhack(enabled)
+	wallhackEnabled = enabled
+	updateButtons()
+
+	if wallhackConn then
+		wallhackConn:Disconnect()
+		wallhackConn = nil
+	end
+
+	if enabled then
+		wallhackConn = RunService.Stepped:Connect(function()
+			applyCharacterCollision()
+		end)
+	else
+		if not noclipFlyEnabled then
+			applyCharacterCollision()
+		end
+	end
+end
+
+local function stopFlyMovement()
+	local humanoid, hrp = getHumanoid()
+	if humanoid then
+		humanoid.PlatformStand = false
+	end
+	if hrp then
+		hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+	end
+end
+
+local function setFly(enabled)
+	flyEnabled = enabled
+	if not enabled then
+		noclipFlyEnabled = false
+	end
+	updateButtons()
+
+	if flyConn then
+		flyConn:Disconnect()
+		flyConn = nil
+	end
+
+	if not enabled then
+		stopFlyMovement()
+		applyCharacterCollision()
 		return
 	end
-	if key == VALID_KEY then
-		grantAccess()
+
+	flyConn = RunService.RenderStepped:Connect(function()
+		local humanoid, hrp = getHumanoid()
+		if not humanoid or not hrp then return end
+
+		humanoid.PlatformStand = true
+
+		local horizontal = humanoid.MoveDirection
+		local dir = horizontal
+
+		if flyVerticalInput ~= 0 then
+			dir = Vector3.new(horizontal.X, flyVerticalInput, horizontal.Z)
+		end
+
+		if dir.Magnitude > 0 then
+			dir = dir.Unit
+			hrp.AssemblyLinearVelocity = dir * FLY_SPEED
+		else
+			hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+		end
+
+		if noclipFlyEnabled or wallhackEnabled then
+			applyCharacterCollision()
+		end
+	end)
+end
+
+local function setNoclipFly(enabled)
+	noclipFlyEnabled = enabled
+
+	if enabled and not flyEnabled then
+		setFly(true)
 	else
-		message.Text = "✖ Key incorrecta"
-		message.TextColor3 = Color3.fromRGB(255,120,120)
-		shake()
+		updateButtons()
+		applyCharacterCollision()
+	end
+end
+
+-- ============ INPUT VERTICAL FLY ============
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+
+	if input.KeyCode == Enum.KeyCode.Space then
+		flyVerticalInput = 1
+	elseif input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.LeftShift then
+		flyVerticalInput = -1
 	end
 end)
 
--- QoL: Enter para enviar
-keyBox.FocusLost:Connect(function(enterPressed)
-	if enterPressed then btnSub:Activate() end
+UserInputService.InputEnded:Connect(function(input, gp)
+	if input.KeyCode == Enum.KeyCode.Space
+		or input.KeyCode == Enum.KeyCode.LeftControl
+		or input.KeyCode == Enum.KeyCode.LeftShift then
+		flyVerticalInput = 0
+	end
 end)
 
--- Centrar panel si cambia la pantalla
-local function center()
-	panel.Position = UDim2.new(0.5, -panel.AbsoluteSize.X/2, 0.5, -panel.AbsoluteSize.Y/2)
-end
-center()
-root:GetPropertyChangedSignal("AbsoluteSize"):Connect(center)
+-- ============ BOTONES ============
 
--- Fin del script
+wallhackButton.MouseButton1Click:Connect(function()
+	setWallhack(not wallhackEnabled)
+end)
+
+flyButton.MouseButton1Click:Connect(function()
+	setFly(not flyEnabled)
+end)
+
+noclipFlyButton.MouseButton1Click:Connect(function()
+	setNoclipFly(not noclipFlyEnabled)
+end)
+
+speedHackButton.MouseButton1Click:Connect(function()
+	speedHackEnabled = not speedHackEnabled
+	applySpeedHack()
+	updateButtons()
+end)
+
+jumpHackButton.MouseButton1Click:Connect(function()
+	jumpHackEnabled = not jumpHackEnabled
+	applyJumpHack()
+	updateButtons()
+end)
+
+-- ============ CHARACTER HANDLER ============
+
+player.CharacterAdded:Connect(function(char)
+	task.wait(0.2)
+	local humanoid = char:WaitForChild("Humanoid", 5)
+	if humanoid then
+		baseWalkSpeed = humanoid.WalkSpeed
+		if humanoid.UseJumpPower then
+			baseJumpPower = humanoid.JumpPower
+		else
+			humanoid.UseJumpPower = true
+			baseJumpPower = DEFAULT_JUMPPOWER
+			humanoid.JumpPower = baseJumpPower
+		end
+	end
+
+	applyCharacterCollision()
+	applySpeedHack()
+	applyJumpHack()
+
+	if wallhackEnabled then
+		setWallhack(true)
+	end
+	if flyEnabled then
+		setFly(true)
+	end
+end)
+
+-- Inicial si ya existe character
+if player.Character then
+	player.CharacterAdded:Wait()
+end
+
+updateButtons()
