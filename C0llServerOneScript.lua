@@ -1,376 +1,145 @@
--- LocalScript: DebugHackPanel
--- Solo para pruebas en TU juego en Studio
+--// MOD DE PRUEBA ANTI-HACK (SOLO STUDIO / TU JUEGO)
+-- ⚠️ SOLO PARA TESTEAR TU SISTEMA, NO LO USES EN JUEGOS AJENOS ⚠️
+-- Teclas:
+--   Z -> Toggle SUPER SPEED
+--   X -> Toggle FLY / FLOTE
+--   C -> Toggle TP SPAM (teleports locos hacia delante)
+--   V -> Toggle NOCLIP (partes del personaje sin colisión)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-if not RunService:IsStudio() then
-	script:Destroy()
-	return
-end
+local localPlayer = Players.LocalPlayer
 
-local player = Players.LocalPlayer
+local character
+local humanoid
+local hrp
 
--- ============ CONFIG TEST ============
-
-local FLY_SPEED = 60
-
--- Estos deben coincidir con tus valores default del juego:
-local DEFAULT_WALKSPEED = 16
-local DEFAULT_JUMPPOWER = 50
-
--- Valores de hack
-local SPEED_HACK_WALKSPEED = 60
-local JUMP_HACK_POWER = 120
-
--- ============ ESTADO ============
-
-local wallhackEnabled = false
+local superSpeedEnabled = false
 local flyEnabled = false
-local noclipFlyEnabled = false
-local speedHackEnabled = false
-local jumpHackEnabled = false
+local tpSpamEnabled = false
+local noclipEnabled = false
 
-local wallhackConn
-local flyConn
+local defaultWalkSpeed = 16
+local lastTpTime = 0
 
-local flyVerticalInput = 0
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	hrp = char:WaitForChild("HumanoidRootPart")
 
-local baseWalkSpeed = DEFAULT_WALKSPEED
-local baseJumpPower = DEFAULT_JUMPPOWER
+	defaultWalkSpeed = humanoid.WalkSpeed
 
--- ============ UI ============
+	superSpeedEnabled = false
+	flyEnabled = false
+	tpSpamEnabled = false
+	noclipEnabled = false
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DebugHackPanel"
-screenGui.ResetOnSpawn = false
-screenGui.IgnoreGuiInset = true
-screenGui.Parent = player:WaitForChild("PlayerGui")
-
-local frame = Instance.new("Frame")
-frame.Parent = screenGui
-frame.AnchorPoint = Vector2.new(0, 0)
-frame.Position = UDim2.fromOffset(20, 100)
-frame.Size = UDim2.fromOffset(240, 230)
-frame.BackgroundColor3 = Color3.fromRGB(10, 10, 25)
-frame.BorderSizePixel = 0
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = frame
-
-local title = Instance.new("TextLabel")
-title.Parent = frame
-title.BackgroundTransparency = 1
-title.Position = UDim2.fromOffset(10, 6)
-title.Size = UDim2.new(1, -20, 0, 20)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Debug Hack Panel"
-
-local function createButton(y, text)
-	local btn = Instance.new("TextButton")
-	btn.Parent = frame
-	btn.Position = UDim2.fromOffset(10, y)
-	btn.Size = UDim2.new(1, -20, 0, 28)
-	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-	btn.BorderSizePixel = 0
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 14
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Text = text
-	btn.AutoButtonColor = false
-
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 8)
-	c.Parent = btn
-
-	return btn
+	print("[TEST MOD] Character listo para testear anti-hack.")
 end
 
-local wallhackButton = createButton(34, "Wallhack: OFF")
-local flyButton      = createButton(68, "Fly: OFF")
-local noclipFlyButton= createButton(102, "Noclip Fly: OFF")
-local speedHackButton= createButton(136, "Speed Hack: OFF")
-local jumpHackButton = createButton(170, "Jump Hack: OFF")
-
-local hint = Instance.new("TextLabel")
-hint.Parent = frame
-hint.BackgroundTransparency = 1
-hint.Position = UDim2.fromOffset(10, 204)
-hint.Size = UDim2.new(1, -20, 0, 20)
-hint.Font = Enum.Font.Gotham
-hint.TextSize = 12
-hint.TextXAlignment = Enum.TextXAlignment.Left
-hint.TextColor3 = Color3.fromRGB(180, 180, 180)
-hint.Text = "Fly: WASD + Espacio (subir) + Ctrl/Shift (bajar)"
-
--- ============ UTIL ============
-
-local function getHumanoid()
-	local char = player.Character
-	if not char then return nil, nil end
-	local humanoid = char:FindFirstChildOfClass("Humanoid")
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	return humanoid, hrp
+if localPlayer.Character then
+	setupCharacter(localPlayer.Character)
 end
 
-local function applyCharacterCollision()
-	local char = player.Character
-	if not char then return end
+localPlayer.CharacterAdded:Connect(setupCharacter)
 
-	local shouldNoclip = wallhackEnabled or noclipFlyEnabled
+-- Toggle helpers
+local function toggleSuperSpeed()
+	superSpeedEnabled = not superSpeedEnabled
+	if not superSpeedEnabled and humanoid then
+		humanoid.WalkSpeed = defaultWalkSpeed
+	end
+	print("[TEST MOD] SuperSpeed:", superSpeedEnabled)
+end
 
-	for _, part in ipairs(char:GetDescendants()) do
-		if part:IsA("BasePart") then
-			part.CanCollide = not shouldNoclip
+local function toggleFly()
+	flyEnabled = not flyEnabled
+	print("[TEST MOD] Fly:", flyEnabled)
+end
+
+local function toggleTpSpam()
+	tpSpamEnabled = not tpSpamEnabled
+	lastTpTime = 0
+	print("[TEST MOD] TP Spam:", tpSpamEnabled)
+end
+
+local function toggleNoclip()
+	noclipEnabled = not noclipEnabled
+	print("[TEST MOD] Noclip:", noclipEnabled)
+
+	-- Cuando se apaga, intentamos restaurar colisiones básicas del character
+	if not noclipEnabled and character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				-- En un rig R15 muchas partes ya vienen con CanCollide=false por defecto
+				-- No pasa nada si queda así para pruebas.
+				if part.Name == "HumanoidRootPart" then
+					part.CanCollide = true
+				end
+			end
 		end
 	end
 end
 
-local function updateButtons()
-	-- Wallhack
-	if wallhackEnabled then
-		wallhackButton.Text = "Wallhack: ON"
-		wallhackButton.BackgroundColor3 = Color3.fromRGB(180, 70, 70)
-	else
-		wallhackButton.Text = "Wallhack: OFF"
-		wallhackButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+-- Input (Z, X, C, V)
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+	local key = input.KeyCode
+
+	if key == Enum.KeyCode.Z then
+		toggleSuperSpeed()
+	elseif key == Enum.KeyCode.X then
+		toggleFly()
+	elseif key == Enum.KeyCode.C then
+		toggleTpSpam()
+	elseif key == Enum.KeyCode.V then
+		toggleNoclip()
 	end
+end)
 
-	-- Fly
-	if flyEnabled and not noclipFlyEnabled then
-		flyButton.Text = "Fly: ON"
-		flyButton.BackgroundColor3 = Color3.fromRGB(70, 140, 200)
-	elseif flyEnabled and noclipFlyEnabled then
-		flyButton.Text = "Fly: ON (Noclip)"
-		flyButton.BackgroundColor3 = Color3.fromRGB(120, 160, 220)
-	else
-		flyButton.Text = "Fly: OFF"
-		flyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-	end
-
-	-- Noclip Fly
-	if noclipFlyEnabled then
-		noclipFlyButton.Text = "Noclip Fly: ON"
-		noclipFlyButton.BackgroundColor3 = Color3.fromRGB(180, 100, 60)
-	else
-		noclipFlyButton.Text = "Noclip Fly: OFF"
-		noclipFlyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-	end
-
-	-- Speed Hack
-	if speedHackEnabled then
-		speedHackButton.Text = "Speed Hack: ON"
-		speedHackButton.BackgroundColor3 = Color3.fromRGB(90, 180, 90)
-	else
-		speedHackButton.Text = "Speed Hack: OFF"
-		speedHackButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-	end
-
-	-- Jump Hack
-	if jumpHackEnabled then
-		jumpHackButton.Text = "Jump Hack: ON"
-		jumpHackButton.BackgroundColor3 = Color3.fromRGB(200, 140, 60)
-	else
-		jumpHackButton.Text = "Jump Hack: OFF"
-		jumpHackButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-	end
-end
-
--- ============ HACKS DE PROPIEDAD (SPEED/JUMP) ============
-
-local function applySpeedHack()
-	local humanoid = getHumanoid()
-	if not humanoid then return end
-
-	if speedHackEnabled then
-		humanoid.WalkSpeed = SPEED_HACK_WALKSPEED
-	else
-		humanoid.WalkSpeed = baseWalkSpeed
-	end
-end
-
-local function applyJumpHack()
-	local humanoid = getHumanoid()
-	if not humanoid then return end
-
-	if jumpHackEnabled then
-		humanoid.UseJumpPower = true
-		humanoid.JumpPower = JUMP_HACK_POWER
-	else
-		humanoid.UseJumpPower = true
-		humanoid.JumpPower = baseJumpPower
-	end
-end
-
--- ============ WALLHACK / FLY ============
-
-local function setWallhack(enabled)
-	wallhackEnabled = enabled
-	updateButtons()
-
-	if wallhackConn then
-		wallhackConn:Disconnect()
-		wallhackConn = nil
-	end
-
-	if enabled then
-		wallhackConn = RunService.Stepped:Connect(function()
-			applyCharacterCollision()
-		end)
-	else
-		if not noclipFlyEnabled then
-			applyCharacterCollision()
-		end
-	end
-end
-
-local function stopFlyMovement()
-	local humanoid, hrp = getHumanoid()
-	if humanoid then
-		humanoid.PlatformStand = false
-	end
-	if hrp then
-		hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-	end
-end
-
-local function setFly(enabled)
-	flyEnabled = enabled
-	if not enabled then
-		noclipFlyEnabled = false
-	end
-	updateButtons()
-
-	if flyConn then
-		flyConn:Disconnect()
-		flyConn = nil
-	end
-
-	if not enabled then
-		stopFlyMovement()
-		applyCharacterCollision()
+-- Loop principal del "mod hacker"
+RunService.RenderStepped:Connect(function(dt)
+	if not character or not humanoid or not hrp then
 		return
 	end
 
-	flyConn = RunService.RenderStepped:Connect(function()
-		local humanoid, hrp = getHumanoid()
-		if not humanoid or not hrp then return end
-
-		humanoid.PlatformStand = true
-
-		local horizontal = humanoid.MoveDirection
-		local dir = horizontal
-
-		if flyVerticalInput ~= 0 then
-			dir = Vector3.new(horizontal.X, flyVerticalInput, horizontal.Z)
-		end
-
-		if dir.Magnitude > 0 then
-			dir = dir.Unit
-			hrp.AssemblyLinearVelocity = dir * FLY_SPEED
-		else
-			hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-		end
-
-		if noclipFlyEnabled or wallhackEnabled then
-			applyCharacterCollision()
-		end
-	end)
-end
-
-local function setNoclipFly(enabled)
-	noclipFlyEnabled = enabled
-
-	if enabled and not flyEnabled then
-		setFly(true)
+	-- SUPER SPEED (debería disparar tu anti-speed > 40)
+	if superSpeedEnabled then
+		-- mete una velocidad bestial
+		humanoid.WalkSpeed = 80
 	else
-		updateButtons()
-		applyCharacterCollision()
+		humanoid.WalkSpeed = defaultWalkSpeed
 	end
-end
 
--- ============ INPUT VERTICAL FLY ============
-
-UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
-
-	if input.KeyCode == Enum.KeyCode.Space then
-		flyVerticalInput = 1
-	elseif input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.LeftShift then
-		flyVerticalInput = -1
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gp)
-	if input.KeyCode == Enum.KeyCode.Space
-		or input.KeyCode == Enum.KeyCode.LeftControl
-		or input.KeyCode == Enum.KeyCode.LeftShift then
-		flyVerticalInput = 0
-	end
-end)
-
--- ============ BOTONES ============
-
-wallhackButton.MouseButton1Click:Connect(function()
-	setWallhack(not wallhackEnabled)
-end)
-
-flyButton.MouseButton1Click:Connect(function()
-	setFly(not flyEnabled)
-end)
-
-noclipFlyButton.MouseButton1Click:Connect(function()
-	setNoclipFly(not noclipFlyEnabled)
-end)
-
-speedHackButton.MouseButton1Click:Connect(function()
-	speedHackEnabled = not speedHackEnabled
-	applySpeedHack()
-	updateButtons()
-end)
-
-jumpHackButton.MouseButton1Click:Connect(function()
-	jumpHackEnabled = not jumpHackEnabled
-	applyJumpHack()
-	updateButtons()
-end)
-
--- ============ CHARACTER HANDLER ============
-
-player.CharacterAdded:Connect(function(char)
-	task.wait(0.2)
-	local humanoid = char:WaitForChild("Humanoid", 5)
-	if humanoid then
-		baseWalkSpeed = humanoid.WalkSpeed
-		if humanoid.UseJumpPower then
-			baseJumpPower = humanoid.JumpPower
-		else
-			humanoid.UseJumpPower = true
-			baseJumpPower = DEFAULT_JUMPPOWER
-			humanoid.JumpPower = baseJumpPower
+	-- NOCLIP (intenta atravesar paredes → tu anti-wallhack debería responder)
+	if noclipEnabled then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
 		end
 	end
 
-	applyCharacterCollision()
-	applySpeedHack()
-	applyJumpHack()
-
-	if wallhackEnabled then
-		setWallhack(true)
-	end
+	-- FLY / FLOTE (tu anti-fly debería tumbar esto si se queda flotando mucho)
 	if flyEnabled then
-		setFly(true)
+		-- Lo mantenemos flotando suave
+		local vel = hrp.AssemblyLinearVelocity
+		hrp.AssemblyLinearVelocity = Vector3.new(vel.X, 0.1, vel.Z)
+	end
+
+	-- TP SPAM (teleports rápidos hacia adelante, para ver si tu sistema los acepta o los corrige)
+	if tpSpamEnabled then
+		lastTpTime = lastTpTime + dt
+		if lastTpTime >= 0.7 then
+			lastTpTime = 0
+			-- Teleport 20 studs hacia donde mira el player
+			local forward = hrp.CFrame.LookVector
+			hrp.CFrame = hrp.CFrame + forward * 20
+			print("[TEST MOD] TP adelante 20 studs")
+		end
 	end
 end)
-
--- Inicial si ya existe character
-if player.Character then
-	player.CharacterAdded:Wait()
-end
-
-updateButtons()
