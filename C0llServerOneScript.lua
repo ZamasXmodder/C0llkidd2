@@ -1,145 +1,239 @@
---// MOD DE PRUEBA ANTI-HACK (SOLO STUDIO / TU JUEGO)
--- ⚠️ SOLO PARA TESTEAR TU SISTEMA, NO LO USES EN JUEGOS AJENOS ⚠️
--- Teclas:
---   Z -> Toggle SUPER SPEED
---   X -> Toggle FLY / FLOTE
---   C -> Toggle TP SPAM (teleports locos hacia delante)
---   V -> Toggle NOCLIP (partes del personaje sin colisión)
+-- Game Speed Timer x30 para Roblox
+-- Acelera TODO el juego 30 veces (como GameGuardian)
+-- Coloca este script en StarterGui como LocalScript
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local localPlayer = Players.LocalPlayer
+-- Crear ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GameSpeedGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
-local character
-local humanoid
-local hrp
+-- Crear Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -150, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
 
-local superSpeedEnabled = false
-local flyEnabled = false
-local tpSpamEnabled = false
-local noclipEnabled = false
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 15)
+corner.Parent = mainFrame
 
-local defaultWalkSpeed = 16
-local lastTpTime = 0
+-- Borde brillante
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(100, 100, 255)
+stroke.Thickness = 2
+stroke.Transparency = 0.5
+stroke.Parent = mainFrame
 
-local function setupCharacter(char)
-	character = char
-	humanoid = char:WaitForChild("Humanoid")
-	hrp = char:WaitForChild("HumanoidRootPart")
+-- Título
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 45)
+title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+title.Text = "⚡ GAME SPEED HACK"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.BorderSizePixel = 0
+title.Parent = mainFrame
 
-	defaultWalkSpeed = humanoid.WalkSpeed
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 15)
+titleCorner.Parent = title
 
-	superSpeedEnabled = false
-	flyEnabled = false
-	tpSpamEnabled = false
-	noclipEnabled = false
+-- Info multiplier
+local multiplierLabel = Instance.new("TextLabel")
+multiplierLabel.Size = UDim2.new(1, -20, 0, 40)
+multiplierLabel.Position = UDim2.new(0, 10, 0, 55)
+multiplierLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+multiplierLabel.Text = "Velocidad: x30"
+multiplierLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
+multiplierLabel.Font = Enum.Font.GothamBold
+multiplierLabel.TextSize = 20
+multiplierLabel.BorderSizePixel = 0
+multiplierLabel.Parent = mainFrame
 
-	print("[TEST MOD] Character listo para testear anti-hack.")
-end
+local multCorner = Instance.new("UICorner")
+multCorner.CornerRadius = UDim.new(0, 10)
+multCorner.Parent = multiplierLabel
 
-if localPlayer.Character then
-	setupCharacter(localPlayer.Character)
-end
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 35)
+statusLabel.Position = UDim2.new(0, 10, 0, 105)
+statusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+statusLabel.Text = "🔴 VELOCIDAD NORMAL"
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 14
+statusLabel.BorderSizePixel = 0
+statusLabel.Parent = mainFrame
 
-localPlayer.CharacterAdded:Connect(setupCharacter)
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 8)
+statusCorner.Parent = statusLabel
 
--- Toggle helpers
-local function toggleSuperSpeed()
-	superSpeedEnabled = not superSpeedEnabled
-	if not superSpeedEnabled and humanoid then
-		humanoid.WalkSpeed = defaultWalkSpeed
-	end
-	print("[TEST MOD] SuperSpeed:", superSpeedEnabled)
-end
+-- Botón Toggle
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 130, 0, 38)
+toggleButton.Position = UDim2.new(0.5, -65, 1, -48)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+toggleButton.Text = "ACTIVAR x30"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 16
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = mainFrame
 
-local function toggleFly()
-	flyEnabled = not flyEnabled
-	print("[TEST MOD] Fly:", flyEnabled)
-end
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 10)
+buttonCorner.Parent = toggleButton
 
-local function toggleTpSpam()
-	tpSpamEnabled = not tpSpamEnabled
-	lastTpTime = 0
-	print("[TEST MOD] TP Spam:", tpSpamEnabled)
-end
+local buttonStroke = Instance.new("UIStroke")
+buttonStroke.Color = Color3.fromRGB(255, 255, 255)
+buttonStroke.Thickness = 2
+buttonStroke.Transparency = 0.8
+buttonStroke.Parent = toggleButton
 
-local function toggleNoclip()
-	noclipEnabled = not noclipEnabled
-	print("[TEST MOD] Noclip:", noclipEnabled)
+-- Variables del Speed Hack
+local isActive = false
+local speedMultiplier = 30
+local normalSpeed = 1
 
-	-- Cuando se apaga, intentamos restaurar colisiones básicas del character
-	if not noclipEnabled and character then
-		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				-- En un rig R15 muchas partes ya vienen con CanCollide=false por defecto
-				-- No pasa nada si queda así para pruebas.
-				if part.Name == "HumanoidRootPart" then
-					part.CanCollide = true
+-- Función para activar speed hack
+local function activateSpeedHack()
+	-- Modificar la velocidad del workspace (afecta físicas y tiempo del juego)
+	local success = pcall(function()
+		-- Cambiar settings de física para acelerar el juego
+		settings().Physics.AllowSleep = false
+		settings().Physics.ThrottleAdjustTime = 0
+		
+		-- Modificar el Workspace para acelerar tiempo
+		game:GetService("Workspace"):SetAttribute("TimeScale", speedMultiplier)
+		
+		-- Acelerar animaciones del personaje
+		if player.Character then
+			for _, v in pairs(player.Character:GetDescendants()) do
+				if v:IsA("AnimationTrack") then
+					v:AdjustSpeed(speedMultiplier)
 				end
 			end
 		end
+	end)
+	
+	if success then
+		-- Actualizar UI
+		statusLabel.Text = "🟢 ACELERANDO x30"
+		statusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+		toggleButton.Text = "DESACTIVAR"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		stroke.Color = Color3.fromRGB(0, 255, 100)
+		
+		isActive = true
+		
+		-- Loop para mantener el speed activo
+		spawn(function()
+			while isActive do
+				wait(0.1)
+				-- Acelerar todas las animaciones activas
+				if player.Character then
+					for _, v in pairs(player.Character:GetDescendants()) do
+						if v:IsA("AnimationTrack") and v.IsPlaying then
+							pcall(function()
+								v:AdjustSpeed(speedMultiplier)
+							end)
+						end
+					end
+				end
+			end
+		end)
 	end
 end
 
--- Input (Z, X, C, V)
-UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
-	if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-
-	local key = input.KeyCode
-
-	if key == Enum.KeyCode.Z then
-		toggleSuperSpeed()
-	elseif key == Enum.KeyCode.X then
-		toggleFly()
-	elseif key == Enum.KeyCode.C then
-		toggleTpSpam()
-	elseif key == Enum.KeyCode.V then
-		toggleNoclip()
-	end
-end)
-
--- Loop principal del "mod hacker"
-RunService.RenderStepped:Connect(function(dt)
-	if not character or not humanoid or not hrp then
-		return
-	end
-
-	-- SUPER SPEED (debería disparar tu anti-speed > 40)
-	if superSpeedEnabled then
-		-- mete una velocidad bestial
-		humanoid.WalkSpeed = 80
-	else
-		humanoid.WalkSpeed = defaultWalkSpeed
-	end
-
-	-- NOCLIP (intenta atravesar paredes → tu anti-wallhack debería responder)
-	if noclipEnabled then
-		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
+-- Función para desactivar speed hack
+local function deactivateSpeedHack()
+	pcall(function()
+		-- Restaurar configuración normal
+		settings().Physics.AllowSleep = true
+		game:GetService("Workspace"):SetAttribute("TimeScale", normalSpeed)
+		
+		-- Restaurar velocidad de animaciones
+		if player.Character then
+			for _, v in pairs(player.Character:GetDescendants()) do
+				if v:IsA("AnimationTrack") then
+					v:AdjustSpeed(normalSpeed)
+				end
 			end
 		end
-	end
+	end)
+	
+	-- Actualizar UI
+	statusLabel.Text = "🔴 VELOCIDAD NORMAL"
+	statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+	toggleButton.Text = "ACTIVAR x30"
+	toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+	stroke.Color = Color3.fromRGB(100, 100, 255)
+	
+	isActive = false
+end
 
-	-- FLY / FLOTE (tu anti-fly debería tumbar esto si se queda flotando mucho)
-	if flyEnabled then
-		-- Lo mantenemos flotando suave
-		local vel = hrp.AssemblyLinearVelocity
-		hrp.AssemblyLinearVelocity = Vector3.new(vel.X, 0.1, vel.Z)
-	end
-
-	-- TP SPAM (teleports rápidos hacia adelante, para ver si tu sistema los acepta o los corrige)
-	if tpSpamEnabled then
-		lastTpTime = lastTpTime + dt
-		if lastTpTime >= 0.7 then
-			lastTpTime = 0
-			-- Teleport 20 studs hacia donde mira el player
-			local forward = hrp.CFrame.LookVector
-			hrp.CFrame = hrp.CFrame + forward * 20
-			print("[TEST MOD] TP adelante 20 studs")
-		end
+-- Conectar botón
+toggleButton.MouseButton1Click:Connect(function()
+	if isActive then
+		deactivateSpeedHack()
+	else
+		activateSpeedHack()
 	end
 end)
+
+-- Mantener activo al respawnear
+player.CharacterAdded:Connect(function()
+	if isActive then
+		wait(1)
+		activateSpeedHack()
+	end
+end)
+
+-- Hacer el frame arrastrable
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+	local delta = input.Position - dragStart
+	mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+title.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+		
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+title.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		update(input)
+	end
+end)
+
+print("Game Speed Hack x30 cargado correctamente!")
