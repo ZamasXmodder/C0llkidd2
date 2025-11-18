@@ -1,239 +1,223 @@
--- Game Speed Timer x30 para Roblox
--- Acelera TODO el juego 30 veces (como GameGuardian)
--- Coloca este script en StarterGui como LocalScript
+-- GameSpeedServer (ServerScriptService)
+-- Controla un "Game Speed x30" global (no local) usando RemoteEvents.
+-- El cliente SOLO tiene la UI; toda la lógica de velocidad está aquí.
 
-local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace         = game:GetService("Workspace")
 
--- Crear ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GameSpeedGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+-- ================== CONFIG ==================
 
--- Crear Frame principal
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -150, 0.1, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
+local SPEED_MULTIPLIER = 30      -- x30
+local NORMAL_MULTIPLIER = 1
+local ONLY_OWNER = false         -- true = solo el dueño puede togglear
+local OWNER_USERID = 0           -- pon aquí tu UserId si usas ONLY_OWNER = true
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 15)
-corner.Parent = mainFrame
+-- ================== REMOTE EVENTS ==================
 
--- Borde brillante
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(100, 100, 255)
-stroke.Thickness = 2
-stroke.Transparency = 0.5
-stroke.Parent = mainFrame
+local toggleRE = ReplicatedStorage:FindFirstChild("GameSpeed_Toggle")
+if not toggleRE then
+    toggleRE = Instance.new("RemoteEvent")
+    toggleRE.Name = "GameSpeed_Toggle"
+    toggleRE.Parent = ReplicatedStorage
+end
 
--- Título
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 45)
-title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-title.Text = "⚡ GAME SPEED HACK"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 18
-title.BorderSizePixel = 0
-title.Parent = mainFrame
+local stateRE = ReplicatedStorage:FindFirstChild("GameSpeed_State")
+if not stateRE then
+    stateRE = Instance.new("RemoteEvent")
+    stateRE.Name = "GameSpeed_State"
+    stateRE.Parent = ReplicatedStorage
+end
 
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 15)
-titleCorner.Parent = title
+-- ================== ESTADO GLOBAL ==================
 
--- Info multiplier
-local multiplierLabel = Instance.new("TextLabel")
-multiplierLabel.Size = UDim2.new(1, -20, 0, 40)
-multiplierLabel.Position = UDim2.new(0, 10, 0, 55)
-multiplierLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-multiplierLabel.Text = "Velocidad: x30"
-multiplierLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
-multiplierLabel.Font = Enum.Font.GothamBold
-multiplierLabel.TextSize = 20
-multiplierLabel.BorderSizePixel = 0
-multiplierLabel.Parent = mainFrame
-
-local multCorner = Instance.new("UICorner")
-multCorner.CornerRadius = UDim.new(0, 10)
-multCorner.Parent = multiplierLabel
-
--- Status Label
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -20, 0, 35)
-statusLabel.Position = UDim2.new(0, 10, 0, 105)
-statusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-statusLabel.Text = "🔴 VELOCIDAD NORMAL"
-statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 14
-statusLabel.BorderSizePixel = 0
-statusLabel.Parent = mainFrame
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 8)
-statusCorner.Parent = statusLabel
-
--- Botón Toggle
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 130, 0, 38)
-toggleButton.Position = UDim2.new(0.5, -65, 1, -48)
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-toggleButton.Text = "ACTIVAR x30"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.TextSize = 16
-toggleButton.BorderSizePixel = 0
-toggleButton.Parent = mainFrame
-
-local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0, 10)
-buttonCorner.Parent = toggleButton
-
-local buttonStroke = Instance.new("UIStroke")
-buttonStroke.Color = Color3.fromRGB(255, 255, 255)
-buttonStroke.Thickness = 2
-buttonStroke.Transparency = 0.8
-buttonStroke.Parent = toggleButton
-
--- Variables del Speed Hack
 local isActive = false
-local speedMultiplier = 30
-local normalSpeed = 1
+-- Guardamos velocidades originales por jugador
+-- originalSpeeds[player] = { WalkSpeed = n, JumpPower = n }
+local originalSpeeds = {}
 
--- Función para activar speed hack
-local function activateSpeedHack()
-	-- Modificar la velocidad del workspace (afecta físicas y tiempo del juego)
-	local success = pcall(function()
-		-- Cambiar settings de física para acelerar el juego
-		settings().Physics.AllowSleep = false
-		settings().Physics.ThrottleAdjustTime = 0
-		
-		-- Modificar el Workspace para acelerar tiempo
-		game:GetService("Workspace"):SetAttribute("TimeScale", speedMultiplier)
-		
-		-- Acelerar animaciones del personaje
-		if player.Character then
-			for _, v in pairs(player.Character:GetDescendants()) do
-				if v:IsA("AnimationTrack") then
-					v:AdjustSpeed(speedMultiplier)
-				end
-			end
-		end
-	end)
-	
-	if success then
-		-- Actualizar UI
-		statusLabel.Text = "🟢 ACELERANDO x30"
-		statusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-		toggleButton.Text = "DESACTIVAR"
-		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-		stroke.Color = Color3.fromRGB(0, 255, 100)
-		
-		isActive = true
-		
-		-- Loop para mantener el speed activo
-		spawn(function()
-			while isActive do
-				wait(0.1)
-				-- Acelerar todas las animaciones activas
-				if player.Character then
-					for _, v in pairs(player.Character:GetDescendants()) do
-						if v:IsA("AnimationTrack") and v.IsPlaying then
-							pcall(function()
-								v:AdjustSpeed(speedMultiplier)
-							end)
-						end
-					end
-				end
-			end
-		end)
-	end
+-- ================== UTIL: GUARDAR / RESTAURAR ==================
+
+local function saveOriginalState(player, humanoid)
+    originalSpeeds[player] = originalSpeeds[player] or {}
+
+    local data = originalSpeeds[player]
+    if humanoid then
+        if data.WalkSpeed == nil then
+            data.WalkSpeed = humanoid.WalkSpeed
+        end
+        if humanoid.UseJumpPower then
+            if data.JumpPower == nil then
+                data.JumpPower = humanoid.JumpPower
+            end
+        else
+            if data.JumpHeight == nil then
+                data.JumpHeight = humanoid.JumpHeight
+            end
+        end
+    end
 end
 
--- Función para desactivar speed hack
-local function deactivateSpeedHack()
-	pcall(function()
-		-- Restaurar configuración normal
-		settings().Physics.AllowSleep = true
-		game:GetService("Workspace"):SetAttribute("TimeScale", normalSpeed)
-		
-		-- Restaurar velocidad de animaciones
-		if player.Character then
-			for _, v in pairs(player.Character:GetDescendants()) do
-				if v:IsA("AnimationTrack") then
-					v:AdjustSpeed(normalSpeed)
-				end
-			end
-		end
-	end)
-	
-	-- Actualizar UI
-	statusLabel.Text = "🔴 VELOCIDAD NORMAL"
-	statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-	toggleButton.Text = "ACTIVAR x30"
-	toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-	stroke.Color = Color3.fromRGB(100, 100, 255)
-	
-	isActive = false
+local function applyMultiplierToHumanoid(humanoid, multiplier)
+    if not humanoid then return end
+
+    -- Velocidad de movimiento
+    humanoid.WalkSpeed = humanoid.WalkSpeed * multiplier
+
+    -- Salto
+    if humanoid.UseJumpPower then
+        humanoid.JumpPower = humanoid.JumpPower * multiplier
+    else
+        humanoid.JumpHeight = humanoid.JumpHeight * multiplier
+    end
+
+    -- Acelerar animaciones que ya están reproduciéndose
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if animator then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            track:AdjustSpeed(multiplier)
+        end
+    end
 end
 
--- Conectar botón
-toggleButton.MouseButton1Click:Connect(function()
-	if isActive then
-		deactivateSpeedHack()
-	else
-		activateSpeedHack()
-	end
-end)
+local function restoreHumanoidFromSaved(player, humanoid)
+    if not humanoid then return end
+    local data = originalSpeeds[player]
+    if not data then return end
 
--- Mantener activo al respawnear
-player.CharacterAdded:Connect(function()
-	if isActive then
-		wait(1)
-		activateSpeedHack()
-	end
-end)
+    if data.WalkSpeed then
+        humanoid.WalkSpeed = data.WalkSpeed
+    end
 
--- Hacer el frame arrastrable
-local dragging
-local dragInput
-local dragStart
-local startPos
+    if humanoid.UseJumpPower then
+        if data.JumpPower then
+            humanoid.JumpPower = data.JumpPower
+        end
+    else
+        if data.JumpHeight then
+            humanoid.JumpHeight = data.JumpHeight
+        end
+    end
 
-local function update(input)
-	local delta = input.Position - dragStart
-	mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    -- Restaurar velocidad de animaciones
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if animator then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            track:AdjustSpeed(NORMAL_MULTIPLIER)
+        end
+    end
 end
 
-title.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = mainFrame.Position
-		
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
+-- ================== APLICAR SPEED A TODOS ==================
+
+local function setGameSpeed(active)
+    isActive = active
+
+    -- Guardamos un atributo por si otros scripts quieren leerlo
+    Workspace:SetAttribute("GameSpeedMultiplier", active and SPEED_MULTIPLIER or NORMAL_MULTIPLIER)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            if active then
+                saveOriginalState(player, humanoid)
+                -- calculamos multiplicador relativo respecto a estado normal
+                -- si quieres que siempre sea EXACTAMENTE x30, mejor usa los guardados:
+                local data = originalSpeeds[player]
+                if data and data.WalkSpeed then
+                    humanoid.WalkSpeed = data.WalkSpeed * SPEED_MULTIPLIER
+                end
+                if humanoid.UseJumpPower then
+                    if data and data.JumpPower then
+                        humanoid.JumpPower = data.JumpPower * SPEED_MULTIPLIER
+                    end
+                else
+                    if data and data.JumpHeight then
+                        humanoid.JumpHeight = data.JumpHeight * SPEED_MULTIPLIER
+                    end
+                end
+
+                -- Animaciones
+                local animator = humanoid:FindFirstChildOfClass("Animator")
+                if animator then
+                    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                        track:AdjustSpeed(SPEED_MULTIPLIER)
+                    end
+                end
+            else
+                restoreHumanoidFromSaved(player, humanoid)
+            end
+        end
+    end
+
+    -- Avisar a TODOS los clientes para que actualicen la UI
+    stateRE:FireAllClients(isActive, SPEED_MULTIPLIER)
+end
+
+-- ================== REMOTE: TOGGLE DESDE CLIENTE ==================
+
+toggleRE.OnServerEvent:Connect(function(player)
+    if ONLY_OWNER and OWNER_USERID ~= 0 then
+        if player.UserId ~= OWNER_USERID then
+            warn(("[GameSpeed] %s intentó togglear pero no es el owner."):format(player.Name))
+            return
+        end
+    end
+
+    setGameSpeed(not isActive)
 end)
 
-title.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
-	end
-end)
+-- ================== HANDLE PLAYER / CHARACTER ==================
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		update(input)
-	end
-end)
+local function onCharacterAdded(player, character)
+    local humanoid = character:WaitForChild("Humanoid", 10)
+    if not humanoid then return end
 
-print("Game Speed Hack x30 cargado correctamente!")
+    -- Guardar estado base
+    saveOriginalState(player, humanoid)
+
+    -- Si el modo speed ya está activo cuando respawnea,
+    -- aplicar multiplicador inmediatamente:
+    if isActive then
+        local data = originalSpeeds[player]
+        if data and data.WalkSpeed then
+            humanoid.WalkSpeed = data.WalkSpeed * SPEED_MULTIPLIER
+        end
+        if humanoid.UseJumpPower then
+            if data and data.JumpPower then
+                humanoid.JumpPower = data.JumpPower * SPEED_MULTIPLIER
+            end
+        else
+            if data and data.JumpHeight then
+                humanoid.JumpHeight = data.JumpHeight * SPEED_MULTIPLIER
+            end
+        end
+
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                track:AdjustSpeed(SPEED_MULTIPLIER)
+            end
+        end
+    end
+end
+
+local function onPlayerAdded(player)
+    player.CharacterAdded:Connect(function(char)
+        onCharacterAdded(player, char)
+    end)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+
+-- Por si ya había jugadores en testing
+for _, plr in ipairs(Players:GetPlayers()) do
+    onPlayerAdded(plr)
+    if plr.Character then
+        onCharacterAdded(plr, plr.Character)
+    end
+end
+
+print("[GameSpeedServer] Sistema de velocidad global listo. x" .. SPEED_MULTIPLIER)
