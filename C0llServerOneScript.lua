@@ -1,223 +1,205 @@
--- GameSpeedServer (ServerScriptService)
--- Controla un "Game Speed x30" global (no local) usando RemoteEvents.
--- El cliente SOLO tiene la UI; toda la lógica de velocidad está aquí.
+--// LocalToolDuplicatorUI (LocalScript) - StarterPlayerScripts
+--// DUPLICACION SOLO LOCAL: no replica al servidor ni a otros jugadores.
 
-local Players           = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace         = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
--- ================== CONFIG ==================
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local SPEED_MULTIPLIER = 30      -- x30
-local NORMAL_MULTIPLIER = 1
-local ONLY_OWNER = false         -- true = solo el dueño puede togglear
-local OWNER_USERID = 0           -- pon aquí tu UserId si usas ONLY_OWNER = true
+-- =========================
+-- UI
+-- =========================
+local gui = Instance.new("ScreenGui")
+gui.Name = "LocalToolDuplicatorUI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = playerGui
 
--- ================== REMOTE EVENTS ==================
+local frame = Instance.new("Frame")
+frame.Name = "Panel"
+frame.AnchorPoint = Vector2.new(0.5, 1)
+frame.Position = UDim2.fromScale(0.5, 0.92)
+frame.Size = UDim2.fromOffset(360, 150)
+frame.BackgroundTransparency = 0.15
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+frame.Visible = true
+frame.Parent = gui
 
-local toggleRE = ReplicatedStorage:FindFirstChild("GameSpeed_Toggle")
-if not toggleRE then
-    toggleRE = Instance.new("RemoteEvent")
-    toggleRE.Name = "GameSpeed_Toggle"
-    toggleRE.Parent = ReplicatedStorage
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = frame
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 1
+stroke.Transparency = 0.35
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.BackgroundTransparency = 1
+title.Position = UDim2.fromOffset(14, 10)
+title.Size = UDim2.new(1, -28, 0, 26)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Text = "Duplicar Tool (solo local)"
+title.Parent = frame
+
+local hint = Instance.new("TextLabel")
+hint.Name = "Hint"
+hint.BackgroundTransparency = 1
+hint.Position = UDim2.fromOffset(14, 38)
+hint.Size = UDim2.new(1, -28, 0, 20)
+hint.Font = Enum.Font.Gotham
+hint.TextSize = 13
+hint.TextXAlignment = Enum.TextXAlignment.Left
+hint.TextColor3 = Color3.fromRGB(200, 200, 210)
+hint.Text = "RightShift: mostrar/ocultar"
+hint.Parent = frame
+
+local selectedLabel = Instance.new("TextLabel")
+selectedLabel.Name = "SelectedLabel"
+selectedLabel.BackgroundTransparency = 1
+selectedLabel.Position = UDim2.fromOffset(14, 62)
+selectedLabel.Size = UDim2.new(1, -28, 0, 22)
+selectedLabel.Font = Enum.Font.GothamMedium
+selectedLabel.TextSize = 14
+selectedLabel.TextXAlignment = Enum.TextXAlignment.Left
+selectedLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
+selectedLabel.Text = "Tool seleccionado: (ninguno)"
+selectedLabel.Parent = frame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "Status"
+statusLabel.BackgroundTransparency = 1
+statusLabel.Position = UDim2.fromOffset(14, 86)
+statusLabel.Size = UDim2.new(1, -28, 0, 18)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 12
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.TextColor3 = Color3.fromRGB(170, 170, 185)
+statusLabel.Text = "Estado: listo"
+statusLabel.Parent = frame
+
+local dupBtn = Instance.new("TextButton")
+dupBtn.Name = "DuplicateButton"
+dupBtn.AnchorPoint = Vector2.new(0.5, 1)
+dupBtn.Position = UDim2.new(0.5, 0, 1, -14)
+dupBtn.Size = UDim2.fromOffset(330, 38)
+dupBtn.AutoButtonColor = true
+dupBtn.BackgroundColor3 = Color3.fromRGB(80, 120, 255)
+dupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+dupBtn.Font = Enum.Font.GothamBold
+dupBtn.TextSize = 15
+dupBtn.Text = "DUPLICAR TOOL SELECCIONADO (LOCAL)"
+dupBtn.Parent = frame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 12)
+btnCorner.Parent = dupBtn
+
+-- =========================
+-- Logica de Tool seleccionado
+-- =========================
+local function getCharacter()
+	return player.Character
 end
 
-local stateRE = ReplicatedStorage:FindFirstChild("GameSpeed_State")
-if not stateRE then
-    stateRE = Instance.new("RemoteEvent")
-    stateRE.Name = "GameSpeed_State"
-    stateRE.Parent = ReplicatedStorage
+local function getBackpack()
+	return player:FindFirstChildOfClass("Backpack")
 end
 
--- ================== ESTADO GLOBAL ==================
+local function getSelectedTool()
+	-- “Seleccionado” = Tool equipado (en Character). Si no hay, toma uno del Backpack.
+	local char = getCharacter()
+	if char then
+		for _, child in ipairs(char:GetChildren()) do
+			if child:IsA("Tool") then
+				return child
+			end
+		end
+	end
 
-local isActive = false
--- Guardamos velocidades originales por jugador
--- originalSpeeds[player] = { WalkSpeed = n, JumpPower = n }
-local originalSpeeds = {}
+	local bp = getBackpack()
+	if bp then
+		for _, child in ipairs(bp:GetChildren()) do
+			if child:IsA("Tool") then
+				return child
+			end
+		end
+	end
 
--- ================== UTIL: GUARDAR / RESTAURAR ==================
-
-local function saveOriginalState(player, humanoid)
-    originalSpeeds[player] = originalSpeeds[player] or {}
-
-    local data = originalSpeeds[player]
-    if humanoid then
-        if data.WalkSpeed == nil then
-            data.WalkSpeed = humanoid.WalkSpeed
-        end
-        if humanoid.UseJumpPower then
-            if data.JumpPower == nil then
-                data.JumpPower = humanoid.JumpPower
-            end
-        else
-            if data.JumpHeight == nil then
-                data.JumpHeight = humanoid.JumpHeight
-            end
-        end
-    end
+	return nil
 end
 
-local function applyMultiplierToHumanoid(humanoid, multiplier)
-    if not humanoid then return end
-
-    -- Velocidad de movimiento
-    humanoid.WalkSpeed = humanoid.WalkSpeed * multiplier
-
-    -- Salto
-    if humanoid.UseJumpPower then
-        humanoid.JumpPower = humanoid.JumpPower * multiplier
-    else
-        humanoid.JumpHeight = humanoid.JumpHeight * multiplier
-    end
-
-    -- Acelerar animaciones que ya están reproduciéndose
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if animator then
-        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-            track:AdjustSpeed(multiplier)
-        end
-    end
+local function getUniqueName(backpack, baseName)
+	if not backpack:FindFirstChild(baseName) then
+		return baseName
+	end
+	local i = 2
+	while backpack:FindFirstChild(string.format("%s (Copia %d)", baseName, i)) do
+		i += 1
+	end
+	return string.format("%s (Copia %d)", baseName, i)
 end
 
-local function restoreHumanoidFromSaved(player, humanoid)
-    if not humanoid then return end
-    local data = originalSpeeds[player]
-    if not data then return end
+local lastDup = 0
+local DUP_COOLDOWN = 0.35
 
-    if data.WalkSpeed then
-        humanoid.WalkSpeed = data.WalkSpeed
-    end
+dupBtn.MouseButton1Click:Connect(function()
+	local now = os.clock()
+	if now - lastDup < DUP_COOLDOWN then
+		statusLabel.Text = "Estado: espera un momento…"
+		return
+	end
+	lastDup = now
 
-    if humanoid.UseJumpPower then
-        if data.JumpPower then
-            humanoid.JumpPower = data.JumpPower
-        end
-    else
-        if data.JumpHeight then
-            humanoid.JumpHeight = data.JumpHeight
-        end
-    end
+	local tool = getSelectedTool()
+	local bp = getBackpack()
 
-    -- Restaurar velocidad de animaciones
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if animator then
-        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-            track:AdjustSpeed(NORMAL_MULTIPLIER)
-        end
-    end
-end
+	if not bp then
+		statusLabel.Text = "Estado: no se encontro Backpack."
+		return
+	end
+	if not tool then
+		statusLabel.Text = "Estado: no hay Tool para duplicar."
+		return
+	end
 
--- ================== APLICAR SPEED A TODOS ==================
+	-- Clonado local
+	local ok, cloneOrErr = pcall(function()
+		tool.Archivable = true
+		local clone = tool:Clone()
+		clone.Name = getUniqueName(bp, tool.Name)
+		clone.Parent = bp
+		return clone
+	end)
 
-local function setGameSpeed(active)
-    isActive = active
-
-    -- Guardamos un atributo por si otros scripts quieren leerlo
-    Workspace:SetAttribute("GameSpeedMultiplier", active and SPEED_MULTIPLIER or NORMAL_MULTIPLIER)
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        local character = player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-
-        if humanoid then
-            if active then
-                saveOriginalState(player, humanoid)
-                -- calculamos multiplicador relativo respecto a estado normal
-                -- si quieres que siempre sea EXACTAMENTE x30, mejor usa los guardados:
-                local data = originalSpeeds[player]
-                if data and data.WalkSpeed then
-                    humanoid.WalkSpeed = data.WalkSpeed * SPEED_MULTIPLIER
-                end
-                if humanoid.UseJumpPower then
-                    if data and data.JumpPower then
-                        humanoid.JumpPower = data.JumpPower * SPEED_MULTIPLIER
-                    end
-                else
-                    if data and data.JumpHeight then
-                        humanoid.JumpHeight = data.JumpHeight * SPEED_MULTIPLIER
-                    end
-                end
-
-                -- Animaciones
-                local animator = humanoid:FindFirstChildOfClass("Animator")
-                if animator then
-                    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                        track:AdjustSpeed(SPEED_MULTIPLIER)
-                    end
-                end
-            else
-                restoreHumanoidFromSaved(player, humanoid)
-            end
-        end
-    end
-
-    -- Avisar a TODOS los clientes para que actualicen la UI
-    stateRE:FireAllClients(isActive, SPEED_MULTIPLIER)
-end
-
--- ================== REMOTE: TOGGLE DESDE CLIENTE ==================
-
-toggleRE.OnServerEvent:Connect(function(player)
-    if ONLY_OWNER and OWNER_USERID ~= 0 then
-        if player.UserId ~= OWNER_USERID then
-            warn(("[GameSpeed] %s intentó togglear pero no es el owner."):format(player.Name))
-            return
-        end
-    end
-
-    setGameSpeed(not isActive)
+	if ok then
+		statusLabel.Text = "Estado: duplicado local -> " .. cloneOrErr.Name
+	else
+		statusLabel.Text = "Estado: error duplicando -> " .. tostring(cloneOrErr)
+	end
 end)
 
--- ================== HANDLE PLAYER / CHARACTER ==================
+-- UI: actualizar label en vivo
+RunService.RenderStepped:Connect(function()
+	local tool = getSelectedTool()
+	if tool then
+		selectedLabel.Text = "Tool seleccionado: " .. tool.Name
+	else
+		selectedLabel.Text = "Tool seleccionado: (ninguno)"
+	end
+end)
 
-local function onCharacterAdded(player, character)
-    local humanoid = character:WaitForChild("Humanoid", 10)
-    if not humanoid then return end
-
-    -- Guardar estado base
-    saveOriginalState(player, humanoid)
-
-    -- Si el modo speed ya está activo cuando respawnea,
-    -- aplicar multiplicador inmediatamente:
-    if isActive then
-        local data = originalSpeeds[player]
-        if data and data.WalkSpeed then
-            humanoid.WalkSpeed = data.WalkSpeed * SPEED_MULTIPLIER
-        end
-        if humanoid.UseJumpPower then
-            if data and data.JumpPower then
-                humanoid.JumpPower = data.JumpPower * SPEED_MULTIPLIER
-            end
-        else
-            if data and data.JumpHeight then
-                humanoid.JumpHeight = data.JumpHeight * SPEED_MULTIPLIER
-            end
-        end
-
-        local animator = humanoid:FindFirstChildOfClass("Animator")
-        if animator then
-            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                track:AdjustSpeed(SPEED_MULTIPLIER)
-            end
-        end
-    end
-end
-
-local function onPlayerAdded(player)
-    player.CharacterAdded:Connect(function(char)
-        onCharacterAdded(player, char)
-    end)
-end
-
-Players.PlayerAdded:Connect(onPlayerAdded)
-
--- Por si ya había jugadores en testing
-for _, plr in ipairs(Players:GetPlayers()) do
-    onPlayerAdded(plr)
-    if plr.Character then
-        onCharacterAdded(plr, plr.Character)
-    end
-end
-
-print("[GameSpeedServer] Sistema de velocidad global listo. x" .. SPEED_MULTIPLIER)
+-- Toggle panel
+UIS.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.RightShift then
+		frame.Visible = not frame.Visible
+	end
+end)
